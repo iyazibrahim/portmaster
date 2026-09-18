@@ -104,6 +104,8 @@ Signing in on Docker bounced back to `/login`. Cause: `NODE_ENV=production` set 
 - Admin Payments/Ops/Settings: searchable tables, Card settings, constrained filters
 - Fisher: trips search+pagination, Card receipt/profile, compact booking footer buttons
 - Boatmen: schedule Tables + search, Card scanner/earnings, fleet Table + Card form
+- **Create flows in Dialogs** (People / Locations / Jetties / Fleet) so lists stay primary
+- SearchableSelect portals + viewport-aware max-height so role/jetty menus scroll
 - Deferred still: tiang QR, GPS, wrong-location alerts
 
 ## Multi-jetty (2026-09-18)

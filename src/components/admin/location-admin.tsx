@@ -18,12 +18,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   PaginationBar,
@@ -61,6 +61,7 @@ export function LocationAdmin({
   const [jettyFilter, setJettyFilter] = useState("ALL");
   const [sideFilter, setSideFilter] = useState("ALL");
   const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
     jettyId: jetties[0]?.id ?? "",
@@ -102,86 +103,29 @@ export function LocationAdmin({
 
   const pager = useClientPagination(filtered, 10);
 
+  function openCreate() {
+    setForm({
+      jettyId: jetties[0]?.id ?? "",
+      number: (initial.at(-1)?.number ?? 0) + 1,
+      side: "GENERAL",
+      name: "",
+      status: "OPEN",
+      notes: "",
+    });
+    setCreateOpen(true);
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-sm text-muted-foreground">
-        Open or close fishing locations for booking. Only OPEN spots appear in
-        the book flow.
-      </p>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Add location</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label>Jetty</Label>
-              <SearchableSelect
-                options={jettyOptions}
-                value={form.jettyId}
-                onValueChange={(v) => setForm((f) => ({ ...f, jettyId: v }))}
-                placeholder="Select jetty"
-                searchPlaceholder="Search jetty…"
-                className="max-w-md"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Number</Label>
-              <Input
-                type="number"
-                value={form.number}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, number: Number(e.target.value) }))
-                }
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Side</Label>
-              <SearchableSelect
-                options={[...SIDE_OPTIONS]}
-                value={form.side}
-                onValueChange={(v) =>
-                  setForm((f) => ({
-                    ...f,
-                    side: v as typeof form.side,
-                  }))
-                }
-                placeholder="Side"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label>Name</Label>
-              <Input
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                placeholder="Berth 5"
-                className="max-w-md"
-              />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="justify-end border-t">
-          <Button
-            disabled={pending || !form.name || !form.jettyId}
-            onClick={() =>
-              startTransition(async () => {
-                try {
-                  await actionUpsertLocation(form);
-                  toast.success("Location saved");
-                  setForm((f) => ({ ...f, number: f.number + 1, name: "" }));
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Failed");
-                }
-              })
-            }
-          >
-            Save location
-          </Button>
-        </CardFooter>
-      </Card>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Open or close fishing locations for booking. Only OPEN spots appear in
+          the book flow.
+        </p>
+        <Button className="shrink-0" onClick={openCreate}>
+          Add location
+        </Button>
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex flex-col gap-1.5">
@@ -289,6 +233,82 @@ export function LocationAdmin({
         onPrev={pager.goPrev}
         onNext={pager.goNext}
       />
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add location</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label>Jetty</Label>
+              <SearchableSelect
+                options={jettyOptions}
+                value={form.jettyId}
+                onValueChange={(v) => setForm((f) => ({ ...f, jettyId: v }))}
+                placeholder="Select jetty"
+                searchPlaceholder="Search jetty…"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Number</Label>
+              <Input
+                type="number"
+                className="max-w-xs"
+                value={form.number}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, number: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Side</Label>
+              <SearchableSelect
+                options={[...SIDE_OPTIONS]}
+                value={form.side}
+                onValueChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    side: v as typeof form.side,
+                  }))
+                }
+                placeholder="Side"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="Berth 5"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={pending || !form.name || !form.jettyId}
+              onClick={() =>
+                startTransition(async () => {
+                  try {
+                    await actionUpsertLocation(form);
+                    toast.success("Location saved");
+                    setCreateOpen(false);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Failed");
+                  }
+                })
+              }
+            >
+              Save location
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

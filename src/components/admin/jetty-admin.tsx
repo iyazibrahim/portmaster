@@ -18,12 +18,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   PaginationBar,
   useClientPagination,
@@ -44,6 +44,7 @@ export type JettyRow = {
 
 export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
   const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
     name: "",
@@ -67,115 +68,33 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
 
   const pager = useClientPagination(filtered, 10);
 
+  function openCreate() {
+    setForm({
+      name: "",
+      area: "",
+      slug: "",
+      notes: "",
+      sortOrder: (initial.at(-1)?.sortOrder ?? 0) + 1,
+      active: true,
+    });
+    setCreateOpen(true);
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add jetty</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label>Name</Label>
-              <Input
-                className="max-w-md"
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                placeholder="Jeti Nelayan…"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Area</Label>
-              <Input
-                value={form.area}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, area: e.target.value }))
-                }
-                placeholder="George Town"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Slug (optional)</Label>
-              <Input
-                value={form.slug}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, slug: e.target.value }))
-                }
-                placeholder="auto from name"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Sort order</Label>
-              <Input
-                type="number"
-                className="max-w-xs"
-                value={form.sortOrder}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    sortOrder: Number(e.target.value),
-                  }))
-                }
-              />
-            </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label>Notes</Label>
-              <Input
-                className="max-w-md"
-                value={form.notes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, notes: e.target.value }))
-                }
-              />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="justify-end border-t">
-          <Button
-            disabled={pending || !form.name.trim()}
-            onClick={() =>
-              startTransition(async () => {
-                try {
-                  await actionUpsertJetty({
-                    name: form.name,
-                    area: form.area || undefined,
-                    slug: form.slug || undefined,
-                    notes: form.notes || undefined,
-                    sortOrder: form.sortOrder,
-                    active: true,
-                  });
-                  toast.success("Jetty saved");
-                  setForm((f) => ({
-                    ...f,
-                    name: "",
-                    area: "",
-                    slug: "",
-                    notes: "",
-                    sortOrder: f.sortOrder + 1,
-                  }));
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Failed");
-                }
-              })
-            }
-          >
-            Save jetty
-          </Button>
-        </CardFooter>
-      </Card>
-
-      <div className="flex flex-col gap-1.5 sm:max-w-sm">
-        <Label>Search</Label>
-        <Input
-          placeholder="Search jetties"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            pager.resetPage();
-          }}
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1.5 sm:max-w-sm sm:flex-1">
+          <Label>Search</Label>
+          <Input
+            placeholder="Search jetties"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              pager.resetPage();
+            }}
+          />
+        </div>
+        <Button onClick={openCreate}>Add jetty</Button>
       </div>
 
       <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
@@ -253,6 +172,97 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
         onPrev={pager.goPrev}
         onNext={pager.goNext}
       />
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add jetty</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="Jeti Nelayan…"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Area</Label>
+              <Input
+                value={form.area}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, area: e.target.value }))
+                }
+                placeholder="George Town"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Slug (optional)</Label>
+              <Input
+                value={form.slug}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, slug: e.target.value }))
+                }
+                placeholder="auto from name"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Sort order</Label>
+              <Input
+                type="number"
+                className="max-w-xs"
+                value={form.sortOrder}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    sortOrder: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label>Notes</Label>
+              <Input
+                value={form.notes}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, notes: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={pending || !form.name.trim()}
+              onClick={() =>
+                startTransition(async () => {
+                  try {
+                    await actionUpsertJetty({
+                      name: form.name,
+                      area: form.area || undefined,
+                      slug: form.slug || undefined,
+                      notes: form.notes || undefined,
+                      sortOrder: form.sortOrder,
+                      active: true,
+                    });
+                    toast.success("Jetty saved");
+                    setCreateOpen(false);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Failed");
+                  }
+                })
+              }
+            >
+              Save jetty
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

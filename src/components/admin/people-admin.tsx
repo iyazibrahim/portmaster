@@ -19,19 +19,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
@@ -60,6 +53,16 @@ const ROLE_OPTIONS = [
   { value: "ADMIN", label: "ADMIN" },
 ];
 
+const emptyForm = (jettyId: string) => ({
+  name: "",
+  email: "",
+  password: "",
+  role: "USER" as UserRole,
+  phone: "",
+  handlerDisplayName: "",
+  jettyId,
+});
+
 export function PeopleAdmin({
   people,
   jetties,
@@ -69,15 +72,8 @@ export function PeopleAdmin({
 }) {
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "USER" as UserRole,
-    phone: "",
-    handlerDisplayName: "",
-    jettyId: jetties[0]?.id ?? "",
-  });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState(() => emptyForm(jetties[0]?.id ?? ""));
 
   const [editOpen, setEditOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -106,6 +102,11 @@ export function PeopleAdmin({
 
   const pager = useClientPagination(filtered, 10);
 
+  function openCreate() {
+    setForm(emptyForm(jetties[0]?.id ?? ""));
+    setCreateOpen(true);
+  }
+
   function openEdit(p: PersonRow) {
     setActive(p);
     setEditRole(p.role);
@@ -122,139 +123,19 @@ export function PeopleAdmin({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create user</CardTitle>
-          <CardDescription>
-            Create anglers, boatmen, or admins. Boatmen need a jetty assignment.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Name</Label>
-              <Input
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                placeholder="Full name"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, email: e.target.value }))
-                }
-                placeholder="user@example.com"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Password</Label>
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, password: e.target.value }))
-                }
-                placeholder="Min 8 characters"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
-              <SearchableSelect
-                options={ROLE_OPTIONS}
-                value={form.role}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, role: v as UserRole }))
-                }
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Phone (optional)</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, phone: e.target.value }))
-                }
-              />
-            </div>
-            {form.role === "HANDLER" ? (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Handler display name</Label>
-                  <Input
-                    value={form.handlerDisplayName}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        handlerDisplayName: e.target.value,
-                      }))
-                    }
-                    placeholder="Ops display name"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
-                  <Label>Jetty</Label>
-                  <SearchableSelect
-                    options={jettyOptions}
-                    value={form.jettyId}
-                    onValueChange={(v) =>
-                      setForm((f) => ({ ...f, jettyId: v }))
-                    }
-                    searchPlaceholder="Search jetty…"
-                  />
-                </div>
-              </>
-            ) : null}
-          </div>
-        </CardContent>
-        <CardFooter className="justify-end border-t">
-          <Button
-            disabled={
-              pending ||
-              !form.name.trim() ||
-              !form.email.trim() ||
-              !form.password
-            }
-            onClick={() =>
-              startTransition(async () => {
-                try {
-                  await actionCreateUser(form);
-                  toast.success("User created");
-                  setForm((f) => ({
-                    ...f,
-                    name: "",
-                    email: "",
-                    password: "",
-                    phone: "",
-                    handlerDisplayName: "",
-                    role: "USER",
-                  }));
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Failed");
-                }
-              })
-            }
-          >
-            Create user
-          </Button>
-        </CardFooter>
-      </Card>
-
-      <div className="flex flex-col gap-1.5 sm:max-w-sm">
-        <Label>Search people</Label>
-        <Input
-          placeholder="Name, email, or role"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            pager.resetPage();
-          }}
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1.5 sm:max-w-sm sm:flex-1">
+          <Label>Search people</Label>
+          <Input
+            placeholder="Name, email, or role"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              pager.resetPage();
+            }}
+          />
+        </div>
+        <Button onClick={openCreate}>Create user</Button>
       </div>
 
       <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
@@ -335,8 +216,128 @@ export function PeopleAdmin({
         onNext={pager.goNext}
       />
 
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create user</DialogTitle>
+            <DialogDescription>
+              Create anglers, boatmen, or admins. Boatmen need a jetty
+              assignment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="Full name"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, email: e.target.value }))
+                }
+                placeholder="user@example.com"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, password: e.target.value }))
+                }
+                placeholder="Min 8 characters"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Role</Label>
+              <SearchableSelect
+                options={ROLE_OPTIONS}
+                value={form.role}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, role: v as UserRole }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Phone (optional)</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, phone: e.target.value }))
+                }
+              />
+            </div>
+            {form.role === "HANDLER" ? (
+              <>
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label>Handler display name</Label>
+                  <Input
+                    value={form.handlerDisplayName}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        handlerDisplayName: e.target.value,
+                      }))
+                    }
+                    placeholder="Ops display name"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label>Jetty</Label>
+                  <SearchableSelect
+                    options={jettyOptions}
+                    value={form.jettyId}
+                    onValueChange={(v) =>
+                      setForm((f) => ({ ...f, jettyId: v }))
+                    }
+                    searchPlaceholder="Search jetty…"
+                  />
+                </div>
+              </>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                pending ||
+                !form.name.trim() ||
+                !form.email.trim() ||
+                !form.password
+              }
+              onClick={() =>
+                startTransition(async () => {
+                  try {
+                    await actionCreateUser(form);
+                    toast.success("User created");
+                    setCreateOpen(false);
+                    setForm(emptyForm(jetties[0]?.id ?? ""));
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Failed");
+                  }
+                })
+              }
+            >
+              Create user
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Update role — {active?.name}</DialogTitle>
           </DialogHeader>

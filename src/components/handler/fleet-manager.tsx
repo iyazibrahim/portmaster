@@ -15,12 +15,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatMYR } from "@/lib/utils-app";
 import { toast } from "sonner";
 
@@ -77,107 +77,6 @@ export function FleetManager({ boats }: { boats: FleetBoat[] }) {
         <Button onClick={startCreate}>Add boat</Button>
       </div>
 
-      {editingId ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {editingId === "new" ? "New boat" : "Edit boat"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label>Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Registration</Label>
-                <Input
-                  value={form.registration}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, registration: e.target.value }))
-                  }
-                  placeholder="PNG-BM-300"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Capacity</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  className="max-w-xs"
-                  value={form.capacity}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      capacity: Number(e.target.value) || 1,
-                    }))
-                  }
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Price per person (sen)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  className="max-w-xs"
-                  value={form.pricePerPersonCents}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      pricePerPersonCents: Number(e.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <label className="mt-4 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="size-4 accent-[var(--primary)]"
-                checked={form.active}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, active: e.target.checked }))
-                }
-              />
-              Active in booking
-            </label>
-          </CardContent>
-          <CardFooter className="justify-end gap-2 border-t">
-            <Button variant="outline" onClick={() => setEditingId(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={pending || !form.name.trim()}
-              onClick={() =>
-                startTransition(async () => {
-                  try {
-                    await actionUpsertBoat({
-                      id: editingId === "new" ? undefined : editingId,
-                      ...form,
-                    });
-                    toast.success(
-                      editingId === "new" ? "Boat added" : "Boat updated",
-                    );
-                    setEditingId(null);
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Failed");
-                  }
-                })
-              }
-            >
-              Save
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : null}
-
       {boats.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No boats yet. Add your first vessel to take bookings.
@@ -228,6 +127,110 @@ export function FleetManager({ boats }: { boats: FleetBoat[] }) {
           </Table>
         </div>
       )}
+
+      <Dialog
+        open={editingId !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingId(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingId === "new" ? "New boat" : "Edit boat"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Registration</Label>
+              <Input
+                value={form.registration}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, registration: e.target.value }))
+                }
+                placeholder="PNG-BM-300"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Capacity</Label>
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                className="max-w-xs"
+                value={form.capacity}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    capacity: Number(e.target.value) || 1,
+                  }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Price per person (sen)</Label>
+              <Input
+                type="number"
+                min={0}
+                className="max-w-xs"
+                value={form.pricePerPersonCents}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    pricePerPersonCents: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 accent-[var(--primary)]"
+              checked={form.active}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, active: e.target.checked }))
+              }
+            />
+            Active in booking
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingId(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={pending || !form.name.trim()}
+              onClick={() =>
+                startTransition(async () => {
+                  try {
+                    await actionUpsertBoat({
+                      id: editingId === "new" ? undefined : editingId ?? undefined,
+                      ...form,
+                    });
+                    toast.success(
+                      editingId === "new" ? "Boat added" : "Boat updated",
+                    );
+                    setEditingId(null);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Failed");
+                  }
+                })
+              }
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
