@@ -1,20 +1,12 @@
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
-import { handlers, users } from "@/db/schema";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { CreateAdminForm } from "@/components/admin/create-admin-form";
+import { handlers, jetties, users } from "@/db/schema";
+import { PeopleAdmin } from "@/components/admin/people-admin";
 
 export default async function AdminUsersPage() {
   await requireRole(["ADMIN"]);
+
   const people = await db
     .select({
       id: users.id,
@@ -23,46 +15,27 @@ export default async function AdminUsersPage() {
       role: users.role,
       phone: users.phone,
       handlerName: handlers.displayName,
+      handlerJettyId: handlers.jettyId,
+      handlerJettyName: jetties.name,
     })
     .from(users)
-    .leftJoin(handlers, eq(handlers.userId, users.id));
+    .leftJoin(handlers, eq(handlers.userId, users.id))
+    .leftJoin(jetties, eq(handlers.jettyId, jetties.id));
+
+  const jettyRows = await db
+    .select({ id: jetties.id, name: jetties.name })
+    .from(jetties)
+    .where(eq(jetties.active, true));
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">People</h1>
-        <p className="text-muted-foreground">
-          Users, handlers, and admins. Admins manage open tiangs from LLM
-          guidance.
+        <p className="text-sm text-muted-foreground">
+          Manage anglers, boatmen, and admins.
         </p>
       </div>
-
-      <CreateAdminForm />
-
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Handler</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {people.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>{p.name}</TableCell>
-                <TableCell>{p.email}</TableCell>
-                <TableCell>
-                  <Badge>{p.role}</Badge>
-                </TableCell>
-                <TableCell>{p.handlerName ?? "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <PeopleAdmin people={people} jetties={jettyRows} />
     </div>
   );
 }

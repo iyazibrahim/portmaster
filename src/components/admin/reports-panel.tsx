@@ -20,12 +20,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import {
+  PaginationBar,
+  useClientPagination,
+} from "@/hooks/use-client-pagination";
 import { formatMYR } from "@/lib/utils-app";
 import { toast } from "sonner";
 
@@ -50,8 +55,10 @@ export function ReportsPanel({
   jetties: JettyOption[];
 }) {
   const [type, setType] = useState<"WEEKLY" | "MONTHLY">("WEEKLY");
-  const [anchorDate, setAnchorDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [jettyId, setJettyId] = useState<string>("all");
+  const [anchorDate, setAnchorDate] = useState(
+    format(new Date(), "yyyy-MM-dd"),
+  );
+  const [jettyId, setJettyId] = useState("all");
   const [preview, setPreview] = useState<{
     periodStart: string;
     periodEnd: string;
@@ -61,6 +68,16 @@ export function ReportsPanel({
   const [pending, startTransition] = useTransition();
 
   const reportJettyId = jettyId === "all" ? undefined : jettyId;
+
+  const jettyOptions = useMemo(
+    () => [
+      { value: "all", label: "All jetties" },
+      ...jetties.map((j) => ({ value: j.id, label: j.name })),
+    ],
+    [jetties],
+  );
+
+  const historyPager = useClientPagination(history, 10);
 
   const previewRows = useMemo(() => {
     if (!preview) return [];
@@ -93,60 +110,58 @@ export function ReportsPanel({
   }
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-4 border-b border-border pb-6">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label>Period type</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={type === "WEEKLY" ? "default" : "outline"}
-                className="min-h-11 flex-1"
-                onClick={() => setType("WEEKLY")}
-              >
-                Weekly
-              </Button>
-              <Button
-                type="button"
-                variant={type === "MONTHLY" ? "default" : "outline"}
-                className="min-h-11 flex-1"
-                onClick={() => setType("MONTHLY")}
-              >
-                Monthly
-              </Button>
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Generate report</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="flex flex-col gap-1.5">
+              <Label>Period</Label>
+              <div className="flex w-fit gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={type === "WEEKLY" ? "default" : "outline"}
+                  onClick={() => setType("WEEKLY")}
+                >
+                  Weekly
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={type === "MONTHLY" ? "default" : "outline"}
+                  onClick={() => setType("MONTHLY")}
+                >
+                  Monthly
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="anchor">Anchor date</Label>
+              <Input
+                id="anchor"
+                type="date"
+                className="max-w-xs"
+                value={anchorDate}
+                onChange={(e) => setAnchorDate(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Jetty</Label>
+              <SearchableSelect
+                options={jettyOptions}
+                value={jettyId}
+                onValueChange={setJettyId}
+                className="max-w-md"
+                searchPlaceholder="Search jetty…"
+              />
             </div>
           </div>
-          <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor="anchor">Anchor date</Label>
-            <Input
-              id="anchor"
-              type="date"
-              className="min-h-11"
-              value={anchorDate}
-              onChange={(e) => setAnchorDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1 sm:col-span-3">
-            <Label>Jetty</Label>
-            <Select value={jettyId} onValueChange={(v) => v && setJettyId(v)}>
-              <SelectTrigger className="min-h-11 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                <SelectItem value="all">All jetties</SelectItem>
-                {jetties.map((j) => (
-                  <SelectItem key={j.id} value={j.id}>
-                    {j.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
+        </CardContent>
+        <CardFooter className="justify-end gap-2 border-t">
           <Button
-            className="min-h-11"
             variant="outline"
             disabled={pending}
             onClick={() =>
@@ -159,7 +174,9 @@ export function ReportsPanel({
                   });
                   setPreview(result);
                 } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Preview failed");
+                  toast.error(
+                    e instanceof Error ? e.message : "Preview failed",
+                  );
                 }
               })
             }
@@ -167,7 +184,6 @@ export function ReportsPanel({
             Preview
           </Button>
           <Button
-            className="min-h-11"
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
@@ -196,7 +212,6 @@ export function ReportsPanel({
           </Button>
           {preview ? (
             <Button
-              className="min-h-11"
               variant="secondary"
               onClick={() =>
                 downloadCsv(
@@ -208,75 +223,96 @@ export function ReportsPanel({
               Download CSV
             </Button>
           ) : null}
-        </div>
-      </section>
+        </CardFooter>
+      </Card>
 
       {preview ? (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold tracking-tight">
-            Preview · {preview.periodStart} → {preview.periodEnd}
-          </h2>
-          <div className="overflow-x-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Preview · {preview.periodStart} → {preview.periodEnd}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Metric</TableHead>
+                  <TableHead className="pl-4">Metric</TableHead>
                   <TableHead>Value</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {previewRows.map((r) => (
                   <TableRow key={r.metric}>
-                    <TableCell>{r.metric}</TableCell>
+                    <TableCell className="pl-4">{r.metric}</TableCell>
                     <TableCell>{r.value}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       ) : null}
 
-      <section className="space-y-3">
+      <div className="flex flex-col gap-3">
         <h2 className="text-base font-semibold tracking-tight">History</h2>
         {history.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No saved reports yet. Generate one to start the archive.
           </p>
         ) : (
-          <ul className="divide-y divide-border border-y border-border">
-            {history.map((h) => (
-              <li
-                key={h.id}
-                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium">{h.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(h.generatedAt).toLocaleString("en-MY")}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{h.type}</Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="min-h-11"
-                    onClick={() =>
-                      downloadCsv(
-                        `${h.type.toLowerCase()}-${h.periodStart}.csv`,
-                        h.csvContent,
-                      )
-                    }
-                  >
-                    CSV
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <>
+            <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Generated</TableHead>
+                    <TableHead className="w-[6rem]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {historyPager.pageItems.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell className="font-medium">{h.title}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{h.type}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(h.generatedAt).toLocaleString("en-MY")}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            downloadCsv(
+                              `${h.type.toLowerCase()}-${h.periodStart}.csv`,
+                              h.csvContent,
+                            )
+                          }
+                        >
+                          CSV
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <PaginationBar
+              page={historyPager.page}
+              pageCount={historyPager.pageCount}
+              total={historyPager.total}
+              canPrev={historyPager.canPrev}
+              canNext={historyPager.canNext}
+              onPrev={historyPager.goPrev}
+              onNext={historyPager.goNext}
+            />
+          </>
         )}
-      </section>
+      </div>
     </div>
   );
 }

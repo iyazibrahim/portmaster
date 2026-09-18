@@ -11,7 +11,6 @@ export function CompleteTripButton({ bookingId }: { bookingId: string }) {
     <Button
       size="sm"
       variant="outline"
-      className="min-h-10"
       disabled={pending}
       onClick={() =>
         startTransition(async () => {

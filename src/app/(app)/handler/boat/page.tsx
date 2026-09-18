@@ -43,7 +43,7 @@ export default async function HandlerFleetPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="flex w-full flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Fleet</h1>
         <p className="text-muted-foreground">{handler.displayName}</p>

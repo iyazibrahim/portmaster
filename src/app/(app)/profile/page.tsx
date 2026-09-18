@@ -6,6 +6,13 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default async function ProfilePage() {
   const session = await requireSession();
@@ -16,45 +23,54 @@ export default async function ProfilePage() {
     .limit(1);
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Account details used for bookings and boarding.
-          </p>
-        </div>
-        <form action={logoutAction}>
-          <Button type="submit" variant="outline" className="min-h-11">
-            Sign out
-          </Button>
-        </form>
+    <div className="flex w-full flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Account details used for bookings and boarding.
+        </p>
       </div>
 
-      <dl className="grid gap-x-8 gap-y-4 border-y border-border py-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <dt className="text-muted-foreground">Name</dt>
-          <dd className="mt-1 font-medium">{session.user.name}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Email</dt>
-          <dd className="mt-1 break-all font-medium">{session.user.email}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Phone</dt>
-          <dd className="mt-1 font-medium">{user?.phone ?? "—"}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Emergency contact</dt>
-          <dd className="mt-1 font-medium">{user?.emergencyContact ?? "—"}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Role</dt>
-          <dd className="mt-1">
-            <Badge>{session.user.role}</Badge>
-          </dd>
-        </div>
-      </dl>
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Account</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-muted-foreground">Name</dt>
+              <dd className="mt-1 font-medium">{session.user.name}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Email</dt>
+              <dd className="mt-1 break-all font-medium">{session.user.email}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Phone</dt>
+              <dd className="mt-1 font-medium">{user?.phone ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Emergency contact</dt>
+              <dd className="mt-1 font-medium">
+                {user?.emergencyContact ?? "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Role</dt>
+              <dd className="mt-1">
+                <Badge>{session.user.role}</Badge>
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+        <CardFooter className="justify-end gap-2 border-t">
+          <form action={logoutAction}>
+            <Button type="submit" variant="outline">
+              Sign out
+            </Button>
+          </form>
+        </CardFooter>
+      </Card>
 
       <p className="text-sm text-muted-foreground">
         Read our{" "}

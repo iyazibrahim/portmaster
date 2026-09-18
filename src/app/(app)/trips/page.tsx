@@ -3,31 +3,10 @@ import { desc, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/session";
 import { db } from "@/db";
 import { bookings, boats, jetties, locations } from "@/db/schema";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { formatMYR, sideLabel, tripSlotLabel } from "@/lib/utils-app";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-const statusVariant: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  PENDING_PAYMENT: "outline",
-  CONFIRMED: "default",
-  CHECKED_IN: "default",
-  COMPLETED: "secondary",
-  CANCELLED: "destructive",
-  NO_SHOW: "destructive",
-};
+import { TripsList } from "@/components/trips/trips-list";
 
 export default async function TripsPage() {
   const session = await requireSession();
@@ -77,7 +56,7 @@ export default async function TripsPage() {
   const primaries = rows.filter((r) => r.isPrimary);
 
   return (
-    <div className="w-full space-y-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My trips</h1>
@@ -85,7 +64,7 @@ export default async function TripsPage() {
             Bookings, receipts, and boarding QR.
           </p>
         </div>
-        <Link href="/book" className={cn(buttonVariants(), "min-h-11")}>
+        <Link href="/book" className={cn(buttonVariants())}>
           Book
         </Link>
       </div>
@@ -98,95 +77,24 @@ export default async function TripsPage() {
           </AlertDescription>
         </Alert>
       ) : (
-        <>
-          <div className="hidden overflow-x-auto rounded-md border border-border md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Jetty</TableHead>
-                  <TableHead>Drop-offs</TableHead>
-                  <TableHead>Boat</TableHead>
-                  <TableHead>Pax</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {primaries.map((r) => {
-                  const locs = locationLabels.get(r.tripGroupId) ?? [];
-                  const pax = groupPax.get(r.tripGroupId) ?? r.partySize;
-                  const total = groupTotals.get(r.tripGroupId) ?? r.totalCents;
-                  return (
-                    <TableRow key={r.id} className="cursor-pointer">
-                      <TableCell>
-                        <Link
-                          href={`/trips/${r.id}`}
-                          className="block font-medium hover:underline"
-                        >
-                          {r.tripDate}
-                          <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                            {tripSlotLabel(r.startTime, r.endTime)}
-                          </span>
-                        </Link>
-                      </TableCell>
-                      <TableCell>{r.jettyName}</TableCell>
-                      <TableCell className="max-w-[16rem] truncate text-muted-foreground">
-                        {locs.length > 1
-                          ? locs.join(" · ")
-                          : `${locs[0] ?? ""} · ${sideLabel(r.locationSide)}`}
-                      </TableCell>
-                      <TableCell>{r.boatName}</TableCell>
-                      <TableCell className="tabular-nums">{pax}</TableCell>
-                      <TableCell className="tabular-nums">
-                        {formatMYR(total)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant[r.status] ?? "secondary"}>
-                          {r.status.replaceAll("_", " ")}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          <ul className="divide-y divide-border border-y border-border md:hidden">
-            {primaries.map((r) => {
-              const locs = locationLabels.get(r.tripGroupId) ?? [];
-              const pax = groupPax.get(r.tripGroupId) ?? r.partySize;
-              const total = groupTotals.get(r.tripGroupId) ?? r.totalCents;
-              return (
-                <li key={r.id}>
-                  <Link
-                    href={`/trips/${r.id}`}
-                    className="flex min-h-16 items-center justify-between gap-3 py-3"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {r.tripDate} · {tripSlotLabel(r.startTime, r.endTime)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {r.jettyName} · {r.boatName} · {pax} pax ·{" "}
-                        {formatMYR(total)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {locs.length > 1
-                          ? `Drop-offs: ${locs.join(" · ")}`
-                          : `${locs[0] ?? ""} · ${sideLabel(r.locationSide)}`}
-                      </p>
-                    </div>
-                    <Badge variant={statusVariant[r.status] ?? "secondary"}>
-                      {r.status.replaceAll("_", " ")}
-                    </Badge>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+        <TripsList
+          rows={primaries.map((r) => {
+            const locs = locationLabels.get(r.tripGroupId) ?? [];
+            return {
+              id: r.id,
+              tripDate: r.tripDate,
+              startTime: r.startTime,
+              endTime: r.endTime,
+              status: r.status,
+              jettyName: r.jettyName,
+              boatName: r.boatName,
+              locationSide: r.locationSide,
+              dropOffs: locs.join(" · "),
+              pax: groupPax.get(r.tripGroupId) ?? r.partySize,
+              totalCents: groupTotals.get(r.tripGroupId) ?? r.totalCents,
+            };
+          })}
+        />
       )}
     </div>
   );

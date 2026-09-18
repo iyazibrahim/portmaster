@@ -2,9 +2,11 @@
 
 ## Status
 
+**App-wide UI polish shipped:** People CRUD (create/role/reset password + HANDLER jetty), SearchableSelect jetty labels (no raw IDs), Card forms + Table search + 10/page across Admin, Fisher, and Boatmen.
+
 **Desktop UX polish shipped:** searchable jetty pickers, location table search + 10/page pagination, ops jetty filter as searchable select (no chip wall), wider profile/trips layouts, fishing-aligned landing + auth (kept soft-blue + plus-grid background).
 
-**Meeting gap items:** max 4 pax per tiang, multi-tiang boat splits (`trip_group_id`), Admin OPEN/CLOSED, add-admin on Users. Tiang QR / wrong-location alerts still deferred.
+**Meeting gap items:** max 4 pax per tiang, multi-tiang boat splits (`trip_group_id`), Admin OPEN/CLOSED. Tiang QR / wrong-location alerts still deferred.
 
 Multi-jetty: ~33 Penang fishing jetties. Docker Compose optional at http://127.0.0.1:43127.
 
@@ -93,6 +95,16 @@ Signing in on Docker bounced back to `/login`. Cause: `NODE_ENV=production` set 
 - Profile + trips: full-width desktop layouts; trips table on `md+`
 - Landing/auth: fishing SVG scene; **kept** soft-blue radial + plus-grid background
 - Shared `MarketingBackground` + `FishingScene`
+
+## App-wide UI polish + People management (2026-09-18)
+
+- Shared `useClientPagination` + `PaginationBar` (10/page) for admin/fisher/handler lists
+- Admin Locations/Jetties/Reports/People: Card forms, SearchableSelect jetty labels, compact CTAs
+- People CRUD: create user (USER/HANDLER/ADMIN), role edit, HANDLER jetty upsert, password reset
+- Admin Payments/Ops/Settings: searchable tables, Card settings, constrained filters
+- Fisher: trips search+pagination, Card receipt/profile, compact booking footer buttons
+- Boatmen: schedule Tables + search, Card scanner/earnings, fleet Table + Card form
+- Deferred still: tiang QR, GPS, wrong-location alerts
 
 ## Multi-jetty (2026-09-18)
 

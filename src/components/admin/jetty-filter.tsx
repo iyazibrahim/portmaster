@@ -39,7 +39,7 @@ export function JettyFilter({
   }
 
   return (
-    <div className="max-w-md space-y-1.5">
+    <div className="flex max-w-md flex-col gap-1.5">
       <Label htmlFor="jetty-filter">Jetty</Label>
       <SearchableSelect
         options={options}

@@ -12,10 +12,8 @@ import {
   locations,
   users,
 } from "@/db/schema";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CompleteTripButton } from "@/components/handler/complete-trip-button";
-import { tripSlotLabel } from "@/lib/utils-app";
+import { HandlerScheduleTables } from "@/components/handler/handler-schedule-tables";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -94,12 +92,25 @@ export default async function HandlerSchedulePage() {
     seatsByBooking.set(s.bookingId, list);
   }
 
-  const checkedIn = rows.filter(
-    (r) => r.booking.status === "CHECKED_IN" && r.booking.isPrimary,
+  const mapped = rows.map((r) => ({
+    id: r.booking.id,
+    startTime: r.booking.startTime,
+    endTime: r.booking.endTime,
+    fisherName: r.fisherName,
+    boatName: r.boatName,
+    locationNumber: r.locationNumber,
+    partySize: r.booking.partySize,
+    status: r.booking.status,
+    seats: (seatsByBooking.get(r.booking.id) ?? []).join(", "),
+    isPrimary: r.booking.isPrimary,
+  }));
+
+  const live = mapped.filter(
+    (r) => r.status === "CHECKED_IN" && r.isPrimary,
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
@@ -107,91 +118,21 @@ export default async function HandlerSchedulePage() {
             {handler.displayName} · {handler.jettyName} · {today}
           </p>
         </div>
-        <Link
-          href="/handler/scan"
-          className={cn(buttonVariants(), "min-h-11")}
-        >
+        <Link href="/handler/scan" className={cn(buttonVariants())}>
           Open scanner
         </Link>
       </div>
 
-      <section>
-        <h2 className="mb-2 text-base font-semibold tracking-tight">
-          Live checked-in ({checkedIn.length})
-        </h2>
-        {checkedIn.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No anglers checked in yet.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border border-y border-border">
-            {checkedIn.map((r) => (
-              <li
-                key={r.booking.id}
-                className="flex min-h-14 flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium">{r.fisherName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Seats{" "}
-                    {(seatsByBooking.get(r.booking.id) ?? []).join(", ") || "—"}{" "}
-                    · Location #{r.locationNumber}
-                  </p>
-                </div>
-                <CompleteTripButton bookingId={r.booking.id} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-2 text-base font-semibold tracking-tight">
-          Today&apos;s bookings
-        </h2>
-        {rows.length === 0 ? (
-          <Alert>
-            <AlertTitle>Empty schedule</AlertTitle>
-            <AlertDescription>
-              No bookings assigned to you for today.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <ul className="divide-y divide-border border-y border-border">
-            {rows.map((r) => {
-              const isGroup = r.booking.partySize > 1;
-              return (
-                <li
-                  key={r.booking.id}
-                  className="flex min-h-14 flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {tripSlotLabel(r.booking.startTime, r.booking.endTime)} ·{" "}
-                      {r.fisherName}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {r.boatName} · Location #{r.locationNumber} · seats{" "}
-                      {(seatsByBooking.get(r.booking.id) ?? []).join(", ") ||
-                        "—"}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={isGroup ? "default" : "secondary"}>
-                      {isGroup
-                        ? `Group · ${r.booking.partySize}p`
-                        : "Individual"}
-                    </Badge>
-                    <Badge variant="outline">
-                      {r.booking.status.replaceAll("_", " ")}
-                    </Badge>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      {mapped.length === 0 ? (
+        <Alert>
+          <AlertTitle>Empty schedule</AlertTitle>
+          <AlertDescription>
+            No bookings assigned to you for today.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <HandlerScheduleTables live={live} today={mapped} />
+      )}
     </div>
   );
 }

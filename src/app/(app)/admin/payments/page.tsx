@@ -3,17 +3,9 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { bookings, boats, jetties, locations, payments, users } from "@/db/schema";
-import { Badge } from "@/components/ui/badge";
-import { formatMYR, sideLabel } from "@/lib/utils-app";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { sideLabel } from "@/lib/utils-app";
 import { JettyFilter } from "@/components/admin/jetty-filter";
+import { PaymentsTable } from "@/components/admin/payments-table";
 
 export default async function AdminPaymentsPage({
   searchParams,
@@ -62,7 +54,7 @@ export default async function AdminPaymentsPage({
   const paid = rows.filter((r) => r.status === "PAID").length;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Payments</h1>
         <p className="text-sm text-muted-foreground">
@@ -77,53 +69,17 @@ export default async function AdminPaymentsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No payments yet.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Created</TableHead>
-                <TableHead>Angler</TableHead>
-                <TableHead>Trip</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ref</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {r.createdAt.toLocaleString("en-MY")}
-                  </TableCell>
-                  <TableCell>{r.angler}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {r.tripDate} · {r.jettyName} · #{r.locationNumber}{" "}
-                    {sideLabel(r.locationSide)} · {r.boat}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatMYR(r.amountCents)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        r.status === "PAID"
-                          ? "default"
-                          : r.status === "PENDING"
-                            ? "outline"
-                            : "secondary"
-                      }
-                    >
-                      {r.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {r.mockRef ?? "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <PaymentsTable
+          rows={rows.map((r) => ({
+            id: r.id,
+            createdAt: r.createdAt.toISOString(),
+            angler: r.angler,
+            tripLabel: `${r.tripDate} · ${r.jettyName} · #${r.locationNumber} ${sideLabel(r.locationSide)} · ${r.boat}`,
+            amountCents: r.amountCents,
+            status: r.status,
+            mockRef: r.mockRef,
+          }))}
+        />
       )}
     </div>
   );

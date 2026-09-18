@@ -668,32 +668,25 @@ export function BookingWizard({
               })}
             </ul>
             <p className="text-2xl font-semibold">{formatMYR(totalCents)}</p>
-            <Button
-              className="min-h-11 w-full sm:w-auto sm:min-w-[14rem]"
-              onClick={pay}
-              disabled={pending}
-            >
-              {pending ? "Processing…" : "Pay with mock gateway"}
-            </Button>
+            <div className="flex justify-end">
+              <Button onClick={pay} disabled={pending}>
+                {pending ? "Processing…" : "Pay with mock gateway"}
+              </Button>
+            </div>
           </div>
         </section>
       )}
 
       {step < 6 && (
-        <div className="flex gap-3 border-t border-border pt-4">
+        <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button
             variant="outline"
-            className="min-h-11"
             onClick={back}
             disabled={step === 0 || pending}
           >
             Back
           </Button>
-          <Button
-            className="min-h-11 min-w-[10rem]"
-            onClick={next}
-            disabled={pending}
-          >
+          <Button onClick={next} disabled={pending}>
             {pending && step === 5
               ? "Holding seats…"
               : step === 5

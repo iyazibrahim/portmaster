@@ -20,6 +20,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default async function TripDetailPage({
   params,
@@ -100,58 +106,71 @@ export default async function TripDetailPage({
     ["CONFIRMED", "CHECKED_IN"].includes(b.status);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
         <Link
           href="/trips"
           className={cn(
-            buttonVariants({ variant: "ghost" }),
+            buttonVariants({ variant: "ghost", size: "sm" }),
             "-ml-2 mb-2 inline-flex",
           )}
         >
           ← Trips
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Trip receipt</h1>
-        <Badge className="mt-2">{b.status.replaceAll("_", " ")}</Badge>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Trip receipt</h1>
+          <Badge>{b.status.replaceAll("_", " ")}</Badge>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <dl className="space-y-3 border-y border-border py-4 text-sm lg:border-y-0 lg:border-r lg:pr-6 lg:py-0">
-          <Row label="Date" value={b.tripDate} />
-          <Row label="Slot" value={tripSlotLabel(b.startTime, b.endTime)} />
-          <Row label="Jetty" value={row.jetty.name} />
-          <Row label="Boat" value={row.boat.name} />
-          <Row label="Handler" value={row.handler.displayName} />
-          <Row label="Party" value={`${groupPax}`} />
-          <Row
-            label="Seats"
-            value={seats.map((s) => s.label).join(", ") || "—"}
-          />
-          <Row label="Total" value={formatMYR(groupTotal)} />
-          {row.payment?.mockRef ? (
-            <Row label="Payment ref" value={row.payment.mockRef} />
-          ) : null}
-        </dl>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="flex flex-col gap-3 text-sm">
+              <Row label="Date" value={b.tripDate} />
+              <Row label="Slot" value={tripSlotLabel(b.startTime, b.endTime)} />
+              <Row label="Jetty" value={row.jetty.name} />
+              <Row label="Boat" value={row.boat.name} />
+              <Row label="Handler" value={row.handler.displayName} />
+              <Row label="Party" value={`${groupPax}`} />
+              <Row
+                label="Seats"
+                value={seats.map((s) => s.label).join(", ") || "—"}
+              />
+              <Row label="Total" value={formatMYR(groupTotal)} />
+              {row.payment?.mockRef ? (
+                <Row label="Payment ref" value={row.payment.mockRef} />
+              ) : null}
+            </dl>
+          </CardContent>
+        </Card>
 
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold tracking-tight">Drop-off locations</h2>
-          <ul className="divide-y divide-border border-y border-border text-sm">
-            {groupLegs.map((leg) => (
-              <li
-                key={leg.booking.id}
-                className="flex justify-between gap-3 py-2"
-              >
-                <span>
-                  #{leg.location.number} · {leg.location.name} ·{" "}
-                  {sideLabel(leg.location.side)}
-                </span>
-                <span className="tabular-nums text-muted-foreground">
-                  {leg.booking.partySize} pax
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Drop-off locations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-2 text-sm">
+              {groupLegs.map((leg) => (
+                <li
+                  key={leg.booking.id}
+                  className="flex justify-between gap-3 border-b border-border py-2 last:border-0"
+                >
+                  <span>
+                    #{leg.location.number} · {leg.location.name} ·{" "}
+                    {sideLabel(leg.location.side)}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {leg.booking.partySize} pax
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       </div>
 
       {b.status === "PENDING_PAYMENT" ? (
@@ -165,29 +184,35 @@ export default async function TripDetailPage({
       ) : null}
 
       {showQr && token ? (
-        <div className="space-y-3 border-t border-border pt-5 text-center lg:text-left lg:flex lg:items-start lg:gap-8">
-          <div className="space-y-3 lg:flex-1">
-            <p className="text-sm font-medium">Boarding QR</p>
-            <p className="text-xs text-muted-foreground">
-              One pass for the whole trip group
-              {groupLegs.length > 1
-                ? ` (${groupLegs.length} locations)`
-                : ""}
-              . Show this to the boatman for check-in and check-out at the
-              jetty.
-            </p>
-            <p className="break-all font-mono text-[10px] text-muted-foreground">
-              {token.token}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Opaque server token · expires{" "}
-              {token.expiresAt.toLocaleString("en-MY")}
-            </p>
-          </div>
-          <div className="mx-auto inline-block rounded-md border border-border bg-white p-3 lg:mx-0">
-            <QRCodeSVG value={token.token} size={200} level="M" />
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Boarding QR</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
+              <div className="flex flex-1 flex-col gap-2">
+                <p className="text-sm text-muted-foreground">
+                  One pass for the whole trip group
+                  {groupLegs.length > 1
+                    ? ` (${groupLegs.length} locations)`
+                    : ""}
+                  . Show this to the boatman for check-in and check-out at the
+                  jetty.
+                </p>
+                <p className="break-all font-mono text-[10px] text-muted-foreground">
+                  {token.token}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Opaque server token · expires{" "}
+                  {token.expiresAt.toLocaleString("en-MY")}
+                </p>
+              </div>
+              <div className="mx-auto inline-block rounded-md border border-border bg-white p-3 lg:mx-0">
+                <QRCodeSVG value={token.token} size={200} level="M" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       ) : b.status === "COMPLETED" ? (
         <Alert>
           <AlertTitle>Trip completed</AlertTitle>

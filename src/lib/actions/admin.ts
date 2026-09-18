@@ -14,6 +14,7 @@ import {
 import { db } from "@/db";
 import {
   bookings,
+  handlers,
   jetties,
   locations,
   payments,
@@ -25,6 +26,7 @@ import {
 import { requireRole } from "@/lib/session";
 import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
 import { id } from "@/lib/utils-app";
+import type { UserRole } from "@/db/schema";
 
 const IT_COOKIE = "it_settings_ok";
 const IT_SESSION_MINUTES = 20;
@@ -340,19 +342,33 @@ export async function actionPreviewReport(input: {
   return { periodStart, periodEnd, summary, csv };
 }
 
-export async function actionCreateAdminUser(input: {
+export async function actionCreateUser(input: {
   name: string;
   email: string;
   password: string;
+  role: UserRole;
+  phone?: string;
+  handlerDisplayName?: string;
+  jettyId?: string;
 }) {
   await requireRole(["ADMIN"]);
   const name = input.name.trim();
   const email = input.email.toLowerCase().trim();
+  const role = input.role;
   if (!name || !email || !input.password) {
     throw new Error("Name, email, and password are required.");
   }
   if (input.password.length < 8) {
     throw new Error("Password must be at least 8 characters.");
+  }
+  if (!["USER", "HANDLER", "ADMIN"].includes(role)) {
+    throw new Error("Invalid role.");
+  }
+  if (role === "HANDLER") {
+    if (!input.jettyId?.trim()) throw new Error("Handler needs a jetty.");
+    if (!input.handlerDisplayName?.trim()) {
+      throw new Error("Handler needs a display name.");
+    }
   }
 
   const [existing] = await db
@@ -364,15 +380,124 @@ export async function actionCreateAdminUser(input: {
     throw new Error("An account with this email already exists.");
   }
 
+  const userId = id("usr");
   const passwordHash = await bcrypt.hash(input.password, 10);
   await db.insert(users).values({
-    id: id("usr"),
+    id: userId,
     name,
     email,
+    phone: input.phone?.trim() || null,
     passwordHash,
-    role: "ADMIN",
+    role,
     policyAcceptedAt: new Date(),
   });
+
+  if (role === "HANDLER") {
+    await db.insert(handlers).values({
+      id: id("hdl"),
+      userId,
+      jettyId: input.jettyId!,
+      displayName: input.handlerDisplayName!.trim(),
+      mockEarningsCents: 0,
+    });
+  }
+
+  revalidatePath("/admin/users");
+  return { ok: true as const };
+}
+
+/** @deprecated use actionCreateUser */
+export async function actionCreateAdminUser(input: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  return actionCreateUser({ ...input, role: "ADMIN" });
+}
+
+export async function actionUpdateUserRole(input: {
+  userId: string;
+  role: UserRole;
+  handlerDisplayName?: string;
+  jettyId?: string;
+}) {
+  const session = await requireRole(["ADMIN"]);
+  if (input.userId === session.user.id && input.role !== "ADMIN") {
+    throw new Error("You cannot remove your own admin role.");
+  }
+  if (!["USER", "HANDLER", "ADMIN"].includes(input.role)) {
+    throw new Error("Invalid role.");
+  }
+
+  const [target] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, input.userId))
+    .limit(1);
+  if (!target) throw new Error("User not found.");
+
+  const [existingHandler] = await db
+    .select()
+    .from(handlers)
+    .where(eq(handlers.userId, input.userId))
+    .limit(1);
+
+  if (input.role === "HANDLER") {
+    if (!input.jettyId?.trim()) throw new Error("Handler needs a jetty.");
+    const displayName =
+      input.handlerDisplayName?.trim() ||
+      existingHandler?.displayName ||
+      target.name;
+    if (existingHandler) {
+      await db
+        .update(handlers)
+        .set({
+          jettyId: input.jettyId,
+          displayName,
+        })
+        .where(eq(handlers.id, existingHandler.id));
+    } else {
+      await db.insert(handlers).values({
+        id: id("hdl"),
+        userId: input.userId,
+        jettyId: input.jettyId,
+        displayName,
+        mockEarningsCents: 0,
+      });
+    }
+  } else if (existingHandler) {
+    await db.delete(handlers).where(eq(handlers.id, existingHandler.id));
+  }
+
+  await db
+    .update(users)
+    .set({ role: input.role })
+    .where(eq(users.id, input.userId));
+
+  revalidatePath("/admin/users");
+  return { ok: true as const };
+}
+
+export async function actionResetUserPassword(input: {
+  userId: string;
+  password: string;
+}) {
+  await requireRole(["ADMIN"]);
+  if (input.password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+  const [target] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, input.userId))
+    .limit(1);
+  if (!target) throw new Error("User not found.");
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.id, input.userId));
 
   revalidatePath("/admin/users");
   return { ok: true as const };
