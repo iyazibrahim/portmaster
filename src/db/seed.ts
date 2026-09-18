@@ -296,7 +296,7 @@ async function seed() {
       handlerId: handler1Id,
       name: "Kepala Laut",
       registration: "PNG-BM-102",
-      capacity: 8,
+      capacity: 12,
       price: 5000,
     },
     {

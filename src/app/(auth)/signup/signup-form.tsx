@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUpAngler, loginWithCredentials } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function SignUpForm() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -33,13 +31,7 @@ export function SignUpForm() {
         setError(result.error);
         return;
       }
-      const login = await loginWithCredentials(payload.email, payload.password);
-      if (!login.ok) {
-        router.push("/login");
-        return;
-      }
-      router.push("/book");
-      router.refresh();
+      await loginWithCredentials(payload.email, payload.password);
     });
   }
 

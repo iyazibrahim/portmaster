@@ -7,9 +7,10 @@ import { boatSeats, boats, handlers, jetties, locations } from "@/db/schema";
 import { requireRole, requireSession } from "@/lib/session";
 import {
   completeTrip,
-  createBookingWithSeats,
+  createTripGroupWithAllocations,
   mockPayBooking,
   scanBoardingToken,
+  type LocationAllocation,
 } from "@/lib/booking";
 import { id } from "@/lib/utils-app";
 
@@ -46,19 +47,19 @@ function slugify(name: string) {
 }
 
 export async function actionCreateBooking(input: {
-  locationId: string;
   boatId: string;
   tripDate: string;
   startTime: string;
   endTime: string;
   partySize: number;
   seatIds: string[];
+  allocations: LocationAllocation[];
 }) {
   const session = await requireSession();
   if (session.user.role !== "USER" && session.user.role !== "ADMIN") {
     throw new Error("Only anglers can create bookings.");
   }
-  const result = await createBookingWithSeats({
+  const result = await createTripGroupWithAllocations({
     userId: session.user.id,
     ...input,
   });

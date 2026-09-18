@@ -34,6 +34,7 @@ COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/src/db ./src/db
 COPY --from=builder /app/src/lib/utils-app.ts ./src/lib/utils-app.ts
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 USER nextjs
 EXPOSE 43127
-CMD ["sh", "-c", "npx drizzle-kit migrate && npm run start"]
+ENTRYPOINT ["sh", "./docker-entrypoint.sh"]

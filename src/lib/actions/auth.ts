@@ -8,13 +8,14 @@ import { randomBytes } from "crypto";
 import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
 import { signOut as authSignOut } from "@/lib/auth";
+import {
+  authSessionCookieName,
+  safeInternalPath,
+  shouldUseSecureAuthCookies,
+} from "@/lib/auth-cookies";
 import { id } from "@/lib/utils-app";
 
 const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
-const COOKIE_NAME =
-  process.env.NODE_ENV === "production"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
 
 export type LoginResult =
   | { ok: true; role: string }
@@ -27,6 +28,7 @@ export type SignUpResult =
 export async function loginWithCredentials(
   email: string,
   password: string,
+  next?: string,
 ): Promise<LoginResult> {
   const normalized = email.toLowerCase().trim();
   if (!normalized || !password) {
@@ -58,15 +60,16 @@ export async function loginWithCredentials(
   });
 
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, sessionToken, {
+  const secure = shouldUseSecureAuthCookies();
+  cookieStore.set(authSessionCookieName(), sessionToken, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
     expires,
-    secure: process.env.NODE_ENV === "production",
+    secure,
   });
 
-  return { ok: true, role: user.role };
+  redirect(safeInternalPath(next, user.role));
 }
 
 export async function signUpAngler(input: {
@@ -123,10 +126,10 @@ export async function logoutAction() {
     // fall through — clear cookie + session row manually
   }
   const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
+  const token = cookieStore.get(authSessionCookieName())?.value;
   if (token) {
     await db.delete(sessions).where(eq(sessions.sessionToken, token));
   }
-  cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(authSessionCookieName());
   redirect("/");
 }

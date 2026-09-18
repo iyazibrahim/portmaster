@@ -94,7 +94,9 @@ export default async function HandlerSchedulePage() {
     seatsByBooking.set(s.bookingId, list);
   }
 
-  const checkedIn = rows.filter((r) => r.booking.status === "CHECKED_IN");
+  const checkedIn = rows.filter(
+    (r) => r.booking.status === "CHECKED_IN" && r.booking.isPrimary,
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

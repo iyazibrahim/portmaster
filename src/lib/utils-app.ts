@@ -26,6 +26,9 @@ export const TIME_SLOTS = [
   { start: "18:00", end: "22:00", label: "Evening 18:00–22:00" },
 ] as const;
 
+/** Hard cap: people per tiang / location per trip date (boat capacity is separate). */
+export const LOCATION_MAX_PAX = 4;
+
 export function sideLabel(side: string) {
   if (side === "GEORGETOWN") return "Georgetown";
   if (side === "SEBERANG_PERAI") return "Seberang Perai";

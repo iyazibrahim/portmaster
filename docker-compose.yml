@@ -26,7 +26,8 @@ services:
     environment:
       DATABASE_URL: postgresql://portmaster:portmaster@postgres:5432/portmaster
       AUTH_SECRET: ${AUTH_SECRET:-portmaster-dev-secret-change-in-production-32chars}
-      APP_URL: ${APP_URL:-http://localhost:43127}
+      APP_URL: ${APP_URL:-http://127.0.0.1:43127}
+      AUTH_URL: ${APP_URL:-http://127.0.0.1:43127}
       PORT: "43127"
       AUTH_TRUST_HOST: "true"
     depends_on:

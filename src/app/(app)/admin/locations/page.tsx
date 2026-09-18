@@ -36,8 +36,12 @@ export default async function AdminLocationsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Locations</h1>
         <p className="text-muted-foreground">
-          {rows.length} locations across {jettyRows.length} jetties · open/close
-          and add new numbers.
+          {rows.length} locations across {jettyRows.length} jetties. Open/close
+          fishing spots based on{" "}
+          <span className="font-medium text-foreground">
+            LLM (Lembaga Lebuh Raya Malaysia)
+          </span>{" "}
+          requirements — anglers only see OPEN locations when booking.
         </p>
       </div>
       <LocationAdmin initial={rows} jetties={jettyRows} />

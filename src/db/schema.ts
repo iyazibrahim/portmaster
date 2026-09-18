@@ -176,6 +176,8 @@ export const bookings = pgTable(
   "bookings",
   {
     id: text("id").primaryKey(),
+    /** Links multi-tiang legs of one boat trip; single-tiang bookings use their own id. */
+    tripGroupId: text("trip_group_id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
@@ -197,6 +199,8 @@ export const bookings = pgTable(
     partySize: integer("party_size").notNull(),
     status: bookingStatusEnum("status").notNull().default("PENDING_PAYMENT"),
     totalCents: integer("total_cents").notNull(),
+    /** Primary leg holds seats + payment + boarding QR for the trip group. */
+    isPrimary: boolean("is_primary").notNull().default(true),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
@@ -204,6 +208,7 @@ export const bookings = pgTable(
     index("booking_trip_idx").on(t.tripDate, t.boatId, t.startTime),
     index("booking_location_idx").on(t.locationId, t.tripDate, t.status),
     index("booking_jetty_idx").on(t.jettyId, t.tripDate, t.status),
+    index("booking_trip_group_idx").on(t.tripGroupId),
   ],
 );
 

@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
+import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
 import {
   users,
   accounts,
@@ -55,6 +56,8 @@ export const { handlers, auth, signOut } = NextAuth({
     signIn: "/login",
   },
   providers: [],
+  trustHost: true,
+  useSecureCookies: shouldUseSecureAuthCookies(),
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
@@ -74,5 +77,4 @@ export const { handlers, auth, signOut } = NextAuth({
       return session;
     },
   },
-  trustHost: true,
 });

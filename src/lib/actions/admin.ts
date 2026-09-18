@@ -20,8 +20,10 @@ import {
   reports,
   scanEvents,
   settings,
+  users,
 } from "@/db/schema";
 import { requireRole } from "@/lib/session";
+import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
 import { id } from "@/lib/utils-app";
 
 const IT_COOKIE = "it_settings_ok";
@@ -100,7 +102,7 @@ export async function actionUnlockItSettings(password: string) {
     sameSite: "lax",
     path: "/",
     maxAge: IT_SESSION_MINUTES * 60,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureAuthCookies(),
   });
   return { ok: true as const, minutes: IT_SESSION_MINUTES };
 }
@@ -336,4 +338,42 @@ export async function actionPreviewReport(input: {
     input.jettyId,
   );
   return { periodStart, periodEnd, summary, csv };
+}
+
+export async function actionCreateAdminUser(input: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  await requireRole(["ADMIN"]);
+  const name = input.name.trim();
+  const email = input.email.toLowerCase().trim();
+  if (!name || !email || !input.password) {
+    throw new Error("Name, email, and password are required.");
+  }
+  if (input.password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+
+  const [existing] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  if (existing) {
+    throw new Error("An account with this email already exists.");
+  }
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  await db.insert(users).values({
+    id: id("usr"),
+    name,
+    email,
+    passwordHash,
+    role: "ADMIN",
+    policyAcceptedAt: new Date(),
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true as const };
 }

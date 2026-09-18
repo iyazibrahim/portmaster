@@ -76,6 +76,11 @@ export function LocationAdmin({
 
   return (
     <div className="space-y-8">
+      <p className="max-w-3xl text-sm text-muted-foreground">
+        Toggle OPEN/CLOSED to match LLM (Lembaga Lebuh Raya Malaysia) guidance
+        on which tiang/pillars may be used for public fishing. Only OPEN
+        locations appear in the booking flow.
+      </p>
       <section className="space-y-3 border-b border-border pb-6">
         <h2 className="text-base font-semibold tracking-tight">Add location</h2>
         <div className="grid gap-3 sm:grid-cols-2">

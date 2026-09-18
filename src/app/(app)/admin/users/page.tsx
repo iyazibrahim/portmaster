@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { CreateAdminForm } from "@/components/admin/create-admin-form";
 
 export default async function AdminUsersPage() {
   await requireRole(["ADMIN"]);
@@ -30,8 +31,14 @@ export default async function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">People</h1>
-        <p className="text-muted-foreground">Users and handlers (demo seed).</p>
+        <p className="text-muted-foreground">
+          Users, handlers, and admins. Admins manage open tiangs from LLM
+          guidance.
+        </p>
       </div>
+
+      <CreateAdminForm />
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>

@@ -1,13 +1,12 @@
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { requireSession } from "@/lib/session";
 import { db } from "@/db";
 import { boatSeats, boats, handlers, jetties, locations } from "@/db/schema";
 import { BookingWizard } from "@/components/booking/booking-wizard";
-import { getTakenSeatIds } from "@/lib/booking";
+import { getTakenSeatIds, getLocationOccupancyMap } from "@/lib/booking";
 import { TIME_SLOTS } from "@/lib/utils-app";
 import { format, addDays } from "date-fns";
 import { redirect } from "next/navigation";
-import { asc } from "drizzle-orm";
 
 export default async function BookPage() {
   const session = await requireSession();
@@ -70,10 +69,11 @@ export default async function BookPage() {
       })),
   }));
 
-  const takenByBoatSlot: Record<string, string[]> = {};
   const dates = Array.from({ length: 7 }, (_, i) =>
     format(addDays(new Date(), i), "yyyy-MM-dd"),
   );
+
+  const takenByBoatSlot: Record<string, string[]> = {};
   for (const boat of boatOptions) {
     for (const date of dates) {
       for (const slot of TIME_SLOTS) {
@@ -87,12 +87,18 @@ export default async function BookPage() {
     }
   }
 
+  const occupancyByLocationDate = await getLocationOccupancyMap({
+    locationIds: openLocations.map((l) => l.id),
+    tripDates: dates,
+  });
+
   return (
     <BookingWizard
       jetties={activeJetties}
       locations={openLocations}
       boats={boatOptions}
       takenByBoatSlot={takenByBoatSlot}
+      occupancyByLocationDate={occupancyByLocationDate}
     />
   );
 }

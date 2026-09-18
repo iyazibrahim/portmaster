@@ -27,6 +27,8 @@ export default async function TripsPage() {
   const rows = await db
     .select({
       id: bookings.id,
+      tripGroupId: bookings.tripGroupId,
+      isPrimary: bookings.isPrimary,
       tripDate: bookings.tripDate,
       startTime: bookings.startTime,
       endTime: bookings.endTime,
@@ -46,8 +48,28 @@ export default async function TripsPage() {
     .where(eq(bookings.userId, session.user.id))
     .orderBy(desc(bookings.createdAt));
 
+  const groupTotals = new Map<string, number>();
+  const groupPax = new Map<string, number>();
+  const locationLabels = new Map<string, string[]>();
+  for (const r of rows) {
+    groupTotals.set(
+      r.tripGroupId,
+      (groupTotals.get(r.tripGroupId) ?? 0) + r.totalCents,
+    );
+    groupPax.set(
+      r.tripGroupId,
+      (groupPax.get(r.tripGroupId) ?? 0) + r.partySize,
+    );
+    const label = `#${r.locationNumber} ${r.locationName}`;
+    const list = locationLabels.get(r.tripGroupId) ?? [];
+    list.push(label);
+    locationLabels.set(r.tripGroupId, list);
+  }
+
+  const primaries = rows.filter((r) => r.isPrimary);
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My trips</h1>
@@ -60,7 +82,7 @@ export default async function TripsPage() {
         </Link>
       </div>
 
-      {rows.length === 0 ? (
+      {primaries.length === 0 ? (
         <Alert>
           <AlertTitle>No trips yet</AlertTitle>
           <AlertDescription>
@@ -69,27 +91,37 @@ export default async function TripsPage() {
         </Alert>
       ) : (
         <ul className="divide-y divide-border border-y border-border">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <Link
-                href={`/trips/${r.id}`}
-                className="flex min-h-16 items-center justify-between gap-3 py-3 hover:bg-accent/40"
-              >
-                <div>
-                  <p className="font-medium">
-                    {r.tripDate} · {tripSlotLabel(r.startTime, r.endTime)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {r.jettyName} · #{r.locationNumber} {sideLabel(r.locationSide)} ·{" "}
-                    {r.boatName} · {r.partySize} pax · {formatMYR(r.totalCents)}
-                  </p>
-                </div>
-                <Badge variant={statusVariant[r.status] ?? "secondary"}>
-                  {r.status.replaceAll("_", " ")}
-                </Badge>
-              </Link>
-            </li>
-          ))}
+          {primaries.map((r) => {
+            const locs = locationLabels.get(r.tripGroupId) ?? [];
+            const pax = groupPax.get(r.tripGroupId) ?? r.partySize;
+            const total = groupTotals.get(r.tripGroupId) ?? r.totalCents;
+            return (
+              <li key={r.id}>
+                <Link
+                  href={`/trips/${r.id}`}
+                  className="flex min-h-16 items-center justify-between gap-3 py-3 hover:bg-accent/40"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {r.tripDate} · {tripSlotLabel(r.startTime, r.endTime)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {r.jettyName} · {r.boatName} · {pax} pax ·{" "}
+                      {formatMYR(total)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {locs.length > 1
+                        ? `Drop-offs: ${locs.join(" · ")}`
+                        : `${locs[0] ?? ""} · ${sideLabel(r.locationSide)}`}
+                    </p>
+                  </div>
+                  <Badge variant={statusVariant[r.status] ?? "secondary"}>
+                    {r.status.replaceAll("_", " ")}
+                  </Badge>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

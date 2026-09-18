@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loginWithCredentials } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function LoginForm() {
-  const router = useRouter();
   const search = useSearchParams();
   const next = search.get("next") ?? "";
   const [error, setError] = useState<string | null>(null);
@@ -24,19 +23,10 @@ export function LoginForm() {
     const password = String(fd.get("password") ?? "");
 
     startTransition(async () => {
-      const result = await loginWithCredentials(email, password);
+      const result = await loginWithCredentials(email, password, next);
       if (!result.ok) {
         setError(result.error);
-        return;
       }
-      let dest = next;
-      if (!dest) {
-        if (result.role === "ADMIN") dest = "/admin/ops";
-        else if (result.role === "HANDLER") dest = "/handler";
-        else dest = "/book";
-      }
-      router.push(dest);
-      router.refresh();
     });
   }
 
