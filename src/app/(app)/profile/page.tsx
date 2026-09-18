@@ -16,55 +16,63 @@ export default async function ProfilePage() {
     .limit(1);
 
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p className="text-muted-foreground">
-          Your angler identity for bookings, boarding QR, and emergency contact
-          on the jetty. Install PortMaster to your home screen for a faster
-          phone experience.
-        </p>
+    <div className="w-full space-y-6">
+      <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Account details used for bookings and boarding.
+          </p>
+        </div>
+        <form action={logoutAction}>
+          <Button type="submit" variant="outline" className="min-h-11">
+            Sign out
+          </Button>
+        </form>
       </div>
-      <dl className="space-y-3 border-y border-border py-4 text-sm">
-        <div className="flex justify-between gap-4">
+
+      <dl className="grid gap-x-8 gap-y-4 border-y border-border py-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <div>
           <dt className="text-muted-foreground">Name</dt>
-          <dd className="font-medium">{session.user.name}</dd>
+          <dd className="mt-1 font-medium">{session.user.name}</dd>
         </div>
-        <div className="flex justify-between gap-4">
+        <div>
           <dt className="text-muted-foreground">Email</dt>
-          <dd className="font-medium break-all">{session.user.email}</dd>
+          <dd className="mt-1 break-all font-medium">{session.user.email}</dd>
         </div>
-        <div className="flex justify-between gap-4">
+        <div>
           <dt className="text-muted-foreground">Phone</dt>
-          <dd className="font-medium">{user?.phone ?? "—"}</dd>
+          <dd className="mt-1 font-medium">{user?.phone ?? "—"}</dd>
         </div>
-        <div className="flex justify-between gap-4">
+        <div>
           <dt className="text-muted-foreground">Emergency contact</dt>
-          <dd className="font-medium">{user?.emergencyContact ?? "—"}</dd>
+          <dd className="mt-1 font-medium">{user?.emergencyContact ?? "—"}</dd>
         </div>
-        <div className="flex items-center justify-between gap-4">
+        <div>
           <dt className="text-muted-foreground">Role</dt>
-          <dd>
+          <dd className="mt-1">
             <Badge>{session.user.role}</Badge>
           </dd>
         </div>
       </dl>
+
       <p className="text-sm text-muted-foreground">
         Read our{" "}
-        <Link href="/policy" className="text-primary underline-offset-4 hover:underline">
+        <Link
+          href="/policy"
+          className="text-primary underline-offset-4 hover:underline"
+        >
           Policy
         </Link>{" "}
         and{" "}
-        <Link href="/consent" className="text-primary underline-offset-4 hover:underline">
+        <Link
+          href="/consent"
+          className="text-primary underline-offset-4 hover:underline"
+        >
           Consent
         </Link>
         .
       </p>
-      <form action={logoutAction}>
-        <Button type="submit" variant="outline" className="min-h-11 w-full">
-          Sign out
-        </Button>
-      </form>
     </div>
   );
 }

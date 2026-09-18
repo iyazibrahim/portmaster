@@ -2,11 +2,11 @@
 
 ## Status
 
-**Meeting gap items shipped:** max 4 pax per tiang, multi-tiang boat splits (`trip_group_id`), Admin OPEN/CLOSED for LLM guidance, add-admin on Users. Basic jetty QR check-in/out unchanged (tiang QR / wrong-location alerts deferred).
+**Desktop UX polish shipped:** searchable jetty pickers, location table search + 10/page pagination, ops jetty filter as searchable select (no chip wall), wider profile/trips layouts, fishing-aligned landing + auth (kept soft-blue + plus-grid background).
 
-Multi-jetty support remains: `jetties` table, ~33 Penang fishing jetties, book flow Jetty → … → locations allocate → pay.
+**Meeting gap items:** max 4 pax per tiang, multi-tiang boat splits (`trip_group_id`), Admin OPEN/CLOSED, add-admin on Users. Tiang QR / wrong-location alerts still deferred.
 
-Docker Compose local stack: `app` + `postgres:16` at http://127.0.0.1:43127. Node + `DATABASE_URL` remains the non-Docker path.
+Multi-jetty: ~33 Penang fishing jetties. Docker Compose optional at http://127.0.0.1:43127.
 
 ## Decisions
 
@@ -84,6 +84,15 @@ Signing in on Docker bounced back to `/login`. Cause: `NODE_ENV=production` set 
 - Occupancy shown as free slots per tiang; enforce max 4 server-side
 - Smoke: two-jetty flow + 10-pax split (4+4+2) + overfill blocked
 - Deferred: tiang QR, GPS, wrong-location alerts
+
+## Desktop UX + fishing landing (2026-09-18)
+
+- `SearchableSelect` for jetty booking + admin jetty filter (names, not ids; search)
+- Locations allocate: search + **10 per page** pagination
+- Removed redundant book copy (flow subtitle, LLM aside)
+- Profile + trips: full-width desktop layouts; trips table on `md+`
+- Landing/auth: fishing SVG scene; **kept** soft-blue radial + plus-grid background
+- Shared `MarketingBackground` + `FishingScene`
 
 ## Multi-jetty (2026-09-18)
 
