@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
+import { BrandLogo } from "@/components/brand-logo";
 
 const newsreader = Newsreader({
   subsets: ["latin"],
@@ -33,9 +34,12 @@ export default async function HomePage() {
       <MarketingBackground />
 
       <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
-        <span className="text-sm font-semibold tracking-tight text-foreground">
-          TiangPass
-        </span>
+        <Link href="/" className="flex items-center gap-2">
+          <BrandLogo size={36} className="h-9 w-9" priority />
+          <span className="text-sm font-semibold tracking-tight text-foreground">
+            TiangPass
+          </span>
+        </Link>
         <nav className="flex items-center gap-5 text-sm">
           <Link
             href="/policy"
@@ -55,11 +59,18 @@ export default async function HomePage() {
       <div className="relative z-10 flex flex-1 flex-col justify-center px-4 py-10 sm:px-6 lg:px-10 lg:py-12">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
           <div className="space-y-7 animate-[fadeUp_0.7s_ease-out_both]">
-            <p
-              className="font-[family-name:var(--font-display-landing)] text-5xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)] sm:text-6xl lg:text-7xl"
-            >
-              TiangPass
-            </p>
+            <div className="flex items-center gap-4">
+              <BrandLogo
+                size={96}
+                className="h-20 w-20 sm:h-24 sm:w-24"
+                priority
+              />
+              <p
+                className="font-[family-name:var(--font-display-landing)] text-5xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)] sm:text-6xl lg:text-7xl"
+              >
+                TiangPass
+              </p>
+            </div>
             <div className="space-y-3 animate-[fadeUp_0.7s_ease-out_0.12s_both]">
               <h1 className="max-w-lg text-xl font-medium tracking-tight text-foreground sm:text-2xl">
                 Same-day Association fishing passes under authorised pillars.

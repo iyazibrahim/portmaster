@@ -34,6 +34,7 @@ import {
 import { logoutAction } from "@/lib/actions/auth";
 import type { UserRole } from "@/db/schema";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
+import { BrandLogo } from "@/components/brand-logo";
 
 type NavItem = {
   href: string;
@@ -167,6 +168,7 @@ export function AppNav({
     <>
       <aside className="hidden h-full min-h-0 shrink-0 overflow-hidden lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-sidebar-border lg:bg-sidebar">
         <div className="flex h-14 shrink-0 items-center gap-2 px-4">
+          <BrandLogo size={28} className="h-7 w-7" />
           <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">
             {brandTitle(role)}
           </span>
@@ -213,7 +215,10 @@ export function AppNav({
             </SheetTrigger>
             <SheetContent side="left" className="w-72">
               <SheetHeader>
-                <SheetTitle>{brandTitle(role)}</SheetTitle>
+                <SheetTitle className="flex items-center gap-2">
+                  <BrandLogo size={28} className="h-7 w-7" />
+                  {brandTitle(role)}
+                </SheetTitle>
               </SheetHeader>
               <nav className="scrollbar-none mt-4 flex max-h-[70vh] flex-col gap-1 overflow-y-auto">
                 <NavLinks
@@ -286,7 +291,8 @@ export function MobileTopBar({
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6 lg:hidden">
-      <span className="text-sm font-semibold tracking-tight">
+      <span className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+        <BrandLogo size={28} className="h-7 w-7" />
         {title ?? "TiangPass"}
       </span>
       <LocaleSwitcher locale={locale} />

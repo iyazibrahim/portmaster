@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   EkycCameraCapture,
   type EkycCaptureResult,
@@ -78,7 +79,8 @@ export function SignUpForm() {
       <MarketingBackground />
 
       <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
+        <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+          <BrandLogo size={32} className="h-8 w-8" priority />
           TiangPass
         </Link>
         <Link
@@ -92,9 +94,12 @@ export function SignUpForm() {
       <div className="relative z-10 flex flex-1 items-center px-4 py-8 sm:px-6 lg:px-10">
         <div className="mx-auto grid w-full max-w-5xl items-start gap-10 lg:grid-cols-2 lg:gap-14">
           <div className="hidden space-y-4 pt-4 lg:block">
-            <p className="font-[family-name:var(--font-display-landing)] text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
-              TiangPass
-            </p>
+            <div className="flex items-center gap-3">
+              <BrandLogo size={64} className="h-16 w-16" />
+              <p className="font-[family-name:var(--font-display-landing)] text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
+                TiangPass
+              </p>
+            </div>
             <p className="max-w-sm text-muted-foreground">
               Register as a Malaysian angler (14+) to buy a same-day Association
               fishing pass under authorised bridge pillars.
