@@ -96,6 +96,33 @@ export function SettingsPanel({
         </BentoTile>
 
         <BentoTile
+          title="Jetty GPS check"
+          description="Operators and anglers must be at the registered jetty. Turn off for testing."
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="sm"
+              variant={ops.require_jetty_geofence !== "false" ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() =>
+                setOp(
+                  "require_jetty_geofence",
+                  ops.require_jetty_geofence === "false" ? "true" : "false",
+                )
+              }
+            >
+              {ops.require_jetty_geofence === "false" ? "GPS off (testing)" : "GPS required"}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {ops.require_jetty_geofence === "false"
+                ? "Check-in and pass purchase skip the jetty radius."
+                : "Enforced for operators and anglers. Admin scan still bypasses."}
+            </span>
+          </div>
+        </BentoTile>
+
+        <BentoTile
           title="Support"
           description="Contact numbers shown to anglers."
         >

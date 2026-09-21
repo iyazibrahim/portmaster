@@ -37,7 +37,7 @@ type JsQrFn = (
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  options?: { inversionAttempts?: "dontInvert" | "attemptBoth" },
+  options?: { inversionAttempts?: "dontInvert" | "attemptBoth" | "onlyInvert" },
 ) => { data: string } | null;
 
 function prefersMobileScanner() {
@@ -108,7 +108,13 @@ async function openRearCamera(): Promise<MediaStream> {
   throw last instanceof Error ? last : new Error("Could not open camera.");
 }
 
-export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
+export function ScannerPanel({
+  isAdmin = false,
+  requireJettyGps = true,
+}: {
+  isAdmin?: boolean;
+  requireJettyGps?: boolean;
+}) {
   const [token, setToken] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -214,12 +220,12 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
 
     const srcW = video.videoWidth;
     const srcH = video.videoHeight;
-    const crop = 0.7;
+    const crop = 0.96;
     const cw = srcW * crop;
     const ch = srcH * crop;
     const sx = (srcW - cw) / 2;
     const sy = (srcH - ch) / 2;
-    const maxW = 280;
+    const maxW = 480;
     const scale = Math.min(1, maxW / cw);
     const dw = Math.max(1, Math.round(cw * scale));
     const dh = Math.max(1, Math.round(ch * scale));
@@ -250,9 +256,13 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
       const frame = drawScanFrame(video);
       const jsQR = jsQrRef.current;
       if (frame && jsQR) {
-        const code = jsQR(frame.data, frame.width, frame.height, {
-          inversionAttempts: "dontInvert",
-        });
+        const code =
+          jsQR(frame.data, frame.width, frame.height, {
+            inversionAttempts: "dontInvert",
+          }) ??
+          jsQR(frame.data, frame.width, frame.height, {
+            inversionAttempts: "onlyInvert",
+          });
         const value = code?.data?.trim();
         if (value) {
           onDecoded(value);
@@ -345,7 +355,7 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
     setConfirming(true);
     try {
       let coords: { lat?: string; lng?: string } = {};
-      if (!isAdmin) {
+      if (!isAdmin && requireJettyGps) {
         coords = await getPosition();
       }
       const res = await actionScanToken(token, coords);
@@ -408,7 +418,7 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
               ref={videoRef}
               className={
                 cameraOn
-                  ? "aspect-video max-h-[38vh] w-full object-cover"
+                  ? "aspect-[4/3] max-h-[48vh] w-full object-cover sm:aspect-video"
                   : "hidden"
               }
               muted
@@ -416,7 +426,7 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
               autoPlay
             />
             {!cameraOn ? (
-              <div className="flex aspect-video max-h-[38vh] w-full flex-col items-center justify-center gap-3 bg-muted px-4">
+              <div className="flex aspect-[4/3] max-h-[48vh] w-full flex-col items-center justify-center gap-3 bg-muted px-4 sm:aspect-video">
                 <p className="text-center text-sm text-muted-foreground">
                   {mobileUi
                     ? "Allow camera access to scan, or paste a token below."
@@ -435,7 +445,7 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
                       ? "Reading pass…"
                       : "Point the camera at the pass QR"}
                 </p>
-                <div className="pointer-events-none absolute inset-[18%] rounded-md border-2 border-white/75" />
+                <div className="pointer-events-none absolute inset-[4%] rounded-md border-2 border-white/80" />
                 <div className="absolute inset-x-0 bottom-0 flex justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
                   <Button
                     type="button"
@@ -459,13 +469,15 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
               onChange={(e) => setToken(e.target.value)}
             />
           </div>
-          {!isAdmin ? (
+          {isAdmin || !requireJettyGps ? (
             <p className="text-xs text-muted-foreground">
-              GPS is required. You must be at your registered jetty.
+              {isAdmin
+                ? "Admin scan: jetty geofence bypassed."
+                : "Testing: jetty GPS check is off in Settings."}
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Admin scan: jetty geofence bypassed.
+              GPS is required. You must be at your registered jetty.
             </p>
           )}
         </CardContent>

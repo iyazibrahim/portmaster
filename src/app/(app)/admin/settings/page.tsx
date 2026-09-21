@@ -19,6 +19,7 @@ export default async function AdminSettingsPage() {
     support_whatsapp: map.support_whatsapp ?? "",
     maintenance_banner_on: map.maintenance_banner_on ?? "false",
     maintenance_banner_text: map.maintenance_banner_text ?? "",
+    require_jetty_geofence: map.require_jetty_geofence ?? "true",
     booking_window_copy: map.booking_window_copy ?? "",
     platform_commission_pct: map.platform_commission_pct ?? "20",
     location_side_labels: map.location_side_labels ?? "",

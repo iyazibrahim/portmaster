@@ -52,6 +52,16 @@ async function getSettingInt(key: string, fallback: number) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** When false, purchase and operator CI/CO skip jetty GPS. Missing key = required. */
+export async function isJettyGeofenceRequired() {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, "require_jetty_geofence"))
+    .limit(1);
+  return row?.value !== "false";
+}
+
 /** Cancel expired payment holds. */
 export async function expireStaleReservations(now = new Date()) {
   const pending = await db
@@ -170,7 +180,8 @@ export async function createPassPendingPayment(input: {
     jettyLat: jetty.lat,
     jettyLng: jetty.lng,
     radiusM: jetty.geofenceRadiusM,
-    bypass: canBypassPassGeofence(user.email),
+    bypass:
+      canBypassPassGeofence(user.email) || !(await isJettyGeofenceRequired()),
   });
   if (!geo.ok) throw new Error(geo.error);
 
@@ -573,7 +584,7 @@ export async function scanPassQrToken(params: {
     jettyLat: jetty.lat,
     jettyLng: jetty.lng,
     radiusM: jetty.geofenceRadiusM,
-    bypass: isAdmin,
+    bypass: isAdmin || !(await isJettyGeofenceRequired()),
   });
   if (!geo.ok) throw new Error(geo.error);
 

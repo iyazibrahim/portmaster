@@ -2,17 +2,19 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, passes, users } from "@/db/schema";
-import { listOpenPillarsForJetty } from "@/lib/pass";
-import { PassWizard } from "@/components/pass/pass-wizard";
 import { canBuyMultiplePassesToday, canBypassPassGeofence, todayMYT } from "@/lib/utils-app";
 import { PASS_BLOCKING_STATUSES } from "@/domain/pass";
 import { getTranslator } from "@/i18n";
+import { listOpenPillarsForJetty, isJettyGeofenceRequired } from "@/lib/pass";
+import { PassWizard } from "@/components/pass/pass-wizard";
 
 export default async function PassPage() {
   const session = await requireRole(["USER", "ADMIN"]);
   const { t } = await getTranslator();
   const allowMultipleSameDay = canBuyMultiplePassesToday(session.user.email);
-  const bypassGeofence = canBypassPassGeofence(session.user.email);
+  const bypassGeofence =
+    canBypassPassGeofence(session.user.email) ||
+    !(await isJettyGeofenceRequired());
 
   const [profile] = await db
     .select({ photoKey: users.photoKey })

@@ -1,8 +1,10 @@
 import { requireRole } from "@/lib/session";
 import { ScannerPanel } from "@/components/handler/scanner-panel";
+import { isJettyGeofenceRequired } from "@/lib/pass";
 
 export default async function HandlerScanPage() {
   const session = await requireRole(["HANDLER", "ADMIN"]);
+  const requireJettyGps = await isJettyGeofenceRequired();
   return (
     <div className="mx-auto w-full max-w-lg space-y-6 lg:max-w-xl">
       <div>
@@ -11,7 +13,10 @@ export default async function HandlerScanPage() {
           Scan, confirm the angler, then the camera stays ready for the next pass.
         </p>
       </div>
-      <ScannerPanel isAdmin={session.user.role === "ADMIN"} />
+      <ScannerPanel
+        isAdmin={session.user.role === "ADMIN"}
+        requireJettyGps={requireJettyGps}
+      />
     </div>
   );
 }

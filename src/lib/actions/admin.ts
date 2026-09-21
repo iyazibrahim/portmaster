@@ -53,6 +53,7 @@ const OPS_KEYS = [
   "support_whatsapp",
   "maintenance_banner_on",
   "maintenance_banner_text",
+  "require_jetty_geofence",
   "booking_window_copy",
   "platform_commission_pct",
   "location_side_labels",
