@@ -1,6 +1,6 @@
 # TiangPass workflow
 
-**Official logo (2026-09-21):** `TiangPass Logo.jpg` white backdrop removed (flood-fill) → transparent `public/brand/tiangpass-logo.png`; favicon / PWA icons / `BrandLogo` on landing, auth, nav, install banner. New fishing illustration is a **brush-edge** `tiangpass-scene.png` (no metallic badge) on marketing pages at ~76% opacity.
+**Official logo (2026-09-21):** `TiangPass Logo.jpg` white backdrop removed (flood-fill) → transparent `public/brand/tiangpass-logo.png`; favicon / PWA icons / `BrandLogo` on landing, auth, nav, install banner. New fishing illustration is cache-busted **brush-edge** `tiangpass-scene-brush.png` (no metallic badge) on marketing + login/signup.
 
 **iOS Chrome scan + bottom nav (2026-09-21):** Scanner falls back to `jsQR` when `BarcodeDetector` is missing (iPhone Chrome/Safari). App shell uses `h-dvh overflow-hidden` with in-flow `MobileBottomNav` so the tab bar no longer floats after the Chrome URL bar hides.
 

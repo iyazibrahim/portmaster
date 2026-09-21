@@ -1,4 +1,4 @@
-const CACHE = "tiangpass-shell-v2";
+const CACHE = "tiangpass-shell-v3";
 const SHELL = ["/", "/pass", "/trips", "/profile", "/login", "/offline", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

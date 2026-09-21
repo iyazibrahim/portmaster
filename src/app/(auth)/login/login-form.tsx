@@ -62,7 +62,8 @@ export function LoginForm() {
       </header>
 
       <div className="relative z-10 flex flex-1 items-center px-4 py-8 sm:px-6 lg:px-10">
-        <div className="mx-auto grid w-full max-w-5xl items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="mx-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-2 lg:gap-14">
+          <FishingScene className="max-w-[220px] lg:hidden" />
           <div className="hidden space-y-4 lg:block">
             <div className="flex items-center gap-3">
               <BrandLogo size={64} className="h-16 w-16" />

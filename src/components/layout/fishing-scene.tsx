@@ -18,7 +18,7 @@ export function FishingScene({ className }: { className?: string }) {
         className="pointer-events-none absolute inset-[10%] rounded-[42%] bg-[radial-gradient(ellipse_at_center,_oklch(0.72_0.05_250_/_0.18)_0%,_transparent_72%)]"
       />
       <Image
-        src="/brand/tiangpass-scene.png"
+        src="/brand/tiangpass-scene-brush.png"
         alt="Penang Bridge fishing — TiangPass"
         width={1576}
         height={1222}
