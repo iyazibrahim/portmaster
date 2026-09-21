@@ -67,18 +67,105 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
   const streamRef = useRef<MediaStream | null>(null);
   const detectTimer = useRef<number | null>(null);
   const startingRef = useRef(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  function stopCamera() {
+  function clearDetectTimer() {
     if (detectTimer.current) {
-      window.clearInterval(detectTimer.current);
+      window.clearTimeout(detectTimer.current);
       detectTimer.current = null;
     }
+  }
+
+  function stopCamera() {
+    clearDetectTimer();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setCameraOn(false);
+  }
+
+  function onDecoded(value: string) {
+    const decoded = value.trim();
+    if (!decoded) return;
+    setToken(decoded);
+    stopCamera();
+    void loadPreview(decoded);
+  }
+
+  function scheduleDetect(tick: () => void, ms: number) {
+    clearDetectTimer();
+    detectTimer.current = window.setTimeout(tick, ms);
+  }
+
+  async function startJsQrLoop() {
+    const { default: jsQR } = await import("jsqr");
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement("canvas");
+    }
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    const tick = () => {
+      if (!streamRef.current) return;
+      const video = videoRef.current;
+      if (!video || video.readyState < 2 || video.videoWidth < 8) {
+        scheduleDetect(tick, 250);
+        return;
+      }
+      const maxW = 640;
+      const scale = Math.min(1, maxW / video.videoWidth);
+      const w = Math.max(1, Math.round(video.videoWidth * scale));
+      const h = Math.max(1, Math.round(video.videoHeight * scale));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      ctx.drawImage(video, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
+      const value = code?.data?.trim();
+      if (value) {
+        onDecoded(value);
+        return;
+      }
+      scheduleDetect(tick, 280);
+    };
+    tick();
+  }
+
+  function startBarcodeDetectorLoop(
+    Detector: new (opts: { formats: string[] }) => {
+      detect: (source: ImageBitmapSource) => Promise<{ rawValue: string }[]>;
+    },
+  ) {
+    const detector = new Detector({ formats: ["qr_code"] });
+    const tick = () => {
+      if (!streamRef.current) return;
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) {
+        scheduleDetect(() => void tick(), 250);
+        return;
+      }
+      void detector
+        .detect(video)
+        .then((codes) => {
+          const value = codes[0]?.rawValue?.trim();
+          if (value) {
+            onDecoded(value);
+            return;
+          }
+          scheduleDetect(() => void tick(), 400);
+        })
+        .catch(() => {
+          scheduleDetect(() => void tick(), 400);
+        });
+    };
+    tick();
   }
 
   async function startCamera() {
@@ -93,8 +180,7 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
       streamRef.current = stream;
       setCameraOn(true);
 
-      // Prefer BarcodeDetector when available
-      const BD = (
+      const Detector = (
         window as unknown as {
           BarcodeDetector?: new (opts: {
             formats: string[];
@@ -106,27 +192,11 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
         }
       ).BarcodeDetector;
 
-      if (BD) {
-        const detector = new BD({ formats: ["qr_code"] });
-        detectTimer.current = window.setInterval(async () => {
-          const video = videoRef.current;
-          if (!video || video.readyState < 2) return;
-          try {
-            const codes = await detector.detect(video);
-            const value = codes[0]?.rawValue?.trim();
-            if (value) {
-              setToken(value);
-              stopCamera();
-              void loadPreview(value);
-            }
-          } catch {
-            // ignore frame errors
-          }
-        }, 700);
+      if (Detector) {
+        startBarcodeDetectorLoop(Detector);
       } else {
-        setError(
-          "Camera started. This browser has no BarcodeDetector — paste the token manually, or use Chrome/Edge on Android.",
-        );
+        // iOS Chrome/Safari has no BarcodeDetector — decode frames with jsQR.
+        await startJsQrLoop();
       }
     } catch {
       setError("Could not open camera. Check permissions or paste the token.");
@@ -243,16 +313,21 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
                 </Button>
               </div>
             ) : (
-              <div className="absolute inset-x-0 bottom-0 flex justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={stopCamera}
-                >
-                  Stop camera
-                </Button>
-              </div>
+              <>
+                <p className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/55 to-transparent px-3 py-2.5 text-center text-xs text-white">
+                  Point the camera at the pass QR
+                </p>
+                <div className="absolute inset-x-0 bottom-0 flex justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={stopCamera}
+                  >
+                    Stop camera
+                  </Button>
+                </div>
+              </>
             )}
           </div>
           <div className="flex flex-col gap-1.5">

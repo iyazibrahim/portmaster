@@ -160,12 +160,9 @@ export function AppNav({
 }) {
   const pathname = usePathname();
   const items = navForRole(role);
-  const [open, setOpen] = useState(false);
-  const isAdmin = role === "ADMIN" || role === "LLM_VIEWER";
   const isLlm = role === "LLM_VIEWER";
 
   return (
-    <>
       <aside className="hidden h-full min-h-0 shrink-0 overflow-hidden lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-sidebar-border lg:bg-sidebar">
         <div className="flex h-14 shrink-0 items-center gap-2 px-4">
           <BrandLogo size={28} className="h-7 w-7" />
@@ -205,9 +202,24 @@ export function AppNav({
           </form>
         </div>
       </aside>
+  );
+}
 
-      {isAdmin ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-border bg-background px-3 py-2 lg:hidden">
+export function MobileBottomNav({
+  role,
+  locale = "en",
+}: {
+  role: UserRole;
+  locale?: "en" | "ms";
+}) {
+  const pathname = usePathname();
+  const items = navForRole(role);
+  const [open, setOpen] = useState(false);
+  const isAdmin = role === "ADMIN" || role === "LLM_VIEWER";
+  const isLlm = role === "LLM_VIEWER";
+
+  return isAdmin ? (
+    <div className="flex shrink-0 items-center gap-2 border-t border-border bg-background px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted">
               <Menu className="size-4" />
@@ -273,12 +285,10 @@ export function AppNav({
             })}
           </div>
         </div>
-      ) : (
-        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background lg:hidden">
-          <NavLinks items={items} pathname={pathname} variant="bottom" />
-        </nav>
-      )}
-    </>
+  ) : (
+    <nav className="flex shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <NavLinks items={items} pathname={pathname} variant="bottom" />
+    </nav>
   );
 }
 

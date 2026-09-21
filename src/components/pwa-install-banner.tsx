@@ -97,7 +97,7 @@ export function PwaInstallBanner() {
   const iosHint = isIos();
 
   return (
-    <div className="fixed inset-x-0 bottom-[4.25rem] z-50 px-3 lg:hidden">
+    <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 px-3 lg:hidden">
       <div className="mx-auto flex max-w-lg flex-col gap-2 rounded-xl border border-border bg-background p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <BrandLogo size={40} className="mt-0.5 h-10 w-10 shrink-0" />
