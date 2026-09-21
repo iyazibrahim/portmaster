@@ -585,6 +585,7 @@ export async function scanPassQrToken(params: {
     jettyLng: jetty.lng,
     radiusM: jetty.geofenceRadiusM,
     bypass: isAdmin || !(await isJettyGeofenceRequired()),
+    purpose: "boarding",
   });
   if (!geo.ok) throw new Error(geo.error);
 
