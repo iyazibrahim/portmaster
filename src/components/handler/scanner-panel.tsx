@@ -40,8 +40,8 @@ type JsQrFn = (
   options?: { inversionAttempts?: "dontInvert" | "attemptBoth" | "onlyInvert" },
 ) => { data: string } | null;
 
-/** Survive Soft Nav / Strict Mode remounts without calling getUserMedia again. */
-const CAMERA_RELEASE_MS = 12_000;
+/** Keep tracks warm across tab hops so Open camera does not re-prompt. */
+const CAMERA_RELEASE_MS = 30 * 60_000;
 
 const cameraHub = {
   stream: null as MediaStream | null,
@@ -77,7 +77,6 @@ const cameraHub = {
     return stream;
   },
 
-  /** Soft release — keep tracks warm briefly so tab switches / RSC remounts don't re-prompt. */
   releaseSoft() {
     this.consumers = Math.max(0, this.consumers - 1);
     if (this.consumers > 0) return;
@@ -90,7 +89,6 @@ const cameraHub = {
     }, CAMERA_RELEASE_MS);
   },
 
-  /** Hard stop — user tapped Stop camera. */
   releaseHard() {
     this.cancelRelease();
     this.consumers = 0;
@@ -99,11 +97,6 @@ const cameraHub = {
     this.stream = null;
   },
 };
-
-function prefersMobileScanner() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches;
-}
 
 function formatScanError(err: unknown): string {
   if (err && typeof err === "object" && "code" in err) {
@@ -135,7 +128,6 @@ function getPosition(): Promise<{ lat: string; lng: string }> {
           lng: String(pos.coords.longitude),
         }),
       reject,
-      // 100 m jetty radius does not need high-accuracy GPS (faster on phones).
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
     );
   });
@@ -180,7 +172,6 @@ async function openRearCamera(): Promise<MediaStream> {
         return await navigator.mediaDevices.getUserMedia(constraints);
       } catch (err) {
         last = err;
-        // Permission denied — do not retry alternate constraints (re-prompts on some phones).
         if (
           err &&
           typeof err === "object" &&
@@ -213,7 +204,6 @@ export function ScannerPanel({
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
-  const [mobileUi, setMobileUi] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -281,13 +271,13 @@ export function ScannerPanel({
     try {
       const res = await actionPreviewPassToken(raw);
       if (!mountedRef.current) return;
-      if (!res) {
+      if (!res.ok) {
         setPreview(null);
-        setError("Pass QR not found.");
+        setError(res.error);
         resumeDecoding(600);
         return;
       }
-      setPreview(res);
+      setPreview(res.preview);
       window.setTimeout(() => scrollTo(verifyRef.current), 50);
     } catch (err) {
       if (!mountedRef.current) return;
@@ -453,7 +443,6 @@ export function ScannerPanel({
     setError(null);
     resumeDecoding(700);
     scrollTo(cameraBoxRef.current);
-    if (!streamRef.current) void startCamera();
   }
 
   async function confirmScan() {
@@ -467,6 +456,10 @@ export function ScannerPanel({
       }
       const res = await actionScanToken(token, coords);
       if (!mountedRef.current) return;
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
       if (res.kind === "pass") {
         toast.success(res.action === "CHECK_IN" ? "Checked in" : "Checked out");
       } else {
@@ -478,7 +471,6 @@ export function ScannerPanel({
       setToken("");
       resumeDecoding(1100);
       scrollTo(cameraBoxRef.current);
-      if (!streamRef.current) void startCamera();
     } catch (err) {
       if (!mountedRef.current) return;
       setError(formatScanError(err));
@@ -501,19 +493,26 @@ export function ScannerPanel({
 
   useEffect(() => {
     mountedRef.current = true;
-    const mobile = prefersMobileScanner();
-    const id = window.setTimeout(() => {
-      setMobileUi(mobile);
-      if (mobile) void startCamera();
-    }, 0);
+
+    // Re-attach a still-live stream after Soft Nav remount (no new permission).
+    const existing = cameraHub.liveStream();
+    let resumeId: number | undefined;
+    if (existing) {
+      cameraHub.cancelRelease();
+      cameraHub.consumers += 1;
+      streamRef.current = existing;
+      resumeId = window.setTimeout(() => {
+        if (mountedRef.current) setCameraOn(true);
+      }, 0);
+    }
+
     return () => {
       mountedRef.current = false;
-      window.clearTimeout(id);
+      if (resumeId != null) window.clearTimeout(resumeId);
       detachVideo();
-      // Soft release keeps the stream warm across brief remounts / tab hops.
       cameraHub.releaseSoft();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only auto-start
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
   }, []);
 
   return (
@@ -541,12 +540,11 @@ export function ScannerPanel({
             {!cameraOn ? (
               <div className="flex aspect-[4/3] max-h-[48vh] w-full flex-col items-center justify-center gap-3 bg-muted px-4 sm:aspect-video">
                 <p className="text-center text-sm text-muted-foreground">
-                  {mobileUi
-                    ? "Allow camera access to scan, or paste a token below."
-                    : "Open the camera to scan a pass QR, or paste a token below."}
+                  Paste a QR token below to check in without the camera, or open
+                  the camera to scan.
                 </p>
                 <Button type="button" onClick={() => void startCamera()}>
-                  {mobileUi ? "Retry camera" : "Open camera"}
+                  Open camera
                 </Button>
               </div>
             ) : (
@@ -590,7 +588,7 @@ export function ScannerPanel({
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              GPS is required. You must be at your registered jetty.
+              GPS is required on Confirm. You must be at your registered jetty.
             </p>
           )}
         </CardContent>

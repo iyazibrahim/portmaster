@@ -183,7 +183,7 @@ describe("geofence", () => {
       purpose: "boarding",
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/check in or check out/i);
+    if (!r.ok) expect(r.error).toMatch(/from this jetty/i);
   });
 
   it("allows admin bypass", () => {

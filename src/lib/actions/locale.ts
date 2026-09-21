@@ -1,7 +1,6 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { LOCALE_COOKIE, type Locale } from "@/i18n";
 import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
 
@@ -15,5 +14,6 @@ export async function actionSetLocale(locale: Locale) {
     maxAge: 365 * 24 * 60 * 60,
     secure: shouldUseSecureAuthCookies(),
   });
-  revalidatePath("/", "layout");
+  // cookies().set already re-renders the current route. Avoid layout-wide
+  // revalidatePath which remounts the operator camera on every language tap.
 }

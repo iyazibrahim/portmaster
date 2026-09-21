@@ -43,28 +43,42 @@ export function parseCoord(raw: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function formatOutOfRange(
+  purpose: GeofencePurpose,
+  distanceM: number,
+  radiusM: number,
+): string {
+  if (purpose === "boarding") {
+    const shown =
+      distanceM >= 1000
+        ? `${(distanceM / 1000).toFixed(1)} km`
+        : `${Math.round(distanceM)} m`;
+    return `You are ${shown} from this jetty. Move within ${radiusM} m to check in or check out.`;
+  }
+  return "You need to be at this jetty to buy a pass.";
+}
+
 function geofenceCopy(purpose: GeofencePurpose = "purchase") {
   if (purpose === "boarding") {
     return {
-      missingGps: "GPS is required. Enable location and stand at the boarding jetty.",
+      missingGps:
+        "GPS is required. Enable location and stand at the boarding jetty.",
       jettyNotReady:
         "This jetty has no GPS coordinates. Contact Association Admin.",
-      outOfRange:
-        "You must be at this jetty to check in or check out (within the jetty radius).",
     };
   }
   return {
     missingGps: "You need to be at the jetty to buy a pass.",
     jettyNotReady:
       "This jetty is not set up for purchases. Contact Association Admin.",
-    outOfRange: "You need to be at this jetty to buy a pass.",
   };
 }
 
 export function assertWithinGeofence(
   input: GeofenceCheckInput,
 ): GeofenceCheckResult {
-  const copy = geofenceCopy(input.purpose);
+  const purpose = input.purpose ?? "purchase";
+  const copy = geofenceCopy(purpose);
   if (input.bypass) {
     return { ok: true, distanceM: null };
   }
@@ -94,7 +108,7 @@ export function assertWithinGeofence(
   if (distanceM > input.radiusM) {
     return {
       ok: false,
-      error: copy.outOfRange,
+      error: formatOutOfRange(purpose, distanceM, input.radiusM),
     };
   }
   return { ok: true, distanceM };

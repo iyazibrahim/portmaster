@@ -79,63 +79,114 @@ export async function actionMockPay(bookingId: string) {
   };
 }
 
-export async function actionPreviewPassToken(token: string) {
-  await requireRole(["HANDLER", "ADMIN"]);
-  const { previewPassQrToken } = await import("@/lib/pass");
-  return previewPassQrToken(token);
+export async function actionPreviewPassToken(token: string): Promise<
+  | {
+      ok: true;
+      preview: {
+        passId: string;
+        reference: string;
+        status: string;
+        validOn: string;
+        anglerName: string;
+        myKadLast4: string | null;
+        photoKey: string | null;
+        pillarName: string;
+        jettyName: string;
+        nextAction: "CHECK_IN" | "CHECK_OUT" | null;
+      };
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    await requireRole(["HANDLER", "ADMIN"]);
+    const { previewPassQrToken } = await import("@/lib/pass");
+    const preview = await previewPassQrToken(token);
+    if (!preview) return { ok: false, error: "Pass QR not found." };
+    return { ok: true, preview };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not preview pass.",
+    };
+  }
 }
 
 export async function actionScanToken(
   token: string,
   coords?: { lat?: string; lng?: string },
-) {
-  const session = await requireRole(["HANDLER", "ADMIN"]);
-  const [handler] = await db
-    .select()
-    .from(handlers)
-    .where(eq(handlers.userId, session.user.id))
-    .limit(1);
+): Promise<
+  | {
+      ok: true;
+      kind: "pass";
+      action: "CHECK_IN" | "CHECK_OUT";
+      passId: string;
+      reference: string;
+      status: string;
+    }
+  | {
+      ok: true;
+      kind: "booking";
+      action: "CHECK_IN" | "CHECK_OUT";
+      bookingId: string;
+      status: string;
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const session = await requireRole(["HANDLER", "ADMIN"]);
+    const [handler] = await db
+      .select()
+      .from(handlers)
+      .where(eq(handlers.userId, session.user.id))
+      .limit(1);
 
-  if (!handler && session.user.role === "HANDLER") {
-    throw new Error("Handler profile missing.");
-  }
+    if (!handler && session.user.role === "HANDLER") {
+      return { ok: false, error: "Handler profile missing." };
+    }
 
-  const { scanPassQrToken } = await import("@/lib/pass");
-  const passResult = await scanPassQrToken({
-    token,
-    handlerId: handler?.id ?? null,
-    actorUserId: session.user.id,
-    actorRole: session.user.role,
-    lat: coords?.lat,
-    lng: coords?.lng,
-  });
-  if (passResult) {
-    // Do not call revalidatePath here. Any revalidation re-renders the current
-    // /handler/scan route in the same response, remounts ScannerPanel, stops the
-    // camera (re-prompts permission on phones), and can throw a minified React
-    // error during confirm. Scanner UI is fully client-state; other pages refresh
-    // on the next navigation.
+    const { scanPassQrToken } = await import("@/lib/pass");
+    const passResult = await scanPassQrToken({
+      token,
+      handlerId: handler?.id ?? null,
+      actorUserId: session.user.id,
+      actorRole: session.user.role,
+      lat: coords?.lat,
+      lng: coords?.lng,
+    });
+    if (passResult) {
+      // Do not call revalidatePath here. Any revalidation re-renders the current
+      // /handler/scan route in the same response, remounts ScannerPanel, stops the
+      // camera (re-prompts permission on phones), and can throw a minified React
+      // error during confirm. Scanner UI is fully client-state; other pages refresh
+      // on the next navigation.
+      return {
+        ok: true,
+        kind: "pass",
+        action: passResult.action,
+        passId: passResult.passId,
+        reference: passResult.reference,
+        status: passResult.status,
+      };
+    }
+
+    // Legacy booking scan only if handler exists
+    if (!handler) {
+      return { ok: false, error: "Unrecognized pass QR token." };
+    }
+    const result = await scanBoardingToken({ token, handlerId: handler.id });
     return {
-      kind: "pass" as const,
-      action: passResult.action,
-      passId: passResult.passId,
-      reference: passResult.reference,
-      status: passResult.status,
-      preview: passResult.preview,
+      ok: true,
+      kind: "booking",
+      action: result.action,
+      bookingId: result.booking.id,
+      status: result.action === "CHECK_IN" ? "CHECKED_IN" : "COMPLETED",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Check-in failed.",
     };
   }
-
-  // Legacy booking scan only if handler exists
-  if (!handler) {
-    throw new Error("Unrecognized pass QR token.");
-  }
-  const result = await scanBoardingToken({ token, handlerId: handler.id });
-  return {
-    kind: "booking" as const,
-    action: result.action,
-    bookingId: result.booking.id,
-    status: result.action === "CHECK_IN" ? "CHECKED_IN" : "COMPLETED",
-  };
 }
 
 export async function actionCompleteTrip(bookingId: string) {
