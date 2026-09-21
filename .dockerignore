@@ -17,3 +17,9 @@ docker-compose.yml
 .dockerignore
 agent-transcripts
 terminals
+prd
+data
+# Large source art (processed assets live in public/brand)
+TiangPass Logo.jpg
+Tiang Pass Images.jpg
+*.tsbuildinfo

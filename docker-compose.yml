@@ -1,3 +1,6 @@
+# Tuned for small VPS (~4GB RAM). Build on-host with Dokploy/Compose
+# can still spike — prefer a 1–2GB swap file on the host.
+
 services:
   postgres:
     image: postgres:16
@@ -6,10 +9,34 @@ services:
       POSTGRES_USER: tiangpass
       POSTGRES_PASSWORD: tiangpass
       POSTGRES_DB: tiangpass
+    # Low-RAM Postgres settings (default shared_buffers is too large for 4GB hosts)
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_connections=40
+      - -c
+      - wal_buffers=8MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - random_page_cost=1.1
+    # App reaches DB via Docker network; bind localhost only if you need host tools
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - tiangpass_pg:/var/lib/postgresql/data
+    shm_size: 128mb
+    mem_limit: 512m
+    memswap_limit: 768m
+    cpus: "1.0"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tiangpass -d tiangpass"]
       interval: 5s
@@ -20,6 +47,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Override on larger builders: --build-arg NODE_MAX_OLD_SPACE_SIZE=3072
+        NODE_MAX_OLD_SPACE_SIZE: "1536"
     restart: unless-stopped
     ports:
       - "${PORT:-43127}:43127"
@@ -30,9 +60,13 @@ services:
       AUTH_URL: ${APP_URL:-http://127.0.0.1:43127}
       PORT: "43127"
       AUTH_TRUST_HOST: "true"
+      NODE_OPTIONS: --max-old-space-size=512
     depends_on:
       postgres:
         condition: service_healthy
+    mem_limit: 768m
+    memswap_limit: 1024m
+    cpus: "1.5"
     healthcheck:
       test:
         [
@@ -42,7 +76,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 40s
+      start_period: 60s
 
 volumes:
   tiangpass_pg:

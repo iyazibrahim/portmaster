@@ -87,6 +87,16 @@ Password: `password123`
 
 Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because only additive `0004`–`0007` ran. Boot now applies baseline `0000` + jetties `0002` first. Redeploy the new image; restarting the old one will keep failing.
 
+**4GB VPS OOM harden (2026-09-21):** Build heap capped at 1.5GB (was 3GB), single `npm ci` then prune (no parallel installs), Next `cpus: 1` + webpack memory opts, Compose `mem_limit` on app (768MB) + Postgres (512MB, tuned `shared_buffers`). Strongly add **2GB swap** on the host before rebuild:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+If build still OOMs, build the image elsewhere and push to a registry, or temporarily stop other containers during deploy.
+
 Validated: empty Postgres 16 → apply (users/jetties/passes) → apply again (idempotent) → seed.
 
 Seed on Docker uses `node --experimental-strip-types` (no tsx). Relative imports in `src/db/seed.ts` must include `.ts` extensions (`./schema.ts`, `../lib/utils-app.ts`) and not import `./index` (Node ESM cannot resolve extensionless paths).
