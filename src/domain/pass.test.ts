@@ -171,6 +171,19 @@ describe("geofence", () => {
       radiusM: 250,
     });
     expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/buy a pass/i);
+  });
+
+  it("uses boarding copy for operator check-in", () => {
+    const r = assertWithinGeofence({
+      device: { lat: 1, lng: 1 },
+      jettyLat: "5.36",
+      jettyLng: "100.31",
+      radiusM: 100,
+      purpose: "boarding",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/check in or check out/i);
   });
 
   it("allows admin bypass", () => {

@@ -110,11 +110,11 @@ export async function actionScanToken(
     lng: coords?.lng,
   });
   if (passResult) {
-    revalidatePath("/handler");
-    revalidatePath("/admin/ops");
-    revalidatePath("/pass");
-    revalidatePath(`/pass/${passResult.passId}`);
-    revalidatePath("/trips");
+    // Do not call revalidatePath here. Any revalidation re-renders the current
+    // /handler/scan route in the same response, remounts ScannerPanel, stops the
+    // camera (re-prompts permission on phones), and can throw a minified React
+    // error during confirm. Scanner UI is fully client-state; other pages refresh
+    // on the next navigation.
     return {
       kind: "pass" as const,
       action: passResult.action,
@@ -130,8 +130,6 @@ export async function actionScanToken(
     throw new Error("Unrecognized pass QR token.");
   }
   const result = await scanBoardingToken({ token, handlerId: handler.id });
-  revalidatePath("/handler");
-  revalidatePath("/admin/ops");
   return {
     kind: "booking" as const,
     action: result.action,

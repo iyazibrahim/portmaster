@@ -4,6 +4,8 @@
 
 **Operator scanner (2026-09-21):** Larger 4:3 scan box (~96% of the frame, 480px decode) for low-res phones. Admin **Settings → Jetty GPS check** can turn off the jetty radius for testing (operators + pass purchase). Camera stays on after a read. Check-in no longer remounts `/handler/scan`.
 
+**Scan check-in + camera permission (2026-09-21):** `actionScanToken` no longer calls `revalidatePath` — any revalidation re-renders the current Scan route, remounts the camera (phone re-prompts), and could throw a minified React error on Confirm. Camera uses a soft-release hub (12s) so tab switches / remounts reuse the live stream instead of calling `getUserMedia` again. Geofence errors use boarding copy for CI/CO.
+
 **Admin UX scale (2026-09-21):** Shared `AdminDataTable` (search, `min-h-11`, 15/page) + `StatusBadge` traffic lights (no underscore labels). Passes / Boats / Operators / Pillars / Jetties / Payments / Audit use the shell. Payments KPI widgets (today MYT). Alerts auto-refresh (overdue CI, boat permit ≤30d, failed pay) + resolve; incidents create + status flow. Reports live KPIs + equal-height controls. Settings bento for pass ops; IT unlock retained.
 
 ## Status

@@ -40,6 +40,66 @@ type JsQrFn = (
   options?: { inversionAttempts?: "dontInvert" | "attemptBoth" | "onlyInvert" },
 ) => { data: string } | null;
 
+/** Survive Soft Nav / Strict Mode remounts without calling getUserMedia again. */
+const CAMERA_RELEASE_MS = 12_000;
+
+const cameraHub = {
+  stream: null as MediaStream | null,
+  releaseTimer: null as number | null,
+  consumers: 0,
+  openPromise: null as Promise<MediaStream> | null,
+
+  cancelRelease() {
+    if (this.releaseTimer != null) {
+      window.clearTimeout(this.releaseTimer);
+      this.releaseTimer = null;
+    }
+  },
+
+  liveStream(): MediaStream | null {
+    const stream = this.stream;
+    if (!stream) return null;
+    const live = stream.getTracks().some((t) => t.readyState === "live");
+    if (!live) {
+      this.stream = null;
+      return null;
+    }
+    return stream;
+  },
+
+  attach(stream: MediaStream) {
+    this.cancelRelease();
+    if (this.stream && this.stream !== stream) {
+      this.stream.getTracks().forEach((t) => t.stop());
+    }
+    this.stream = stream;
+    this.consumers += 1;
+    return stream;
+  },
+
+  /** Soft release — keep tracks warm briefly so tab switches / RSC remounts don't re-prompt. */
+  releaseSoft() {
+    this.consumers = Math.max(0, this.consumers - 1);
+    if (this.consumers > 0) return;
+    this.cancelRelease();
+    this.releaseTimer = window.setTimeout(() => {
+      this.releaseTimer = null;
+      if (this.consumers > 0) return;
+      this.stream?.getTracks().forEach((t) => t.stop());
+      this.stream = null;
+    }, CAMERA_RELEASE_MS);
+  },
+
+  /** Hard stop — user tapped Stop camera. */
+  releaseHard() {
+    this.cancelRelease();
+    this.consumers = 0;
+    this.openPromise = null;
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
+  },
+};
+
 function prefersMobileScanner() {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches;
@@ -58,6 +118,7 @@ function formatScanError(err: unknown): string {
     }
     return err.message;
   }
+  if (typeof err === "string" && err.trim()) return err;
   return "Check-in failed.";
 }
 
@@ -81,6 +142,20 @@ function getPosition(): Promise<{ lat: string; lng: string }> {
 }
 
 async function openRearCamera(): Promise<MediaStream> {
+  const existing = cameraHub.liveStream();
+  if (existing) {
+    cameraHub.cancelRelease();
+    cameraHub.consumers += 1;
+    return existing;
+  }
+
+  if (cameraHub.openPromise) {
+    const shared = await cameraHub.openPromise;
+    cameraHub.cancelRelease();
+    cameraHub.consumers += 1;
+    return shared;
+  }
+
   const attempts: MediaStreamConstraints[] = [
     {
       audio: false,
@@ -97,15 +172,34 @@ async function openRearCamera(): Promise<MediaStream> {
     },
     { audio: false, video: true },
   ];
-  let last: unknown;
-  for (const constraints of attempts) {
-    try {
-      return await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (err) {
-      last = err;
+
+  cameraHub.openPromise = (async () => {
+    let last: unknown;
+    for (const constraints of attempts) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        last = err;
+        // Permission denied — do not retry alternate constraints (re-prompts on some phones).
+        if (
+          err &&
+          typeof err === "object" &&
+          "name" in err &&
+          (err as { name: string }).name === "NotAllowedError"
+        ) {
+          break;
+        }
+      }
     }
+    throw last instanceof Error ? last : new Error("Could not open camera.");
+  })();
+
+  try {
+    const stream = await cameraHub.openPromise;
+    return cameraHub.attach(stream);
+  } finally {
+    cameraHub.openPromise = null;
   }
-  throw last instanceof Error ? last : new Error("Could not open camera.");
 }
 
 export function ScannerPanel({
@@ -134,6 +228,7 @@ export function ScannerPanel({
   const lastTokenRef = useRef("");
   const cameraBoxRef = useRef<HTMLDivElement>(null);
   const verifyRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
 
   const busy = loadingPreview || confirming;
 
@@ -149,14 +244,18 @@ export function ScannerPanel({
     detectTimer.current = window.setTimeout(tick, ms);
   }
 
-  function stopCamera() {
+  function detachVideo() {
     clearDetectTimer();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setCameraOn(false);
+  }
+
+  function stopCameraHard() {
+    detachVideo();
+    cameraHub.releaseHard();
   }
 
   function pauseDecoding(ms = 0) {
@@ -181,6 +280,7 @@ export function ScannerPanel({
     setLoadingPreview(true);
     try {
       const res = await actionPreviewPassToken(raw);
+      if (!mountedRef.current) return;
       if (!res) {
         setPreview(null);
         setError("Pass QR not found.");
@@ -190,11 +290,12 @@ export function ScannerPanel({
       setPreview(res);
       window.setTimeout(() => scrollTo(verifyRef.current), 50);
     } catch (err) {
+      if (!mountedRef.current) return;
       setPreview(null);
       setError(formatScanError(err));
       resumeDecoding(600);
     } finally {
-      setLoadingPreview(false);
+      if (mountedRef.current) setLoadingPreview(false);
     }
   }
 
@@ -243,7 +344,7 @@ export function ScannerPanel({
       jsQrRef.current = jsQR;
     }
     const tick = () => {
-      if (!streamRef.current) return;
+      if (!streamRef.current || !mountedRef.current) return;
       if (pausedRef.current || Date.now() < holdUntilRef.current) {
         scheduleDetect(tick, 400);
         return;
@@ -282,7 +383,7 @@ export function ScannerPanel({
   ) {
     const detector = new Detector({ formats: ["qr_code"] });
     const tick = () => {
-      if (!streamRef.current) return;
+      if (!streamRef.current || !mountedRef.current) return;
       if (pausedRef.current || Date.now() < holdUntilRef.current) {
         scheduleDetect(() => void tick(), 400);
         return;
@@ -312,6 +413,10 @@ export function ScannerPanel({
     setError(null);
     try {
       const stream = await openRearCamera();
+      if (!mountedRef.current) {
+        cameraHub.releaseSoft();
+        return;
+      }
       streamRef.current = stream;
       setCameraOn(true);
 
@@ -333,8 +438,10 @@ export function ScannerPanel({
         await startJsQrLoop();
       }
     } catch {
-      setError("Could not open camera. Check permissions or paste the token.");
-      setCameraOn(false);
+      if (mountedRef.current) {
+        setError("Could not open camera. Check permissions or paste the token.");
+        setCameraOn(false);
+      }
     } finally {
       startingRef.current = false;
     }
@@ -359,6 +466,7 @@ export function ScannerPanel({
         coords = await getPosition();
       }
       const res = await actionScanToken(token, coords);
+      if (!mountedRef.current) return;
       if (res.kind === "pass") {
         toast.success(res.action === "CHECK_IN" ? "Checked in" : "Checked out");
       } else {
@@ -372,9 +480,10 @@ export function ScannerPanel({
       scrollTo(cameraBoxRef.current);
       if (!streamRef.current) void startCamera();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(formatScanError(err));
     } finally {
-      setConfirming(false);
+      if (mountedRef.current) setConfirming(false);
     }
   }
 
@@ -391,14 +500,18 @@ export function ScannerPanel({
   }, [cameraOn]);
 
   useEffect(() => {
+    mountedRef.current = true;
     const mobile = prefersMobileScanner();
     const id = window.setTimeout(() => {
       setMobileUi(mobile);
       if (mobile) void startCamera();
     }, 0);
     return () => {
+      mountedRef.current = false;
       window.clearTimeout(id);
-      stopCamera();
+      detachVideo();
+      // Soft release keeps the stream warm across brief remounts / tab hops.
+      cameraHub.releaseSoft();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only auto-start
   }, []);
@@ -451,7 +564,7 @@ export function ScannerPanel({
                     type="button"
                     size="sm"
                     variant="secondary"
-                    onClick={stopCamera}
+                    onClick={stopCameraHard}
                   >
                     Stop camera
                   </Button>
