@@ -2,7 +2,7 @@
 
 **Official logo (2026-09-21):** `TiangPass Logo.jpg` white backdrop removed (flood-fill) → transparent `public/brand/tiangpass-logo.png`; favicon / PWA icons / `BrandLogo` on landing, auth, nav, install banner. New fishing illustration is cache-busted **brush-edge** `tiangpass-scene-brush.png` (no metallic badge) on marketing + login/signup.
 
-**iOS Chrome scan + bottom nav (2026-09-21):** Scanner falls back to `jsQR` when `BarcodeDetector` is missing (iPhone Chrome/Safari). App shell uses `h-dvh overflow-hidden` with in-flow `MobileBottomNav` so the tab bar no longer floats after the Chrome URL bar hides.
+**Operator scanner (2026-09-21):** Camera stays on after a read (decode paused while verifying). Confirm lives on the angler card; after success we resume scanning. Check-in no longer `revalidatePath`s `/handler/scan` (that remounted the camera and threw React #441). Decode uses a 280px center crop / 15 fps / no invert so iPhone and Android stay usable.
 
 **Admin UX scale (2026-09-21):** Shared `AdminDataTable` (search, `min-h-11`, 15/page) + `StatusBadge` traffic lights (no underscore labels). Passes / Boats / Operators / Pillars / Jetties / Payments / Audit use the shell. Payments KPI widgets (today MYT). Alerts auto-refresh (overdue CI, boat permit ≤30d, failed pay) + resolve; incidents create + status flow. Reports live KPIs + equal-height controls. Settings bento for pass ops; IT unlock retained.
 

@@ -8,7 +8,7 @@ export default async function HandlerScanPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Scanner</h1>
         <p className="text-sm text-muted-foreground">
-          Camera or paste QR. Compare photo, then confirm check-in / check-out.
+          Scan, confirm the angler, then the camera stays ready for the next pass.
         </p>
       </div>
       <ScannerPanel isAdmin={session.user.role === "ADMIN"} />

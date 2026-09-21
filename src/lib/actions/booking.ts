@@ -111,7 +111,6 @@ export async function actionScanToken(
   });
   if (passResult) {
     revalidatePath("/handler");
-    revalidatePath("/handler/scan");
     revalidatePath("/admin/ops");
     revalidatePath("/pass");
     revalidatePath(`/pass/${passResult.passId}`);
@@ -132,7 +131,6 @@ export async function actionScanToken(
   }
   const result = await scanBoardingToken({ token, handlerId: handler.id });
   revalidatePath("/handler");
-  revalidatePath("/handler/scan");
   revalidatePath("/admin/ops");
   return {
     kind: "booking" as const,

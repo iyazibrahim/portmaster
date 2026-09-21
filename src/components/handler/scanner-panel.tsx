@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   actionPreviewPassToken,
   actionScanToken,
@@ -33,6 +33,34 @@ type Preview = {
   nextAction: "CHECK_IN" | "CHECK_OUT" | null;
 };
 
+type JsQrFn = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options?: { inversionAttempts?: "dontInvert" | "attemptBoth" },
+) => { data: string } | null;
+
+function prefersMobileScanner() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches;
+}
+
+function formatScanError(err: unknown): string {
+  if (err && typeof err === "object" && "code" in err) {
+    const code = Number((err as { code: number }).code);
+    if (code === 1) return "Location permission denied. Enable GPS to check in.";
+    if (code === 2) return "Could not read GPS. Move to open sky and try again.";
+    if (code === 3) return "GPS timed out. Try again.";
+  }
+  if (err instanceof Error) {
+    if (/minified react error/i.test(err.message)) {
+      return "Check-in failed. Keep this page open and try Confirm again.";
+    }
+    return err.message;
+  }
+  return "Check-in failed.";
+}
+
 function getPosition(): Promise<{ lat: string; lng: string }> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -46,14 +74,38 @@ function getPosition(): Promise<{ lat: string; lng: string }> {
           lng: String(pos.coords.longitude),
         }),
       reject,
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 15_000 },
+      // 100 m jetty radius does not need high-accuracy GPS (faster on phones).
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
     );
   });
 }
 
-function prefersMobileScanner() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches;
+async function openRearCamera(): Promise<MediaStream> {
+  const attempts: MediaStreamConstraints[] = [
+    {
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 15, max: 20 },
+      },
+    },
+    {
+      audio: false,
+      video: { facingMode: { ideal: "environment" } },
+    },
+    { audio: false, video: true },
+  ];
+  let last: unknown;
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      last = err;
+    }
+  }
+  throw last instanceof Error ? last : new Error("Could not open camera.");
 }
 
 export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
@@ -62,18 +114,33 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [mobileUi, setMobileUi] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectTimer = useRef<number | null>(null);
   const startingRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const jsQrRef = useRef<JsQrFn | null>(null);
+  const pausedRef = useRef(false);
+  const holdUntilRef = useRef(0);
+  const lastTokenRef = useRef("");
+  const cameraBoxRef = useRef<HTMLDivElement>(null);
+  const verifyRef = useRef<HTMLDivElement>(null);
+
+  const busy = loadingPreview || confirming;
 
   function clearDetectTimer() {
     if (detectTimer.current) {
       window.clearTimeout(detectTimer.current);
       detectTimer.current = null;
     }
+  }
+
+  function scheduleDetect(tick: () => void, ms: number) {
+    clearDetectTimer();
+    detectTimer.current = window.setTimeout(tick, ms);
   }
 
   function stopCamera() {
@@ -86,54 +153,114 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
     setCameraOn(false);
   }
 
+  function pauseDecoding(ms = 0) {
+    pausedRef.current = true;
+    if (ms > 0) {
+      holdUntilRef.current = Date.now() + ms;
+    }
+  }
+
+  function resumeDecoding(delayMs = 900) {
+    lastTokenRef.current = "";
+    holdUntilRef.current = Date.now() + delayMs;
+    pausedRef.current = false;
+  }
+
+  function scrollTo(el: HTMLElement | null) {
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function loadPreview(raw: string) {
+    setError(null);
+    setLoadingPreview(true);
+    try {
+      const res = await actionPreviewPassToken(raw);
+      if (!res) {
+        setPreview(null);
+        setError("Pass QR not found.");
+        resumeDecoding(600);
+        return;
+      }
+      setPreview(res);
+      window.setTimeout(() => scrollTo(verifyRef.current), 50);
+    } catch (err) {
+      setPreview(null);
+      setError(formatScanError(err));
+      resumeDecoding(600);
+    } finally {
+      setLoadingPreview(false);
+    }
+  }
+
   function onDecoded(value: string) {
     const decoded = value.trim();
     if (!decoded) return;
+    if (pausedRef.current) return;
+    if (Date.now() < holdUntilRef.current) return;
+    if (decoded === lastTokenRef.current) return;
+    lastTokenRef.current = decoded;
+    pauseDecoding();
     setToken(decoded);
-    stopCamera();
     void loadPreview(decoded);
   }
 
-  function scheduleDetect(tick: () => void, ms: number) {
-    clearDetectTimer();
-    detectTimer.current = window.setTimeout(tick, ms);
-  }
-
-  async function startJsQrLoop() {
-    const { default: jsQR } = await import("jsqr");
+  function drawScanFrame(video: HTMLVideoElement): ImageData | null {
     if (!canvasRef.current) {
       canvasRef.current = document.createElement("canvas");
     }
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
+    if (!ctx || video.videoWidth < 8) return null;
 
+    const srcW = video.videoWidth;
+    const srcH = video.videoHeight;
+    const crop = 0.7;
+    const cw = srcW * crop;
+    const ch = srcH * crop;
+    const sx = (srcW - cw) / 2;
+    const sy = (srcH - ch) / 2;
+    const maxW = 280;
+    const scale = Math.min(1, maxW / cw);
+    const dw = Math.max(1, Math.round(cw * scale));
+    const dh = Math.max(1, Math.round(ch * scale));
+    if (canvas.width !== dw || canvas.height !== dh) {
+      canvas.width = dw;
+      canvas.height = dh;
+    }
+    ctx.drawImage(video, sx, sy, cw, ch, 0, 0, dw, dh);
+    return ctx.getImageData(0, 0, dw, dh);
+  }
+
+  async function startJsQrLoop() {
+    if (!jsQrRef.current) {
+      const { default: jsQR } = await import("jsqr");
+      jsQrRef.current = jsQR;
+    }
     const tick = () => {
       if (!streamRef.current) return;
+      if (pausedRef.current || Date.now() < holdUntilRef.current) {
+        scheduleDetect(tick, 400);
+        return;
+      }
       const video = videoRef.current;
-      if (!video || video.readyState < 2 || video.videoWidth < 8) {
-        scheduleDetect(tick, 250);
+      if (!video || video.readyState < 2) {
+        scheduleDetect(tick, 280);
         return;
       }
-      const maxW = 640;
-      const scale = Math.min(1, maxW / video.videoWidth);
-      const w = Math.max(1, Math.round(video.videoWidth * scale));
-      const h = Math.max(1, Math.round(video.videoHeight * scale));
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      const frame = drawScanFrame(video);
+      const jsQR = jsQrRef.current;
+      if (frame && jsQR) {
+        const code = jsQR(frame.data, frame.width, frame.height, {
+          inversionAttempts: "dontInvert",
+        });
+        const value = code?.data?.trim();
+        if (value) {
+          onDecoded(value);
+          scheduleDetect(tick, 400);
+          return;
+        }
       }
-      ctx.drawImage(video, 0, 0, w, h);
-      const imageData = ctx.getImageData(0, 0, w, h);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "attemptBoth",
-      });
-      const value = code?.data?.trim();
-      if (value) {
-        onDecoded(value);
-        return;
-      }
-      scheduleDetect(tick, 280);
+      scheduleDetect(tick, 420);
     };
     tick();
   }
@@ -146,23 +273,24 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
     const detector = new Detector({ formats: ["qr_code"] });
     const tick = () => {
       if (!streamRef.current) return;
+      if (pausedRef.current || Date.now() < holdUntilRef.current) {
+        scheduleDetect(() => void tick(), 400);
+        return;
+      }
       const video = videoRef.current;
       if (!video || video.readyState < 2) {
-        scheduleDetect(() => void tick(), 250);
+        scheduleDetect(() => void tick(), 280);
         return;
       }
       void detector
         .detect(video)
         .then((codes) => {
           const value = codes[0]?.rawValue?.trim();
-          if (value) {
-            onDecoded(value);
-            return;
-          }
-          scheduleDetect(() => void tick(), 400);
+          if (value) onDecoded(value);
+          scheduleDetect(() => void tick(), 380);
         })
         .catch(() => {
-          scheduleDetect(() => void tick(), 400);
+          scheduleDetect(() => void tick(), 420);
         });
     };
     tick();
@@ -173,10 +301,7 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
     startingRef.current = true;
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
+      const stream = await openRearCamera();
       streamRef.current = stream;
       setCameraOn(true);
 
@@ -195,7 +320,6 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
       if (Detector) {
         startBarcodeDetectorLoop(Detector);
       } else {
-        // iOS Chrome/Safari has no BarcodeDetector — decode frames with jsQR.
         await startJsQrLoop();
       }
     } catch {
@@ -206,25 +330,61 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
     }
   }
 
-  // Attach stream once the video element is mounted (needed for auto-start).
+  function scanAnother() {
+    setPreview(null);
+    setToken("");
+    setError(null);
+    resumeDecoding(700);
+    scrollTo(cameraBoxRef.current);
+    if (!streamRef.current) void startCamera();
+  }
+
+  async function confirmScan() {
+    if (!token.trim() || confirming) return;
+    setError(null);
+    setConfirming(true);
+    try {
+      let coords: { lat?: string; lng?: string } = {};
+      if (!isAdmin) {
+        coords = await getPosition();
+      }
+      const res = await actionScanToken(token, coords);
+      if (res.kind === "pass") {
+        toast.success(res.action === "CHECK_IN" ? "Checked in" : "Checked out");
+      } else {
+        toast.success(
+          res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
+        );
+      }
+      setPreview(null);
+      setToken("");
+      resumeDecoding(1100);
+      scrollTo(cameraBoxRef.current);
+      if (!streamRef.current) void startCamera();
+    } catch (err) {
+      setError(formatScanError(err));
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   useEffect(() => {
     const video = videoRef.current;
     const stream = streamRef.current;
     if (!cameraOn || !video || !stream) return;
     video.srcObject = stream;
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
     void video.play().catch(() => {
       /* autoplay may need a gesture on some desktops */
     });
   }, [cameraOn]);
 
-  // Mobile / coarse pointer: open rear camera immediately for quick scan.
   useEffect(() => {
     const mobile = prefersMobileScanner();
     const id = window.setTimeout(() => {
       setMobileUi(mobile);
-      if (mobile) {
-        void startCamera();
-      }
+      if (mobile) void startCamera();
     }, 0);
     return () => {
       window.clearTimeout(id);
@@ -233,68 +393,22 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only auto-start
   }, []);
 
-  function loadPreview(raw: string) {
-    setError(null);
-    setPreview(null);
-    startTransition(async () => {
-      try {
-        const res = await actionPreviewPassToken(raw);
-        if (!res) {
-          setError("Pass QR not found.");
-          return;
-        }
-        setPreview(res);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Preview failed");
-      }
-    });
-  }
-
-  function confirmScan() {
-    if (!token.trim()) return;
-    setError(null);
-    startTransition(async () => {
-      try {
-        let coords: { lat?: string; lng?: string } = {};
-        if (!isAdmin) {
-          coords = await getPosition();
-        }
-        const res = await actionScanToken(token, coords);
-        if (res.kind === "pass") {
-          toast.success(
-            res.action === "CHECK_IN" ? "Checked in" : "Checked out",
-          );
-          setPreview(res.preview ?? null);
-          setToken("");
-        } else {
-          toast.success(
-            res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
-          );
-          setToken("");
-          setPreview(null);
-        }
-        if (mobileUi || prefersMobileScanner()) {
-          void startCamera();
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Scan failed");
-      }
-    });
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">
           <CardTitle className="text-base">Scan fishing pass QR</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 px-4 sm:px-5">
-          <div className="relative overflow-hidden rounded-lg bg-black">
+        <CardContent className="space-y-3 px-4 sm:px-5">
+          <div
+            ref={cameraBoxRef}
+            className="relative overflow-hidden rounded-lg bg-black"
+          >
             <video
               ref={videoRef}
               className={
                 cameraOn
-                  ? "aspect-[3/4] w-full object-cover sm:aspect-video"
+                  ? "aspect-video max-h-[38vh] w-full object-cover"
                   : "hidden"
               }
               muted
@@ -302,7 +416,7 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
               autoPlay
             />
             {!cameraOn ? (
-              <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-3 bg-muted px-4 sm:aspect-video">
+              <div className="flex aspect-video max-h-[38vh] w-full flex-col items-center justify-center gap-3 bg-muted px-4">
                 <p className="text-center text-sm text-muted-foreground">
                   {mobileUi
                     ? "Allow camera access to scan, or paste a token below."
@@ -314,9 +428,14 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
               </div>
             ) : (
               <>
-                <p className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/55 to-transparent px-3 py-2.5 text-center text-xs text-white">
-                  Point the camera at the pass QR
+                <p className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/55 to-transparent px-3 py-2 text-center text-xs text-white">
+                  {preview
+                    ? "Camera on — confirm below, then scan the next pass"
+                    : loadingPreview
+                      ? "Reading pass…"
+                      : "Point the camera at the pass QR"}
                 </p>
+                <div className="pointer-events-none absolute inset-[18%] rounded-md border-2 border-white/75" />
                 <div className="absolute inset-x-0 bottom-0 flex justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
                   <Button
                     type="button"
@@ -350,29 +469,6 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
             </p>
           )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-2 border-t px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11 w-full sm:w-auto"
-            disabled={pending || !token.trim()}
-            onClick={() => loadPreview(token)}
-          >
-            Preview
-          </Button>
-          <Button
-            type="button"
-            className="min-h-11 w-full sm:w-auto"
-            disabled={pending || !token.trim() || !preview?.nextAction}
-            onClick={confirmScan}
-          >
-            {pending
-              ? "Working…"
-              : preview?.nextAction === "CHECK_OUT"
-                ? "Confirm check-out"
-                : "Confirm check-in"}
-          </Button>
-        </CardFooter>
       </Card>
 
       {error ? (
@@ -383,56 +479,96 @@ export function ScannerPanel({ isAdmin = false }: { isAdmin?: boolean }) {
       ) : null}
 
       {preview ? (
-        <Card>
-          <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">
-            <CardTitle className="text-base">Angler verification</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:px-5 sm:pb-5">
-            {preview.photoKey ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={photoUrl(preview.photoKey) ?? undefined}
-                alt={preview.anglerName}
-                className="size-28 rounded-lg border object-cover"
-              />
-            ) : (
-              <div className="flex size-28 items-center justify-center rounded-lg border bg-muted text-xs text-muted-foreground">
-                No photo
-              </div>
-            )}
-            <dl className="grid flex-1 gap-2 text-sm">
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Name</dt>
-                <dd className="font-medium">{preview.anglerName}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">MyKad</dt>
-                <dd className="font-mono">****{preview.myKadLast4 ?? "----"}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Pass</dt>
-                <dd>{preview.reference}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Pillar</dt>
-                <dd>{preview.pillarName}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Jetty</dt>
-                <dd>{preview.jettyName}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Status</dt>
-                <dd>
-                  <StatusBadge status={preview.status} />
-                </dd>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Visually compare the person to the photo before confirming.
-              </p>
-            </dl>
-          </CardContent>
-        </Card>
+        <div ref={verifyRef} className="scroll-mt-4">
+          <Card>
+            <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">
+              <CardTitle className="text-base">Angler verification</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:px-5 sm:pb-5">
+              {preview.photoKey ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={photoUrl(preview.photoKey) ?? undefined}
+                  alt={preview.anglerName}
+                  className="size-28 rounded-lg border object-cover"
+                />
+              ) : (
+                <div className="flex size-28 items-center justify-center rounded-lg border bg-muted text-xs text-muted-foreground">
+                  No photo
+                </div>
+              )}
+              <dl className="grid flex-1 gap-2 text-sm">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Name</dt>
+                  <dd className="font-medium">{preview.anglerName}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">MyKad</dt>
+                  <dd className="font-mono">
+                    ****{preview.myKadLast4 ?? "----"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Pass</dt>
+                  <dd>{preview.reference}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Pillar</dt>
+                  <dd>{preview.pillarName}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Jetty</dt>
+                  <dd>{preview.jettyName}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Status</dt>
+                  <dd>
+                    <StatusBadge status={preview.status} />
+                  </dd>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Visually compare the person to the photo before confirming.
+                </p>
+              </dl>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2 border-t px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 w-full sm:w-auto"
+                disabled={busy}
+                onClick={scanAnother}
+              >
+                Scan another
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11 w-full sm:w-auto"
+                disabled={busy || !preview.nextAction}
+                onClick={() => void confirmScan()}
+              >
+                {confirming
+                  ? "Working…"
+                  : preview.nextAction === "CHECK_OUT"
+                    ? "Confirm check-out"
+                    : "Confirm check-in"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      ) : token.trim() ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 w-full"
+          disabled={busy || !token.trim()}
+          onClick={() => {
+            pauseDecoding();
+            void loadPreview(token);
+          }}
+        >
+          {loadingPreview ? "Loading…" : "Preview pass"}
+        </Button>
       ) : null}
     </div>
   );
