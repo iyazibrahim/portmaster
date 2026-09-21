@@ -14,7 +14,7 @@ import {
   payments,
   locations,
 } from "@/db/schema";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { formatMYR, sideLabel, tripSlotLabel } from "@/lib/utils-app";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
@@ -119,7 +119,7 @@ export default async function TripDetailPage({
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Trip receipt</h1>
-          <Badge>{b.status.replaceAll("_", " ")}</Badge>
+          <StatusBadge status={b.status} />
         </div>
       </div>
 

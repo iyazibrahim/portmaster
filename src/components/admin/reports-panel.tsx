@@ -215,7 +215,7 @@ export function ReportsPanel({
               variant="secondary"
               onClick={() =>
                 downloadCsv(
-                  `portmaster-${type.toLowerCase()}-${preview.periodStart}.csv`,
+                  `tiangpass-${type.toLowerCase()}-${preview.periodStart}.csv`,
                   preview.csv,
                 )
               }

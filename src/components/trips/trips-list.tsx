@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,19 +16,8 @@ import {
   PaginationBar,
   useClientPagination,
 } from "@/hooks/use-client-pagination";
+import { StatusBadge } from "@/components/status-badge";
 import { formatMYR, sideLabel, tripSlotLabel } from "@/lib/utils-app";
-
-const statusVariant: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  PENDING_PAYMENT: "outline",
-  CONFIRMED: "default",
-  CHECKED_IN: "default",
-  COMPLETED: "secondary",
-  CANCELLED: "destructive",
-  NO_SHOW: "destructive",
-};
 
 export type TripListRow = {
   id: string;
@@ -120,9 +108,7 @@ export function TripsList({ rows }: { rows: TripListRow[] }) {
                       {formatMYR(r.totalCents)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant[r.status] ?? "secondary"}>
-                        {r.status.replaceAll("_", " ")}
-                      </Badge>
+                      <StatusBadge status={r.status} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -146,9 +132,7 @@ export function TripsList({ rows }: { rows: TripListRow[] }) {
                       {formatMYR(r.totalCents)}
                     </p>
                   </div>
-                  <Badge variant={statusVariant[r.status] ?? "secondary"}>
-                    {r.status.replaceAll("_", " ")}
-                  </Badge>
+                  <StatusBadge status={r.status} />
                 </Link>
               </li>
             ))}

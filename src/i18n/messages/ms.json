@@ -1,0 +1,19 @@
+{
+  "nav.buyPass": "Beli Pas",
+  "nav.myPasses": "Pas Saya",
+  "nav.profile": "Profil",
+  "nav.scan": "Imbas",
+  "nav.today": "Hari Ini",
+  "nav.fleet": "Armada",
+  "nav.dashboard": "Papan Pemuka",
+  "nav.logout": "Log keluar",
+  "pass.title": "Pas memancing hari ini",
+  "pass.subtitle": "Di jeti → satu tiang → yuran Persatuan RM5. Uruskan bot di luar aplikasi.",
+  "scan.title": "Pengimbas",
+  "scan.subtitle": "Kamera atau tampal QR. Bandingkan foto, kemudian sahkan daftar masuk / keluar.",
+  "common.error": "Berlaku ralat",
+  "common.continue": "Teruskan",
+  "common.back": "Kembali",
+  "lang.en": "EN",
+  "lang.ms": "BM"
+}

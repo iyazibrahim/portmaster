@@ -18,8 +18,9 @@ export default async function HomePage() {
   const session = await auth();
   if (session?.user) {
     if (session.user.role === "ADMIN") redirect("/admin/ops");
+    if (session.user.role === "LLM_VIEWER") redirect("/llm");
     if (session.user.role === "HANDLER") redirect("/handler");
-    redirect("/book");
+    redirect("/pass");
   }
 
   return (
@@ -33,7 +34,7 @@ export default async function HomePage() {
 
       <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
         <span className="text-sm font-semibold tracking-tight text-foreground">
-          PortMaster
+          TiangPass
         </span>
         <nav className="flex items-center gap-5 text-sm">
           <Link
@@ -57,26 +58,26 @@ export default async function HomePage() {
             <p
               className="font-[family-name:var(--font-display-landing)] text-5xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)] sm:text-6xl lg:text-7xl"
             >
-              PortMaster
+              TiangPass
             </p>
             <div className="space-y-3 animate-[fadeUp_0.7s_ease-out_0.12s_both]">
               <h1 className="max-w-lg text-xl font-medium tracking-tight text-foreground sm:text-2xl">
-                Penang jetty fishing, booked before you cast.
+                Same-day Association fishing passes under authorised pillars.
               </h1>
               <p className="max-w-md text-base text-muted-foreground sm:text-lg">
-                Pick a jetty and fishing spot, seat your party on a boat, and
-                board with a digital QR pass.
+                Pay RM5 Association fee, pick a boarding jetty and pillar, show
+                your QR at check-in. Boat fare stays with your skipper.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row animate-[fadeUp_0.7s_ease-out_0.22s_both]">
               <Link
-                href="/login?next=/book"
+                href="/login?next=/pass"
                 className={cn(
                   buttonVariants({ size: "lg" }),
                   "min-h-11 w-full sm:w-auto sm:min-w-44",
                 )}
               >
-                Book a trip
+                Buy today&apos;s pass
               </Link>
               <Link
                 href="/login"

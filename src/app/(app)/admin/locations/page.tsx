@@ -10,6 +10,7 @@ export default async function AdminLocationsPage() {
   const jettyRows = await db
     .select({ id: jetties.id, name: jetties.name })
     .from(jetties)
+    .where(eq(jetties.active, true))
     .orderBy(asc(jetties.sortOrder), asc(jetties.name));
 
   const rows = await db
@@ -21,10 +22,12 @@ export default async function AdminLocationsPage() {
       side: locations.side,
       name: locations.name,
       status: locations.status,
+      maxOccupancy: locations.maxOccupancy,
       notes: locations.notes,
     })
     .from(locations)
     .innerJoin(jetties, eq(locations.jettyId, jetties.id))
+    .where(eq(jetties.active, true))
     .orderBy(
       asc(jetties.sortOrder),
       asc(locations.side),
@@ -34,14 +37,11 @@ export default async function AdminLocationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Locations</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Pillars</h1>
         <p className="text-muted-foreground">
-          {rows.length} locations across {jettyRows.length} jetties. Open/close
-          fishing spots based on{" "}
-          <span className="font-medium text-foreground">
-            LLM (Lembaga Lebuh Raya Malaysia)
-          </span>{" "}
-          requirements — anglers only see OPEN locations when booking.
+          {rows.length} authorised pillars at active jetties. Only{" "}
+          <span className="font-medium text-foreground">Available</span> pillars
+          can be purchased. Max occupancy is per pillar.
         </p>
       </div>
       <LocationAdmin initial={rows} jetties={jettyRows} />

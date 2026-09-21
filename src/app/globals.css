@@ -107,6 +107,47 @@
   }
 }
 
+/* Sidebar / compact lists: no scrollbar chrome */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Scroll areas: thin harbor-blue thumb, invisible track */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.48 0.12 250 / 0.35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: oklch(0.48 0.12 250 / 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: oklch(0.48 0.12 250 / 0.48);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @keyframes boat-settle {
   0% {
     opacity: 0;

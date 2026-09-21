@@ -4,7 +4,7 @@ import * as schema from "./schema";
 
 const connectionString =
   process.env.DATABASE_URL ??
-  "postgresql://portmaster:portmaster@127.0.0.1:5432/portmaster";
+  "postgresql://tiangpass:tiangpass@127.0.0.1:5432/tiangpass";
 
 const globalForDb = globalThis as unknown as {
   pgClient?: ReturnType<typeof postgres>;

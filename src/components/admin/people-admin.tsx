@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   actionCreateUser,
   actionResetUserPassword,
+  actionSetAccountStatus,
   actionUpdateUserRole,
 } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
@@ -31,8 +32,10 @@ import {
   PaginationBar,
   useClientPagination,
 } from "@/hooks/use-client-pagination";
+import { StatusBadge } from "@/components/status-badge";
 import { toast } from "sonner";
-import type { UserRole } from "@/db/schema";
+import type { AccountStatus, UserRole } from "@/db/schema";
+import { roleLabel } from "@/lib/utils-app";
 
 export type PersonRow = {
   id: string;
@@ -40,6 +43,7 @@ export type PersonRow = {
   email: string;
   role: UserRole;
   phone: string | null;
+  accountStatus: AccountStatus;
   handlerName: string | null;
   handlerJettyId: string | null;
   handlerJettyName: string | null;
@@ -48,9 +52,10 @@ export type PersonRow = {
 type JettyOption = { id: string; name: string };
 
 const ROLE_OPTIONS = [
-  { value: "USER", label: "USER (Angler)" },
-  { value: "HANDLER", label: "HANDLER (Boatmen)" },
-  { value: "ADMIN", label: "ADMIN" },
+  { value: "USER", label: "Angler" },
+  { value: "HANDLER", label: "Operator" },
+  { value: "ADMIN", label: "Admin" },
+  { value: "LLM_VIEWER", label: "LLM Viewer" },
 ];
 
 const emptyForm = (jettyId: string) => ({
@@ -77,11 +82,15 @@ export function PeopleAdmin({
 
   const [editOpen, setEditOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
   const [active, setActive] = useState<PersonRow | null>(null);
   const [editRole, setEditRole] = useState<UserRole>("USER");
   const [editJettyId, setEditJettyId] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [blockStatus, setBlockStatus] =
+    useState<AccountStatus>("SUSPENDED");
+  const [blockReason, setBlockReason] = useState("");
 
   const jettyOptions = useMemo(
     () => jetties.map((j) => ({ value: j.id, label: j.name })),
@@ -121,6 +130,15 @@ export function PeopleAdmin({
     setResetOpen(true);
   }
 
+  function openBlock(p: PersonRow) {
+    setActive(p);
+    setBlockStatus(
+      p.accountStatus === "ACTIVE" ? "SUSPENDED" : "ACTIVE",
+    );
+    setBlockReason("");
+    setBlockOpen(true);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -145,15 +163,16 @@ export function PeopleAdmin({
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Handler / Jetty</TableHead>
-              <TableHead className="w-[12rem]">Actions</TableHead>
+              <TableHead className="w-[14rem]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pager.pageItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground">
+                <TableCell colSpan={7} className="text-muted-foreground">
                   No people match.
                 </TableCell>
               </TableRow>
@@ -172,8 +191,11 @@ export function PeopleAdmin({
                             : "outline"
                       }
                     >
-                      {p.role}
+                      {roleLabel(p.role)}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={p.accountStatus} />
                   </TableCell>
                   <TableCell>{p.phone ?? "—"}</TableCell>
                   <TableCell className="max-w-[14rem] truncate text-muted-foreground">
@@ -197,6 +219,15 @@ export function PeopleAdmin({
                       >
                         Reset pw
                       </Button>
+                      {p.role === "USER" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openBlock(p)}
+                        >
+                          Status
+                        </Button>
+                      ) : null}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -438,6 +469,66 @@ export function PeopleAdmin({
               }
             >
               Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Account status — {active?.name}</DialogTitle>
+            <DialogDescription>
+              Suspended or blacklisted anglers cannot buy a pass. Blacklisted
+              cannot log in.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <SearchableSelect
+                options={[
+                  { value: "ACTIVE", label: "ACTIVE (reactivate)" },
+                  { value: "SUSPENDED", label: "SUSPENDED" },
+                  { value: "BLACKLISTED", label: "BLACKLISTED" },
+                ]}
+                value={blockStatus}
+                onValueChange={(v) => setBlockStatus(v as AccountStatus)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reason</Label>
+              <Input
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="Required"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBlockOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={pending || !active || !blockReason.trim()}
+              onClick={() =>
+                startTransition(async () => {
+                  if (!active) return;
+                  try {
+                    await actionSetAccountStatus({
+                      userId: active.id,
+                      status: blockStatus,
+                      reason: blockReason,
+                    });
+                    toast.success("Account status updated");
+                    setBlockOpen(false);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Failed");
+                  }
+                })
+              }
+            >
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

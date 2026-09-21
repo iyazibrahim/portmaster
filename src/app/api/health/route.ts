@@ -7,14 +7,14 @@ export async function GET() {
     await db.execute(sql`select 1`);
     return NextResponse.json({
       status: "ok",
-      service: "portmaster",
+      service: "tiangpass",
       time: new Date().toISOString(),
     });
   } catch (error) {
     return NextResponse.json(
       {
         status: "error",
-        service: "portmaster",
+        service: "tiangpass",
         message: error instanceof Error ? error.message : "db unavailable",
       },
       { status: 503 },

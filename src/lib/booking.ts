@@ -244,7 +244,7 @@ export async function createTripGroupWithAllocations(input: {
   if (locationRows.length !== locationIds.length) {
     throw new Error("One or more locations are missing.");
   }
-  if (locationRows.some((l) => l.status !== "OPEN")) {
+  if (locationRows.some((l) => l.status !== "AVAILABLE")) {
     throw new Error("One or more selected locations are closed.");
   }
 
@@ -278,10 +278,14 @@ export async function createTripGroupWithAllocations(input: {
     partySize: input.partySize,
   });
 
+  const assignedHandlerId = boat.handlerId;
+  if (!assignedHandlerId) {
+    throw new Error("Boat has no assigned operator.");
+  }
   const [handler] = await db
     .select()
     .from(handlers)
-    .where(eq(handlers.id, boat.handlerId))
+    .where(eq(handlers.id, assignedHandlerId))
     .limit(1);
   if (!handler || handler.jettyId !== jettyId) {
     throw new Error("Boat is not available at this jetty.");
@@ -302,7 +306,7 @@ export async function createTripGroupWithAllocations(input: {
       id: bookingId,
       tripGroupId,
       userId: input.userId,
-      handlerId: boat.handlerId,
+      handlerId: assignedHandlerId,
       jettyId,
       locationId: alloc.locationId,
       boatId: input.boatId,

@@ -1,6 +1,6 @@
 {
-  "name": "PortMaster",
-  "short_name": "PortMaster",
+  "name": "TiangPass",
+  "short_name": "TiangPass",
   "description": "Book Penang Bridge fishing locations, seats, and board with QR.",
   "start_url": "/",
   "scope": "/",

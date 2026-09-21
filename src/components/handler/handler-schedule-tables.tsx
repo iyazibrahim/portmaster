@@ -17,7 +17,7 @@ import {
   useClientPagination,
 } from "@/hooks/use-client-pagination";
 import { CompleteTripButton } from "@/components/handler/complete-trip-button";
-import { tripSlotLabel } from "@/lib/utils-app";
+import { formatEnumLabel, tripSlotLabel } from "@/lib/utils-app";
 
 export type ScheduleRow = {
   id: string;
@@ -155,7 +155,7 @@ export function HandlerScheduleTables({
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {r.status.replaceAll("_", " ")}
+                          {formatEnumLabel(r.status)}
                         </Badge>
                       </TableCell>
                     </TableRow>

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Anchor,
-  CalendarDays,
+  AlertTriangle,
+  Bell,
+  ClipboardList,
   FileBarChart,
   LayoutDashboard,
   MapPinned,
@@ -16,6 +18,8 @@ import {
   Wallet,
   LogOut,
   Menu,
+  Eye,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -29,6 +33,7 @@ import {
 } from "@/components/ui/sheet";
 import { logoutAction } from "@/lib/actions/auth";
 import type { UserRole } from "@/db/schema";
+import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 
 type NavItem = {
   href: string;
@@ -39,28 +44,51 @@ type NavItem = {
 function navForRole(role: UserRole): NavItem[] {
   if (role === "ADMIN") {
     return [
-      { href: "/admin/ops", label: "Ops", icon: LayoutDashboard },
-      { href: "/admin/jetties", label: "Jetties", icon: Anchor },
-      { href: "/admin/locations", label: "Locations", icon: MapPinned },
-      { href: "/admin/payments", label: "Payments", icon: Wallet },
+      { href: "/admin/ops", label: "Dashboard", icon: LayoutDashboard },
       { href: "/admin/users", label: "People", icon: Users },
+      { href: "/admin/passes", label: "Fishing Passes", icon: Ticket },
+      { href: "/admin/boats", label: "Boats", icon: Ship },
+      { href: "/admin/operators", label: "Boat Operators", icon: Anchor },
+      { href: "/admin/locations", label: "Pillars", icon: MapPinned },
+      { href: "/admin/jetties", label: "Jetties", icon: Anchor },
+      { href: "/admin/payments", label: "Payments", icon: Wallet },
+      { href: "/admin/alerts", label: "Alerts & Incidents", icon: Bell },
       { href: "/admin/reports", label: "Reports", icon: FileBarChart },
-      { href: "/admin/settings", label: "Settings", icon: Settings },
+      { href: "/admin/settings", label: "System Settings", icon: Settings },
+      { href: "/admin/audit", label: "Audit Trail", icon: ScrollText },
+      { href: "/profile", label: "Account", icon: Users },
+    ];
+  }
+  if (role === "LLM_VIEWER") {
+    return [
+      { href: "/llm", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/llm/operations", label: "Operations Overview", icon: ClipboardList },
+      { href: "/llm/pillars", label: "Pillar Status", icon: MapPinned },
+      { href: "/llm/boats", label: "Boats", icon: Ship },
+      { href: "/llm/anglers", label: "Anglers", icon: Users },
+      { href: "/llm/reports", label: "Reports", icon: FileBarChart },
+      { href: "/profile", label: "Account", icon: Users },
     ];
   }
   if (role === "HANDLER") {
     return [
-      { href: "/handler", label: "Schedule", icon: CalendarDays },
       { href: "/handler/scan", label: "Scan", icon: QrCode },
+      { href: "/handler", label: "Today", icon: LayoutDashboard },
       { href: "/handler/boat", label: "Fleet", icon: Ship },
-      { href: "/handler/earnings", label: "Earnings", icon: Wallet },
+      { href: "/profile", label: "Account", icon: Users },
     ];
   }
   return [
-    { href: "/book", label: "Book", icon: Anchor },
-    { href: "/trips", label: "Trips", icon: Ticket },
+    { href: "/pass", label: "Buy Pass", icon: Ticket },
+    { href: "/trips", label: "My Passes", icon: ClipboardList },
     { href: "/profile", label: "Profile", icon: Users },
   ];
+}
+
+function brandTitle(role: UserRole) {
+  if (role === "LLM_VIEWER") return "Bridge Fishing Monitoring";
+  if (role === "ADMIN") return "Bridge Fishing Pass";
+  return "TiangPass";
 }
 
 function NavLinks({
@@ -101,7 +129,7 @@ function NavLinks({
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors",
+              "flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors",
               variant === "sidebar"
                 ? active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
@@ -123,31 +151,43 @@ function NavLinks({
 export function AppNav({
   role,
   name,
+  locale = "en",
 }: {
   role: UserRole;
   name?: string | null;
+  locale?: "en" | "ms";
 }) {
   const pathname = usePathname();
   const items = navForRole(role);
   const [open, setOpen] = useState(false);
-  const isAdmin = role === "ADMIN";
+  const isAdmin = role === "ADMIN" || role === "LLM_VIEWER";
+  const isLlm = role === "LLM_VIEWER";
 
   return (
     <>
-      <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-sidebar-border md:bg-sidebar">
-        <div className="flex h-14 items-center px-4">
+      <aside className="hidden h-full min-h-0 shrink-0 overflow-hidden lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-sidebar-border lg:bg-sidebar">
+        <div className="flex h-14 shrink-0 items-center gap-2 px-4">
           <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">
-            PortMaster
+            {brandTitle(role)}
           </span>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 px-2 pb-2">
+        <nav className="scrollbar-none flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain px-2 py-1">
           <NavLinks items={items} pathname={pathname} variant="sidebar" />
         </nav>
-        <div className="border-t border-sidebar-border p-3">
+        <div className="shrink-0 border-t border-sidebar-border p-3">
+          {isLlm ? (
+            <p className="mb-2 flex items-center gap-1.5 px-1 text-[11px] text-sidebar-foreground/70">
+              <Eye className="size-3.5" />
+              View Only Access
+            </p>
+          ) : null}
+          <div className="mb-2 px-1">
+            <LocaleSwitcher locale={locale} />
+          </div>
           <p className="mb-2 truncate px-1 text-xs text-sidebar-foreground/70">
             {name}
             <span className="ml-1 text-[10px] uppercase tracking-wide">
-              · {role}
+              · {role === "LLM_VIEWER" ? "LLM" : role === "USER" ? "Angler" : role === "HANDLER" ? "Operator" : "Admin"}
             </span>
           </p>
           <form action={logoutAction}>
@@ -165,7 +205,7 @@ export function AppNav({
       </aside>
 
       {isAdmin ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-border bg-background px-3 py-2 md:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-border bg-background px-3 py-2 lg:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted">
               <Menu className="size-4" />
@@ -173,9 +213,9 @@ export function AppNav({
             </SheetTrigger>
             <SheetContent side="left" className="w-72">
               <SheetHeader>
-                <SheetTitle>PortMaster</SheetTitle>
+                <SheetTitle>{brandTitle(role)}</SheetTitle>
               </SheetHeader>
-              <nav className="mt-4 flex flex-col gap-1">
+              <nav className="scrollbar-none mt-4 flex max-h-[70vh] flex-col gap-1 overflow-y-auto">
                 <NavLinks
                   items={items}
                   pathname={pathname}
@@ -183,6 +223,15 @@ export function AppNav({
                   onNavigate={() => setOpen(false)}
                 />
               </nav>
+              <div className="mt-4 px-1">
+                <LocaleSwitcher locale={locale} />
+              </div>
+              {isLlm ? (
+                <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <AlertTriangle className="size-3.5" />
+                  No administrative functions
+                </p>
+              ) : null}
               <form action={logoutAction} className="mt-6">
                 <Button
                   type="submit"
@@ -195,7 +244,7 @@ export function AppNav({
               </form>
             </SheetContent>
           </Sheet>
-          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+          <div className="scrollbar-none flex min-w-0 flex-1 gap-1 overflow-x-auto">
             {items.slice(0, 4).map((item) => {
               const active =
                 pathname === item.href ||
@@ -220,7 +269,7 @@ export function AppNav({
           </div>
         </div>
       ) : (
-        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background lg:hidden">
           <NavLinks items={items} pathname={pathname} variant="bottom" />
         </nav>
       )}
@@ -228,12 +277,19 @@ export function AppNav({
   );
 }
 
-export function MobileTopBar({ title }: { title?: string }) {
+export function MobileTopBar({
+  title,
+  locale = "en",
+}: {
+  title?: string;
+  locale?: "en" | "ms";
+}) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6 md:hidden">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6 lg:hidden">
       <span className="text-sm font-semibold tracking-tight">
-        {title ?? "PortMaster"}
+        {title ?? "TiangPass"}
       </span>
+      <LocaleSwitcher locale={locale} />
     </header>
   );
 }

@@ -1,5 +1,5 @@
-const CACHE = "portmaster-shell-v1";
-const SHELL = ["/", "/book", "/trips", "/profile", "/login", "/offline", "/manifest.webmanifest"];
+const CACHE = "tiangpass-shell-v2";
+const SHELL = ["/", "/pass", "/trips", "/profile", "/login", "/offline", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { StatusBadge } from "@/components/status-badge";
 import {
   PaginationBar,
   useClientPagination,
@@ -89,17 +89,7 @@ export function PaymentsTable({ rows }: { rows: PaymentRow[] }) {
                       {formatMYR(r.amountCents)}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          r.status === "PAID"
-                            ? "default"
-                            : r.status === "PENDING"
-                              ? "outline"
-                              : "secondary"
-                        }
-                      >
-                        {r.status}
-                      </Badge>
+                      <StatusBadge status={r.status} />
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {r.mockRef ?? "—"}

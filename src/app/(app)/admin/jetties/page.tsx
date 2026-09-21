@@ -39,6 +39,9 @@ export default async function AdminJettiesPage() {
     active: j.active,
     notes: j.notes,
     sortOrder: j.sortOrder,
+    lat: j.lat,
+    lng: j.lng,
+    geofenceRadiusM: j.geofenceRadiusM,
     locationCount: locMap.get(j.id) ?? 0,
     handlerCount: hdlMap.get(j.id) ?? 0,
   }));
@@ -50,7 +53,9 @@ export default async function AdminJettiesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Jetties</h1>
         <p className="text-muted-foreground">
-          {rows.length} Penang fishing landings · {activeCount} active.
+          MVP1 is scoped to four boarding jetties around Jambatan Pulau Pinang.
+          Other Penang landings stay listed but inactive. {activeCount} active
+          of {rows.length}.
         </p>
       </div>
       <JettyAdmin initial={rows} />

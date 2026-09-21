@@ -14,6 +14,7 @@ export default async function AdminUsersPage() {
       email: users.email,
       role: users.role,
       phone: users.phone,
+      accountStatus: users.accountStatus,
       handlerName: handlers.displayName,
       handlerJettyId: handlers.jettyId,
       handlerJettyName: jetties.name,

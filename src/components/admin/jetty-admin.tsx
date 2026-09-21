@@ -38,22 +38,45 @@ export type JettyRow = {
   active: boolean;
   notes: string | null;
   sortOrder: number;
+  lat: string | null;
+  lng: string | null;
+  geofenceRadiusM: number;
   locationCount: number;
   handlerCount: number;
 };
 
+type JettyForm = {
+  id?: string;
+  name: string;
+  area: string;
+  slug: string;
+  notes: string;
+  sortOrder: number;
+  lat: string;
+  lng: string;
+  geofenceRadiusM: number;
+  active: boolean;
+};
+
+const emptyForm = (sortOrder: number): JettyForm => ({
+  name: "",
+  area: "",
+  slug: "",
+  notes: "",
+  sortOrder,
+  lat: "",
+  lng: "",
+  geofenceRadiusM: 100,
+  active: true,
+});
+
 export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
   const [query, setQuery] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({
-    name: "",
-    area: "",
-    slug: "",
-    notes: "",
-    sortOrder: (initial.at(-1)?.sortOrder ?? 0) + 1,
-    active: true,
-  });
+  const [form, setForm] = useState<JettyForm>(
+    emptyForm((initial.at(-1)?.sortOrder ?? 0) + 1),
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -67,17 +90,62 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
   }, [initial, query]);
 
   const pager = useClientPagination(filtered, 10);
+  const isEdit = Boolean(form.id);
 
   function openCreate() {
+    setForm(emptyForm((initial.at(-1)?.sortOrder ?? 0) + 1));
+    setDialogOpen(true);
+  }
+
+  function openEdit(j: JettyRow) {
     setForm({
-      name: "",
-      area: "",
-      slug: "",
-      notes: "",
-      sortOrder: (initial.at(-1)?.sortOrder ?? 0) + 1,
-      active: true,
+      id: j.id,
+      name: j.name,
+      area: j.area ?? "",
+      slug: j.slug,
+      notes: j.notes ?? "",
+      sortOrder: j.sortOrder,
+      lat: j.lat ?? "",
+      lng: j.lng ?? "",
+      geofenceRadiusM: j.geofenceRadiusM || 100,
+      active: j.active,
     });
-    setCreateOpen(true);
+    setDialogOpen(true);
+  }
+
+  function save() {
+    startTransition(async () => {
+      try {
+        if (!form.lat.trim() || !form.lng.trim()) {
+          throw new Error("Latitude and longitude are required.");
+        }
+        const lat = Number(form.lat);
+        const lng = Number(form.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          throw new Error("Enter valid GPS coordinates.");
+        }
+        const radius = Math.round(Number(form.geofenceRadiusM) || 100);
+        if (radius < 50 || radius > 2000) {
+          throw new Error("Radius must be between 50 and 2000 metres.");
+        }
+        await actionUpsertJetty({
+          id: form.id,
+          name: form.name,
+          area: form.area || undefined,
+          slug: form.slug || undefined,
+          notes: form.notes || undefined,
+          sortOrder: form.sortOrder,
+          active: form.active,
+          lat: String(lat),
+          lng: String(lng),
+          geofenceRadiusM: radius,
+        });
+        toast.success(isEdit ? "Jetty updated" : "Jetty saved");
+        setDialogOpen(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed");
+      }
+    });
   }
 
   return (
@@ -104,16 +172,18 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
               <TableHead>#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Area</TableHead>
+              <TableHead>GPS</TableHead>
+              <TableHead>Radius</TableHead>
               <TableHead>Locations</TableHead>
               <TableHead>Handlers</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[7rem]">Actions</TableHead>
+              <TableHead className="w-[10rem]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pager.pageItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground">
+                <TableCell colSpan={9} className="text-muted-foreground">
                   No jetties match.
                 </TableCell>
               </TableRow>
@@ -128,6 +198,12 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
                     </div>
                   </TableCell>
                   <TableCell>{j.area ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {j.lat && j.lng ? `${j.lat}, ${j.lng}` : "—"}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {j.geofenceRadiusM} m
+                  </TableCell>
                   <TableCell className="tabular-nums">
                     {j.locationCount}
                   </TableCell>
@@ -136,25 +212,37 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
                   </TableCell>
                   <TableCell>
                     <Badge variant={j.active ? "default" : "secondary"}>
-                      {j.active ? "ACTIVE" : "INACTIVE"}
+                      {j.active ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={pending}
-                      onClick={() =>
-                        startTransition(async () => {
-                          await actionToggleJettyActive(j.id);
-                          toast.success(
-                            j.active ? "Jetty deactivated" : "Jetty activated",
-                          );
-                        })
-                      }
-                    >
-                      {j.active ? "Deactivate" : "Activate"}
-                    </Button>
+                    <div className="flex flex-wrap gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => openEdit(j)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() =>
+                          startTransition(async () => {
+                            await actionToggleJettyActive(j.id);
+                            toast.success(
+                              j.active
+                                ? "Jetty deactivated"
+                                : "Jetty activated",
+                            );
+                          })
+                        }
+                      >
+                        {j.active ? "Deactivate" : "Activate"}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -173,10 +261,10 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
         onNext={pager.goNext}
       />
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add jetty</DialogTitle>
+            <DialogTitle>{isEdit ? "Edit jetty" : "Add jetty"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -210,6 +298,47 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
+              <Label>Latitude</Label>
+              <Input
+                value={form.lat}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, lat: e.target.value }))
+                }
+                placeholder="5.3506"
+                inputMode="decimal"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Longitude</Label>
+              <Input
+                value={form.lng}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, lng: e.target.value }))
+                }
+                placeholder="100.3135"
+                inputMode="decimal"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Purchase radius (metres)</Label>
+              <Input
+                type="number"
+                min={50}
+                max={2000}
+                value={form.geofenceRadiusM}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    geofenceRadiusM: Number(e.target.value),
+                  }))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Anglers must be within this distance to buy a pass. Default 100
+                m.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
               <Label>Sort order</Label>
               <Input
                 type="number"
@@ -234,31 +363,14 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
             <Button
               disabled={pending || !form.name.trim()}
-              onClick={() =>
-                startTransition(async () => {
-                  try {
-                    await actionUpsertJetty({
-                      name: form.name,
-                      area: form.area || undefined,
-                      slug: form.slug || undefined,
-                      notes: form.notes || undefined,
-                      sortOrder: form.sortOrder,
-                      active: true,
-                    });
-                    toast.success("Jetty saved");
-                    setCreateOpen(false);
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Failed");
-                  }
-                })
-              }
+              onClick={save}
             >
-              Save jetty
+              {isEdit ? "Save changes" : "Save jetty"}
             </Button>
           </DialogFooter>
         </DialogContent>

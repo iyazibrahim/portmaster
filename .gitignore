@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# PRD pack (local / Drive source of truth; do not commit)
+/prd
+
+# Angler profile photos (served via authenticated route)
+/data/photos

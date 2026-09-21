@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Smaller Docker image: only traced server files, not full node_modules
+  output: "standalone",
 };
 
 export default nextConfig;

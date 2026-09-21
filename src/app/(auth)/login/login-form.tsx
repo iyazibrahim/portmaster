@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Newsreader } from "next/font/google";
 import { loginWithCredentials } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,27 +10,30 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
-import { cn } from "@/lib/utils";
 
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-display-landing",
-  display: "swap",
-});
+const DEMO_LOGINS = [
+  { email: "admin@tiangpass.local", label: "Admin" },
+  { email: "fisher@tiangpass.local", label: "Angler" },
+  { email: "handler@tiangpass.local", label: "Operator" },
+] as const;
 
 export function LoginForm() {
   const search = useSearchParams();
   const next = search.get("next") ?? "";
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  function fillDemo(demoEmail: string) {
+    setEmail(demoEmail);
+    setPassword("password123");
+    setError(null);
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") ?? "");
-    const password = String(fd.get("password") ?? "");
 
     startTransition(async () => {
       const result = await loginWithCredentials(email, password, next);
@@ -42,17 +44,12 @@ export function LoginForm() {
   }
 
   return (
-    <main
-      className={cn(
-        newsreader.variable,
-        "relative flex min-h-dvh flex-col overflow-hidden",
-      )}
-    >
+    <main className="relative flex min-h-dvh flex-col overflow-hidden">
       <MarketingBackground />
 
       <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
         <Link href="/" className="text-sm font-semibold tracking-tight">
-          PortMaster
+          TiangPass
         </Link>
         <Link
           href="/signup"
@@ -66,9 +63,9 @@ export function LoginForm() {
         <div className="mx-auto grid w-full max-w-5xl items-center gap-10 lg:grid-cols-2 lg:gap-14">
           <div className="hidden space-y-4 lg:block">
             <p
-              className="font-[family-name:var(--font-display-landing)] text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]"
+              className="font-display text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]"
             >
-              PortMaster
+              TiangPass
             </p>
             <p className="max-w-sm text-muted-foreground">
               Sign in to book Penang jetty trips, manage boarding QR, or run
@@ -91,11 +88,16 @@ export function LoginForm() {
                 <Input
                   id="email"
                   name="email"
-                  type="email"
-                  autoComplete="email"
+                  type="text"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  autoComplete="username"
                   required
                   className="min-h-11"
-                  placeholder="fisher@portmaster.local"
+                  placeholder="fisher@tiangpass.local"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -107,6 +109,8 @@ export function LoginForm() {
                   autoComplete="current-password"
                   required
                   className="min-h-11"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
 
@@ -135,15 +139,28 @@ export function LoginForm() {
                 Create an account
               </Link>
             </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Boat operators are registered by Association Admin — there is no
+              operator self-signup. Use the account you were given to sign in.
+            </p>
 
             <div className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
-              <p className="mb-2 font-medium text-foreground">Demo</p>
-              <ul className="grid gap-1 font-mono text-[11px] sm:grid-cols-2">
-                <li>fisher@portmaster.local</li>
-                <li>handler@portmaster.local</li>
-                <li>admin@portmaster.local</li>
-                <li>password123</li>
-              </ul>
+              <p className="mb-2 font-medium text-foreground">Demo logins</p>
+              <p className="mb-2">Password for all: password123</p>
+              <div className="flex flex-wrap gap-2">
+                {DEMO_LOGINS.map((demo) => (
+                  <Button
+                    key={demo.email}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="font-mono text-[11px]"
+                    onClick={() => fillDemo(demo.email)}
+                  >
+                    {demo.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

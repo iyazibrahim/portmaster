@@ -2,7 +2,7 @@
 set -e
 
 echo "Applying database schema..."
-npx drizzle-kit push --force
+node --experimental-strip-types ./scripts/apply-srs-mvp1.ts
 
 echo "Checking whether demo data is needed..."
 USER_COUNT=$(node --input-type=module -e "
@@ -15,10 +15,10 @@ await sql.end({ timeout: 2 });
 
 if [ "$USER_COUNT" = "0" ]; then
   echo "Seeding demo data..."
-  npx tsx src/db/seed.ts
+  node --experimental-strip-types ./src/db/seed.ts
 else
   echo "Database already has $USER_COUNT users; skipping seed."
 fi
 
 echo "Starting PortMaster..."
-exec npm run start
+exec node server.js

@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
-import { bookings, boats, jetties, locations, payments, users } from "@/db/schema";
-import { sideLabel } from "@/lib/utils-app";
+import { jetties, locations, passes, payments, users } from "@/db/schema";
 import { JettyFilter } from "@/components/admin/jetty-filter";
 import { PaymentsTable } from "@/components/admin/payments-table";
 
@@ -18,6 +17,7 @@ export default async function AdminPaymentsPage({
   const jettyOptions = await db
     .select({ id: jetties.id, name: jetties.name })
     .from(jetties)
+    .where(eq(jetties.active, true))
     .orderBy(asc(jetties.sortOrder), asc(jetties.name));
 
   const jettyId =
@@ -33,20 +33,18 @@ export default async function AdminPaymentsPage({
       mockRef: payments.mockRef,
       paidAt: payments.paidAt,
       createdAt: payments.createdAt,
-      tripDate: bookings.tripDate,
+      validOn: passes.validOn,
+      reference: passes.reference,
       angler: users.name,
-      boat: boats.name,
       jettyName: jetties.name,
-      locationNumber: locations.number,
-      locationSide: locations.side,
+      pillarName: locations.name,
     })
     .from(payments)
-    .innerJoin(bookings, eq(payments.bookingId, bookings.id))
-    .innerJoin(users, eq(bookings.userId, users.id))
-    .innerJoin(boats, eq(bookings.boatId, boats.id))
-    .innerJoin(locations, eq(bookings.locationId, locations.id))
-    .innerJoin(jetties, eq(bookings.jettyId, jetties.id))
-    .where(jettyId ? eq(bookings.jettyId, jettyId) : sql`true`)
+    .innerJoin(passes, eq(payments.passId, passes.id))
+    .innerJoin(users, eq(passes.userId, users.id))
+    .innerJoin(locations, eq(passes.pillarId, locations.id))
+    .innerJoin(jetties, eq(passes.jettyId, jetties.id))
+    .where(jettyId ? eq(passes.jettyId, jettyId) : sql`true`)
     .orderBy(desc(payments.createdAt))
     .limit(100);
 
@@ -58,7 +56,7 @@ export default async function AdminPaymentsPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Payments</h1>
         <p className="text-sm text-muted-foreground">
-          Mock collection table · {paid} paid · {unpaid} unpaid in latest 100.
+          Fishing pass collections · {paid} paid · {unpaid} unpaid in latest 100.
         </p>
       </div>
 
@@ -67,14 +65,14 @@ export default async function AdminPaymentsPage({
       </Suspense>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No payments yet.</p>
+        <p className="text-sm text-muted-foreground">No pass payments yet.</p>
       ) : (
         <PaymentsTable
           rows={rows.map((r) => ({
             id: r.id,
             createdAt: r.createdAt.toISOString(),
             angler: r.angler,
-            tripLabel: `${r.tripDate} · ${r.jettyName} · #${r.locationNumber} ${sideLabel(r.locationSide)} · ${r.boat}`,
+            tripLabel: `${r.validOn} · ${r.jettyName} · ${r.pillarName} · ${r.reference}`,
             amountCents: r.amountCents,
             status: r.status,
             mockRef: r.mockRef,

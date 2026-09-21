@@ -79,7 +79,16 @@ export async function actionMockPay(bookingId: string) {
   };
 }
 
-export async function actionScanToken(token: string) {
+export async function actionPreviewPassToken(token: string) {
+  await requireRole(["HANDLER", "ADMIN"]);
+  const { previewPassQrToken } = await import("@/lib/pass");
+  return previewPassQrToken(token);
+}
+
+export async function actionScanToken(
+  token: string,
+  coords?: { lat?: string; lng?: string },
+) {
   const session = await requireRole(["HANDLER", "ADMIN"]);
   const [handler] = await db
     .select()
@@ -91,18 +100,42 @@ export async function actionScanToken(token: string) {
     throw new Error("Handler profile missing.");
   }
 
-  let handlerId = handler?.id;
-  if (!handlerId) {
-    const [any] = await db.select().from(handlers).limit(1);
-    if (!any) throw new Error("No handlers configured.");
-    handlerId = any.id;
+  const { scanPassQrToken } = await import("@/lib/pass");
+  const passResult = await scanPassQrToken({
+    token,
+    handlerId: handler?.id ?? null,
+    actorUserId: session.user.id,
+    actorRole: session.user.role,
+    lat: coords?.lat,
+    lng: coords?.lng,
+  });
+  if (passResult) {
+    revalidatePath("/handler");
+    revalidatePath("/handler/scan");
+    revalidatePath("/admin/ops");
+    revalidatePath("/pass");
+    revalidatePath(`/pass/${passResult.passId}`);
+    revalidatePath("/trips");
+    return {
+      kind: "pass" as const,
+      action: passResult.action,
+      passId: passResult.passId,
+      reference: passResult.reference,
+      status: passResult.status,
+      preview: passResult.preview,
+    };
   }
 
-  const result = await scanBoardingToken({ token, handlerId });
+  // Legacy booking scan only if handler exists
+  if (!handler) {
+    throw new Error("Unrecognized pass QR token.");
+  }
+  const result = await scanBoardingToken({ token, handlerId: handler.id });
   revalidatePath("/handler");
   revalidatePath("/handler/scan");
   revalidatePath("/admin/ops");
   return {
+    kind: "booking" as const,
     action: result.action,
     bookingId: result.booking.id,
     status: result.action === "CHECK_IN" ? "CHECKED_IN" : "COMPLETED",
@@ -128,18 +161,30 @@ export async function actionUpsertLocation(input: {
   number: number;
   side: "GEORGETOWN" | "SEBERANG_PERAI" | "GENERAL";
   name: string;
-  status: "OPEN" | "CLOSED";
+  status:
+    | "AVAILABLE"
+    | "UNAVAILABLE"
+    | "TEMPORARILY_CLOSED"
+    | "UNDER_MAINTENANCE"
+    | "RESTRICTED";
+  maxOccupancy?: number;
   notes?: string;
 }) {
-  await requireRole(["ADMIN"]);
+  const session = await requireRole(["ADMIN"]);
   const [jetty] = await db
     .select()
     .from(jetties)
     .where(eq(jetties.id, input.jettyId))
     .limit(1);
   if (!jetty) throw new Error("Jetty not found.");
+  const maxOccupancy = Math.min(20, Math.max(1, input.maxOccupancy ?? 4));
 
   if (input.id) {
+    const [prev] = await db
+      .select()
+      .from(locations)
+      .where(eq(locations.id, input.id))
+      .limit(1);
     await db
       .update(locations)
       .set({
@@ -148,27 +193,56 @@ export async function actionUpsertLocation(input: {
         side: input.side,
         name: input.name,
         status: input.status,
+        maxOccupancy,
         notes: input.notes ?? null,
       })
       .where(eq(locations.id, input.id));
+    const { writeAudit } = await import("@/lib/audit");
+    await writeAudit({
+      actorId: session.user.id,
+      action: "pillar.update",
+      entityType: "location",
+      entityId: input.id,
+      prev: prev
+        ? { status: prev.status, maxOccupancy: prev.maxOccupancy }
+        : undefined,
+      next: { status: input.status, maxOccupancy },
+    });
   } else {
+    const newId = id("loc");
     await db.insert(locations).values({
-      id: id("loc"),
+      id: newId,
       jettyId: input.jettyId,
       number: input.number,
       side: input.side,
       name: input.name,
       status: input.status,
+      maxOccupancy,
       notes: input.notes ?? null,
+    });
+    const { writeAudit } = await import("@/lib/audit");
+    await writeAudit({
+      actorId: session.user.id,
+      action: "pillar.create",
+      entityType: "location",
+      entityId: newId,
+      next: { status: input.status, maxOccupancy },
     });
   }
   revalidatePath("/admin/locations");
-  revalidatePath("/admin/jetties");
-  revalidatePath("/book");
+  revalidatePath("/pass");
 }
 
-export async function actionToggleLocationStatus(locationId: string) {
-  await requireRole(["ADMIN"]);
+export async function actionSetLocationStatus(
+  locationId: string,
+  status:
+    | "AVAILABLE"
+    | "UNAVAILABLE"
+    | "TEMPORARILY_CLOSED"
+    | "UNDER_MAINTENANCE"
+    | "RESTRICTED",
+) {
+  const session = await requireRole(["ADMIN"]);
   const [row] = await db
     .select()
     .from(locations)
@@ -177,9 +251,30 @@ export async function actionToggleLocationStatus(locationId: string) {
   if (!row) throw new Error("Location not found");
   await db
     .update(locations)
-    .set({ status: row.status === "OPEN" ? "CLOSED" : "OPEN" })
+    .set({ status })
     .where(eq(locations.id, locationId));
+  const { writeAudit } = await import("@/lib/audit");
+  await writeAudit({
+    actorId: session.user.id,
+    action: "pillar.status",
+    entityType: "location",
+    entityId: locationId,
+    prev: { status: row.status },
+    next: { status },
+  });
   revalidatePath("/admin/locations");
+  revalidatePath("/pass");
+}
+
+export async function actionToggleLocationStatus(locationId: string) {
+  const [row] = await db
+    .select()
+    .from(locations)
+    .where(eq(locations.id, locationId))
+    .limit(1);
+  if (!row) throw new Error("Location not found");
+  const next = row.status === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE";
+  await actionSetLocationStatus(locationId, next);
 }
 
 export async function actionUpsertJetty(input: {
@@ -190,12 +285,26 @@ export async function actionUpsertJetty(input: {
   notes?: string;
   sortOrder?: number;
   active?: boolean;
+  lat?: string;
+  lng?: string;
+  geofenceRadiusM?: number;
 }) {
   await requireRole(["ADMIN"]);
   const name = input.name.trim();
   if (!name) throw new Error("Jetty name is required.");
   const slug = (input.slug?.trim() || slugify(name)).slice(0, 64);
   if (!slug) throw new Error("Slug is required.");
+
+  const lat = input.lat?.trim() || null;
+  const lng = input.lng?.trim() || null;
+  if (!lat || !lng) throw new Error("Latitude and longitude are required.");
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+    throw new Error("Enter valid GPS coordinates.");
+  }
+  const geofenceRadiusM = Math.round(input.geofenceRadiusM ?? 100);
+  if (geofenceRadiusM < 50 || geofenceRadiusM > 2000) {
+    throw new Error("Radius must be between 50 and 2000 metres.");
+  }
 
   if (input.id) {
     await db
@@ -207,6 +316,9 @@ export async function actionUpsertJetty(input: {
         notes: input.notes?.trim() || null,
         sortOrder: input.sortOrder ?? 0,
         active: input.active ?? true,
+        lat,
+        lng,
+        geofenceRadiusM,
       })
       .where(eq(jetties.id, input.id));
   } else {
@@ -218,11 +330,15 @@ export async function actionUpsertJetty(input: {
       notes: input.notes?.trim() || null,
       sortOrder: input.sortOrder ?? 0,
       active: input.active ?? true,
+      lat,
+      lng,
+      geofenceRadiusM,
     });
   }
   revalidatePath("/admin/jetties");
   revalidatePath("/admin/locations");
   revalidatePath("/book");
+  revalidatePath("/pass");
 }
 
 export async function actionToggleJettyActive(jettyId: string) {

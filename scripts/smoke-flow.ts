@@ -48,6 +48,7 @@ async function bookAtJetty(params: {
     .limit(1);
   if (!boat) throw new Error(`Boat missing at jetty: ${params.boatName}`);
 
+  if (!boat.handlerId) throw new Error(`Boat has no handler: ${params.boatName}`);
   const [handler] = await db
     .select()
     .from(handlers)
@@ -64,7 +65,7 @@ async function bookAtJetty(params: {
     .select()
     .from(locations)
     .where(
-      and(eq(locations.jettyId, jetty.id), eq(locations.status, "OPEN")),
+      and(eq(locations.jettyId, jetty.id), eq(locations.status, "AVAILABLE")),
     )
     .limit(1);
   if (!location) throw new Error(`No open location at ${jetty.name}`);
@@ -111,9 +112,9 @@ async function bookSplitBridge(params: { fisherId: string }) {
   const [jetty] = await db
     .select()
     .from(jetties)
-    .where(eq(jetties.slug, "penang-bridge-fishing"))
+    .where(eq(jetties.slug, "jeti-nelayan-jelutong"))
     .limit(1);
-  if (!jetty) throw new Error("Bridge jetty missing");
+  if (!jetty) throw new Error("Jelutong jetty missing");
 
   const [boat] = await db
     .select({
@@ -124,12 +125,13 @@ async function bookSplitBridge(params: { fisherId: string }) {
     .from(boats)
     .innerJoin(handlers, eq(boats.handlerId, handlers.id))
     .where(
-      and(eq(boats.name, "Kepala Laut"), eq(handlers.jettyId, jetty.id)),
+      and(eq(boats.name, "Jeti Biru"), eq(handlers.jettyId, jetty.id)),
     )
     .limit(1);
-  if (!boat) throw new Error("Kepala Laut missing");
+  if (!boat) throw new Error("Jeti Biru missing");
   if (boat.capacity < 10) throw new Error("Need boat capacity >= 10 for split");
 
+  if (!boat.handlerId) throw new Error("Boat has no handler: Jeti Biru");
   const [handler] = await db
     .select()
     .from(handlers)
@@ -140,7 +142,7 @@ async function bookSplitBridge(params: { fisherId: string }) {
     .select()
     .from(locations)
     .where(
-      and(eq(locations.jettyId, jetty.id), eq(locations.status, "OPEN")),
+      and(eq(locations.jettyId, jetty.id), eq(locations.status, "AVAILABLE")),
     )
     .limit(6);
   if (openLocs.length < 3) throw new Error("Need ≥3 open locations for split");
@@ -230,14 +232,14 @@ async function main() {
   const [fisher] = await db
     .select()
     .from(users)
-    .where(eq(users.email, "fisher@portmaster.local"));
+    .where(eq(users.email, "fisher@tiangpass.local"));
 
   const jettyCount = await db.select({ id: jetties.id }).from(jetties);
   console.log("jetties_seeded", jettyCount.length);
 
   const a = await bookAtJetty({
     fisherId: fisher.id,
-    jettySlug: "penang-bridge-fishing",
+    jettySlug: "jeti-batu-uban-bukit-gelugor",
     boatName: "Sampan Merah",
     startTime: "14:00",
     endTime: "18:00",
@@ -247,7 +249,7 @@ async function main() {
 
   const b = await bookAtJetty({
     fisherId: fisher.id,
-    jettySlug: "jeti-batu-uban-bukit-gelugor",
+    jettySlug: "jeti-nelayan-jelutong",
     boatName: "Angin Timur",
     startTime: "10:00",
     endTime: "14:00",

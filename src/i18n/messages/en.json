@@ -1,0 +1,19 @@
+{
+  "nav.buyPass": "Buy Pass",
+  "nav.myPasses": "My Passes",
+  "nav.profile": "Profile",
+  "nav.scan": "Scan",
+  "nav.today": "Today",
+  "nav.fleet": "Fleet",
+  "nav.dashboard": "Dashboard",
+  "nav.logout": "Log out",
+  "pass.title": "Same-day fishing pass",
+  "pass.subtitle": "At the jetty → one pillar → RM5 Association fee. Arrange a boat outside the app.",
+  "scan.title": "Scanner",
+  "scan.subtitle": "Camera or paste QR. Compare photo, then confirm check-in / check-out.",
+  "common.error": "Something went wrong",
+  "common.continue": "Continue",
+  "common.back": "Back",
+  "lang.en": "EN",
+  "lang.ms": "BM"
+}

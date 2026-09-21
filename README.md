@@ -1,27 +1,27 @@
-# PortMaster
+# TiangPass
 
-Digital ops platform for **Penang fishing jetties** — book a trip, pick seats on a boat, pay (mock), and board with a time-limited QR pass. Built for anglers, boatmen, and port admins.
+Association operations platform for **same-day recreational fishing** under authorised bridge pillars.
 
-**Who it’s for**
+Anglers buy an **RM5 Association fee** pass (mock payment in MVP1), optionally request a **boat owner** at a boarding jetty, pick one pillar (max 4 anglers), and show a QR for operator check-in. Boat fare is negotiated outside the app. Association Admin runs ops; **LLM Viewer** is view-only monitoring.
+
+**Actors**
 
 | Role | What they do |
 |------|----------------|
-| **Angler** | Sign up, choose jetty → location → boat seats, pay, show QR |
-| **Boatmen** | Jetty-scoped schedule, QR check-in/out, fleet & earnings |
-| **Admin** | Jetties, locations, live ops, payments, reports, settings |
+| **Angler** | Register, buy same-day pass, view QR/receipt |
+| **Boat Operator** | Jetty-scoped scan / check-in-out (MVP2 geofence) |
+| **Association Admin** | Pillars, jetties, boats/owners, passes, payments, alerts, reports, settings, audit |
+| **LLM Viewer** | View-only ops dashboard (no master-data edits) |
 
 ---
 
-## Features
+## MVP1 features
 
-- **~33 Penang fishing jetties** seeded (admin can add more)
-- **Locations** under each jetty (Penang Bridge Fishing keeps the full numbered pillar map)
-- Interactive **boat seat map** during booking
-- **Mock payment** → opaque, single-use **QR boarding token** (not JWT)
-- Angler **PWA** (installable; shell cache + offline page)
-- Admin **ops / payments / weekly–monthly CSV reports**
-- **Tiered settings** — ops editable by admin; IT settings (API, TTL, SMTP, etc.) password-gated
-- Harbor-blue **shadcn/ui** theme, responsive desktop + mobile
+- Same-day pass: jetty → already-have-boat **or** pick boat owner → one pillar → mock RM5 → QR
+- Max **4** per pillar; **10-minute** slot reservation during payment
+- Identity: MyKad (unique), age ≥ 14, Malaysian, PDPA/location consents (no MyDigitalID yet)
+- Association dashboard + LLM view-only dashboard (wireframe IA)
+- Mock payment only — real gateway deferred (see [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md))
 
 ---
 
@@ -33,34 +33,17 @@ Digital ops platform for **Penang fishing jetties** — book a trip, pick seats 
 
 ---
 
-## Quick start (local — no Docker)
-
-You need **Node.js 22+** and a **Postgres 16+** URL (Neon, Supabase, local install, etc.).
+## Quick start
 
 ```bash
-git clone https://github.com/iyazibrahim/portmaster.git
-cd portmaster
 cp .env.example .env
-# Edit .env:
-#   DATABASE_URL=postgresql://...
-#   AUTH_SECRET=$(openssl rand -base64 32)
+# DATABASE_URL=postgresql://...
+# AUTH_SECRET=$(openssl rand -base64 32)
 
 npm install
-npm run db:setup    # push schema + seed demo data
-npm run dev         # http://127.0.0.1:43127
+npm run db:setup
+npm run dev            # http://127.0.0.1:43127
 ```
-
-### Environment
-
-See [`.env.example`](.env.example):
-
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | Postgres connection string |
-| `AUTH_SECRET` | Auth.js secret |
-| `APP_URL` | Public base URL (no trailing slash) |
-| `PORT` | Listen port (default `43127`) |
-| `AUTH_TRUST_HOST` | Set `true` behind proxies |
 
 ### Demo accounts
 
@@ -68,12 +51,11 @@ Password for all: **`password123`**
 
 | Role | Email |
 |------|--------|
-| Angler | `fisher@portmaster.local` |
-| Boatmen (Penang Bridge) | `handler@portmaster.local` |
-| Boatmen (Batu Uban) | `handler2@portmaster.local` |
-| Admin | `admin@portmaster.local` |
-
-**IT settings unlock** (Admin → Settings → IT): `it-settings-demo`
+| Angler | `fisher@tiangpass.local` |
+| Operator | `handler@tiangpass.local` |
+| Operator (2nd jetty) | `handler2@tiangpass.local` |
+| Association Admin | `admin@tiangpass.local` |
+| LLM Viewer | `llm@tiangpass.local` |
 
 ---
 
@@ -84,69 +66,33 @@ Password for all: **`password123`**
 | `npm run dev` | Dev server on `43127` |
 | `npm run build` / `npm start` | Production build / serve |
 | `npm run lint` | ESLint |
+| `npm run test` | Vitest (domain / AC unit tests) |
 | `npm run db:setup` | `drizzle-kit push` + seed |
-| `npm run db:push` | Push schema |
-| `npm run db:migrate` | Apply migrations |
 | `npm run db:seed` | Re-seed (**clears** demo tables) |
-
----
-
-## Migrations (existing databases)
-
-If you already ran an older PortMaster schema:
-
-```bash
-# If you still have the old `tiangs` table name:
-psql "$DATABASE_URL" -f drizzle/0001_rename_tiang_to_location.sql
-
-# Multi-jetty:
-psql "$DATABASE_URL" -f drizzle/0002_multi_jetty.sql
-npm run db:push
-npm run db:seed
-```
-
-Fresh installs: `npm run db:setup` is enough.
-
----
-
-## Optional: Docker / Dokploy
-
-Not required on your laptop. For a VPS or Dokploy:
-
-```bash
-docker compose up --build
-```
-
-- App health: `GET /api/health`
-- Compose provides `app` + `postgres:16`
-- Set `DATABASE_URL`, `AUTH_SECRET`, `APP_URL`, `PORT` in the host/Dokploy env
 
 ---
 
 ## Project layout
 
 ```
-src/app/           # Routes (angler, boatmen, admin, auth, policy)
-src/components/    # UI + booking seat map, admin panels
+src/app/           # Routes (angler pass, operator, admin, llm, auth)
+src/components/    # UI + pass wizard, dashboards
 src/db/            # Drizzle schema + seed
-src/lib/           # Auth, booking, actions
+src/domain/        # Pass occupancy & status invariants
+src/lib/           # Auth, payments mock, actions
 drizzle/           # SQL migrations
-public/            # PWA manifest, icons, service worker
 ```
 
+Legacy seat-map booking (`/book`, `bookings`) remains in the codebase but is **not** the primary angler path.
+
 ---
 
-## Security notes
+## Security / PDPA
 
-- Boarding QR codes are **opaque server-side tokens** (TTL, single-use, revocable)
-- Minimize personal data; design is PDPA-minded (demo data only in seed)
+- Opaque QR tokens (TTL, single-use patterns)
+- MyKad stored hashed + last-4 display
+- Minimize personal data; see OPEN_QUESTIONS for retention hooks
 - Do not commit real `.env` secrets
-
----
-
-## Roadmap / out of scope (for now)
-
-Real FPX / e-wallets, WhatsApp/SMS, live GPS, offline booking write-sync, PDF reports, full i18n, commercial Port of Penang cargo terminals.
 
 ---
 

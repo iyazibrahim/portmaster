@@ -10,6 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
+import {
+  EkycCameraCapture,
+  type EkycCaptureResult,
+} from "@/components/profile/ekyc-camera-capture";
 import { cn } from "@/lib/utils";
 
 const newsreader = Newsreader({
@@ -22,21 +26,39 @@ const newsreader = Newsreader({
 export function SignUpForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [photo, setPhoto] = useState<EkycCaptureResult | null>(null);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (!photo) {
+      setError(
+        "Identity photo is required. Take a live photo with your camera.",
+      );
+      return;
+    }
     const fd = new FormData(e.currentTarget);
-    const payload = {
-      name: String(fd.get("name") ?? ""),
-      email: String(fd.get("email") ?? ""),
-      phone: String(fd.get("phone") ?? ""),
-      emergencyContact: String(fd.get("emergencyContact") ?? ""),
-      password: String(fd.get("password") ?? ""),
-      acceptPolicy: fd.get("acceptPolicy") === "on",
-    };
 
     startTransition(async () => {
+      const payload = {
+        name: String(fd.get("name") ?? ""),
+        email: String(fd.get("email") ?? ""),
+        phone: String(fd.get("phone") ?? ""),
+        emergencyContact: String(fd.get("emergencyContact") ?? ""),
+        emergencyContactName: String(fd.get("emergencyContactName") ?? ""),
+        address: String(fd.get("address") ?? ""),
+        myKad: String(fd.get("myKad") ?? ""),
+        citizenship: String(fd.get("citizenship") ?? "MY"),
+        dob: String(fd.get("dob") ?? "") || undefined,
+        password: String(fd.get("password") ?? ""),
+        acceptPolicy: fd.get("acceptPolicy") === "on",
+        acceptPdpa: fd.get("acceptPdpa") === "on",
+        acceptLocation: fd.get("acceptLocation") === "on",
+        photoBase64: photo.base64,
+        photoMimeType: photo.mimeType,
+      };
+
       const result = await signUpAngler(payload);
       if (!result.ok) {
         setError(result.error);
@@ -57,7 +79,7 @@ export function SignUpForm() {
 
       <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
         <Link href="/" className="text-sm font-semibold tracking-tight">
-          PortMaster
+          TiangPass
         </Link>
         <Link
           href="/login"
@@ -70,14 +92,12 @@ export function SignUpForm() {
       <div className="relative z-10 flex flex-1 items-center px-4 py-8 sm:px-6 lg:px-10">
         <div className="mx-auto grid w-full max-w-5xl items-start gap-10 lg:grid-cols-2 lg:gap-14">
           <div className="hidden space-y-4 pt-4 lg:block">
-            <p
-              className="font-[family-name:var(--font-display-landing)] text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]"
-            >
-              PortMaster
+            <p className="font-[family-name:var(--font-display-landing)] text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
+              TiangPass
             </p>
             <p className="max-w-sm text-muted-foreground">
-              Create an angler account to book jetty spots and receive boarding
-              QR passes.
+              Register as a Malaysian angler (14+) to buy a same-day Association
+              fishing pass under authorised bridge pillars.
             </p>
             <FishingScene className="max-w-md" />
           </div>
@@ -88,7 +108,7 @@ export function SignUpForm() {
                 Angler sign up
               </h1>
               <p className="text-sm text-muted-foreground">
-                For booking fishing trips at Penang jetties.
+                Malaysian citizens aged 14 and above. MyDigitalID optional later.
               </p>
             </div>
 
@@ -96,20 +116,95 @@ export function SignUpForm() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id="name" label="Full name" required />
                 <Field id="email" label="Email" type="email" required />
-                <Field id="phone" label="Phone" type="tel" required />
+                <Field id="phone" label="Mobile" type="tel" required />
                 <Field
-                  id="emergencyContact"
-                  label="Emergency contact"
+                  id="emergencyContactName"
+                  label="Emergency contact name"
                   required
                 />
+                <Field
+                  id="emergencyContact"
+                  label="Emergency contact number"
+                  type="tel"
+                  required
+                />
+                <Field
+                  id="myKad"
+                  label="MyKad (12 digits)"
+                  required
+                  autoComplete="off"
+                />
+                <div className="space-y-2">
+                  <Label htmlFor="citizenship">Citizenship</Label>
+                  <select
+                    id="citizenship"
+                    name="citizenship"
+                    required
+                    defaultValue="MY"
+                    className="flex min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="MY">Malaysian</option>
+                    <option value="OTHER">Non-Malaysian (not allowed)</option>
+                  </select>
+                </div>
+                <Field
+                  id="dob"
+                  label="Date of birth (optional if MyKad valid)"
+                  type="date"
+                />
+                <Field
+                  id="password"
+                  label="Password"
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                />
               </div>
-              <Field
-                id="password"
-                label="Password"
-                type="password"
-                required
-                autoComplete="new-password"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <textarea
+                  id="address"
+                  name="address"
+                  required
+                  rows={2}
+                  className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border/70 p-3">
+                <Label>Identity photo (required)</Label>
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                  <div className="size-20 overflow-hidden rounded-full border border-border bg-muted">
+                    {photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={photo.previewUrl}
+                        alt="Captured identity"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                        No photo
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11"
+                      onClick={() => setCameraOpen(true)}
+                    >
+                      {photo ? "Retake photo" : "Open camera"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Align your face in the oval and snap. File upload is not
+                      allowed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <label className="flex min-h-11 items-start gap-3 text-sm">
                 <input
                   type="checkbox"
@@ -124,17 +219,40 @@ export function SignUpForm() {
                     className="text-primary underline-offset-4 hover:underline"
                     target="_blank"
                   >
-                    Policy
-                  </Link>{" "}
-                  and{" "}
+                    Privacy Policy
+                  </Link>
+                  .
+                </span>
+              </label>
+              <label className="flex min-h-11 items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="acceptPdpa"
+                  className="mt-1 size-4 accent-[var(--primary)]"
+                  required
+                />
+                <span>
+                  I consent to PDPA processing of my identity data (
                   <Link
                     href="/consent"
                     className="text-primary underline-offset-4 hover:underline"
                     target="_blank"
                   >
-                    Consent
-                  </Link>{" "}
-                  terms.
+                    notice
+                  </Link>
+                  ).
+                </span>
+              </label>
+              <label className="flex min-h-11 items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="acceptLocation"
+                  className="mt-1 size-4 accent-[var(--primary)]"
+                  required
+                />
+                <span>
+                  I consent to location capture to verify I am at the jetty when
+                  buying a pass and during boarding.
                 </span>
               </label>
 
@@ -166,6 +284,13 @@ export function SignUpForm() {
           </div>
         </div>
       </div>
+
+      <EkycCameraCapture
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onCapture={(result) => setPhoto(result)}
+        title="Take identity photo"
+      />
     </main>
   );
 }

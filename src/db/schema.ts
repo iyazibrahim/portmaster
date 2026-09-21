@@ -11,13 +11,36 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-export const userRoleEnum = pgEnum("user_role", ["USER", "HANDLER", "ADMIN"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "USER",
+  "HANDLER",
+  "ADMIN",
+  "LLM_VIEWER",
+]);
+export const accountStatusEnum = pgEnum("account_status", [
+  "ACTIVE",
+  "SUSPENDED",
+  "BLACKLISTED",
+]);
 export const locationSideEnum = pgEnum("location_side", [
   "GEORGETOWN",
   "SEBERANG_PERAI",
   "GENERAL",
 ]);
-export const locationStatusEnum = pgEnum("location_status", ["OPEN", "CLOSED"]);
+export const locationStatusEnum = pgEnum("location_status", [
+  "AVAILABLE",
+  "UNAVAILABLE",
+  "TEMPORARILY_CLOSED",
+  "UNDER_MAINTENANCE",
+  "RESTRICTED",
+]);
+export const boatStatusEnum = pgEnum("boat_status", [
+  "ACTIVE",
+  "INACTIVE",
+  "SUSPENDED",
+  "PERMIT_EXPIRED",
+  "UNDER_MAINTENANCE",
+]);
 export const bookingStatusEnum = pgEnum("booking_status", [
   "PENDING_PAYMENT",
   "CONFIRMED",
@@ -25,6 +48,14 @@ export const bookingStatusEnum = pgEnum("booking_status", [
   "COMPLETED",
   "CANCELLED",
   "NO_SHOW",
+]);
+export const passStatusEnum = pgEnum("pass_status", [
+  "PENDING_PAYMENT",
+  "ACTIVE",
+  "CHECKED_IN",
+  "CHECKED_OUT",
+  "EXPIRED",
+  "CANCELLED",
 ]);
 export const paymentStatusEnum = pgEnum("payment_status", [
   "PENDING",
@@ -38,6 +69,16 @@ export const tokenPurposeEnum = pgEnum("token_purpose", [
   "CHECKOUT",
 ]);
 export const reportTypeEnum = pgEnum("report_type", ["WEEKLY", "MONTHLY"]);
+export const alertSeverityEnum = pgEnum("alert_severity", [
+  "INFO",
+  "WARNING",
+  "CRITICAL",
+]);
+export const incidentStatusEnum = pgEnum("incident_status", [
+  "OPEN",
+  "IN_PROGRESS",
+  "RESOLVED",
+]);
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -47,9 +88,21 @@ export const users = pgTable("users", {
   image: text("image"),
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("USER"),
+  accountStatus: accountStatusEnum("account_status")
+    .notNull()
+    .default("ACTIVE"),
   phone: text("phone"),
   emergencyContact: text("emergency_contact"),
+  emergencyContactName: text("emergency_contact_name"),
+  address: text("address"),
+  myKadHash: text("mykad_hash"),
+  myKadLast4: text("mykad_last4"),
+  dob: text("dob"), // YYYY-MM-DD
+  citizenship: text("citizenship"), // MY expected
+  photoKey: text("photo_key"),
   policyAcceptedAt: timestamp("policy_accepted_at", { mode: "date" }),
+  pdpaAcceptedAt: timestamp("pdpa_accepted_at", { mode: "date" }),
+  locationConsentAt: timestamp("location_consent_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
@@ -101,9 +154,33 @@ export const jetties = pgTable(
     active: boolean("active").notNull().default(true),
     notes: text("notes"),
     sortOrder: integer("sort_order").notNull().default(0),
+    lat: text("lat"),
+    lng: text("lng"),
+    geofenceRadiusM: integer("geofence_radius_m").notNull().default(100),
+    openTime: text("open_time").notNull().default("06:00"),
+    closeTime: text("close_time").notNull().default("18:00"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (t) => [index("jetty_active_idx").on(t.active, t.sortOrder)],
+);
+
+export const boatOwners = pgTable(
+  "boat_owners",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    jettyId: text("jetty_id")
+      .notNull()
+      .references(() => jetties.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    myKadLast4: text("mykad_last4"),
+    contactPhone: text("contact_phone"),
+    contactEmail: text("contact_email"),
+    active: boolean("active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("boat_owner_jetty_idx").on(t.jettyId, t.active)],
 );
 
 export const handlers = pgTable("handlers", {
@@ -115,6 +192,7 @@ export const handlers = pgTable("handlers", {
   jettyId: text("jetty_id")
     .notNull()
     .references(() => jetties.id),
+  boatOwnerId: text("boat_owner_id").references(() => boatOwners.id),
   displayName: text("display_name").notNull(),
   licenseNo: text("license_no"),
   mockEarningsCents: integer("mock_earnings_cents").notNull().default(0),
@@ -131,7 +209,8 @@ export const locations = pgTable(
     number: integer("number").notNull(),
     side: locationSideEnum("side").notNull(),
     name: text("name").notNull(),
-    status: locationStatusEnum("status").notNull().default("OPEN"),
+    status: locationStatusEnum("status").notNull().default("AVAILABLE"),
+    maxOccupancy: integer("max_occupancy").notNull().default(4),
     notes: text("notes"),
     tags: text("tags"),
   },
@@ -147,14 +226,20 @@ export const locations = pgTable(
 
 export const boats = pgTable("boats", {
   id: text("id").primaryKey(),
-  handlerId: text("handler_id")
-    .notNull()
-    .references(() => handlers.id, { onDelete: "cascade" }),
+  handlerId: text("handler_id").references(() => handlers.id, {
+    onDelete: "set null",
+  }),
+  ownerId: text("owner_id").references(() => boatOwners.id),
+  jettyId: text("jetty_id").references(() => jetties.id),
   name: text("name").notNull(),
   registration: text("registration"),
   capacity: integer("capacity").notNull(),
+  status: boatStatusEnum("status").notNull().default("ACTIVE"),
+  /** Derived convenience: true when status === ACTIVE and permit valid. */
   active: boolean("active").notNull().default(true),
-  pricePerPersonCents: integer("price_per_person_cents").notNull().default(5000),
+  permitExpiresAt: timestamp("permit_expires_at", { mode: "date" }),
+  licenceInfo: text("licence_info"),
+  pricePerPersonCents: integer("price_per_person_cents").notNull().default(0),
 });
 
 export const boatSeats = pgTable(
@@ -172,11 +257,11 @@ export const boatSeats = pgTable(
   (t) => [uniqueIndex("boat_seat_pos_idx").on(t.boatId, t.row, t.col)],
 );
 
+/** Legacy seat-map bookings (not primary angler path). */
 export const bookings = pgTable(
   "bookings",
   {
     id: text("id").primaryKey(),
-    /** Links multi-tiang legs of one boat trip; single-tiang bookings use their own id. */
     tripGroupId: text("trip_group_id").notNull(),
     userId: text("user_id")
       .notNull()
@@ -193,13 +278,12 @@ export const bookings = pgTable(
     boatId: text("boat_id")
       .notNull()
       .references(() => boats.id),
-    tripDate: text("trip_date").notNull(), // YYYY-MM-DD
-    startTime: text("start_time").notNull(), // HH:mm
+    tripDate: text("trip_date").notNull(),
+    startTime: text("start_time").notNull(),
     endTime: text("end_time").notNull(),
     partySize: integer("party_size").notNull(),
     status: bookingStatusEnum("status").notNull().default("PENDING_PAYMENT"),
     totalCents: integer("total_cents").notNull(),
-    /** Primary leg holds seats + payment + boarding QR for the trip group. */
     isPrimary: boolean("is_primary").notNull().default(true),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
@@ -226,18 +310,71 @@ export const bookingSeats = pgTable(
   (t) => [uniqueIndex("booking_seat_unique_idx").on(t.bookingId, t.boatSeatId)],
 );
 
+/** Same-day Association fishing pass (primary product). */
+export const passes = pgTable(
+  "passes",
+  {
+    id: text("id").primaryKey(),
+    reference: text("reference").notNull().unique(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    jettyId: text("jetty_id")
+      .notNull()
+      .references(() => jetties.id),
+    pillarId: text("pillar_id")
+      .notNull()
+      .references(() => locations.id),
+    boatOwnerId: text("boat_owner_id").references(() => boatOwners.id),
+    boatId: text("boat_id").references(() => boats.id),
+    validOn: text("valid_on").notNull(), // YYYY-MM-DD MYT
+    status: passStatusEnum("status").notNull().default("PENDING_PAYMENT"),
+    feeCents: integer("fee_cents").notNull().default(500),
+    reservedUntil: timestamp("reserved_until", { mode: "date" }),
+    activatedAt: timestamp("activated_at", { mode: "date" }),
+    checkedInAt: timestamp("checked_in_at", { mode: "date" }),
+    checkedOutAt: timestamp("checked_out_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pass_user_day_idx").on(t.userId, t.validOn),
+    index("pass_pillar_day_idx").on(t.pillarId, t.validOn, t.status),
+    index("pass_jetty_day_idx").on(t.jettyId, t.validOn, t.status),
+  ],
+);
+
 export const payments = pgTable("payments", {
   id: text("id").primaryKey(),
   bookingId: text("booking_id")
-    .notNull()
     .unique()
     .references(() => bookings.id, { onDelete: "cascade" }),
+  passId: text("pass_id")
+    .unique()
+    .references(() => passes.id, { onDelete: "cascade" }),
   amountCents: integer("amount_cents").notNull(),
   status: paymentStatusEnum("status").notNull().default("PENDING"),
   mockRef: text("mock_ref"),
+  provider: text("provider").notNull().default("mock"),
   paidAt: timestamp("paid_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+export const passQrTokens = pgTable(
+  "pass_qr_tokens",
+  {
+    id: text("id").primaryKey(),
+    passId: text("pass_id")
+      .notNull()
+      .references(() => passes.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+    usedAt: timestamp("used_at", { mode: "date" }),
+    revokedAt: timestamp("revoked_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("pass_qr_token_idx").on(t.token)],
+);
 
 export const bookingAccessTokens = pgTable(
   "booking_access_tokens",
@@ -258,18 +395,80 @@ export const bookingAccessTokens = pgTable(
 
 export const scanEvents = pgTable("scan_events", {
   id: text("id").primaryKey(),
-  bookingId: text("booking_id")
-    .notNull()
-    .references(() => bookings.id, { onDelete: "cascade" }),
-  handlerId: text("handler_id")
-    .notNull()
-    .references(() => handlers.id),
+  bookingId: text("booking_id").references(() => bookings.id, {
+    onDelete: "cascade",
+  }),
+  passId: text("pass_id").references(() => passes.id, { onDelete: "cascade" }),
+  handlerId: text("handler_id").references(() => handlers.id),
+  actorUserId: text("actor_user_id").references(() => users.id),
   type: scanTypeEnum("type").notNull(),
   scannedAt: timestamp("scanned_at", { mode: "date" }).notNull().defaultNow(),
   lat: text("lat"),
   lng: text("lng"),
   note: text("note"),
+  conflictFlag: boolean("conflict_flag").notNull().default(false),
 });
+
+export const accountBlocks = pgTable(
+  "account_blocks",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // SUSPEND | BLACKLIST
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    liftedAt: timestamp("lifted_at", { mode: "date" }),
+  },
+  (t) => [index("account_block_user_idx").on(t.userId)],
+);
+
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: text("id").primaryKey(),
+    actorId: text("actor_id").references(() => users.id),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id"),
+    metaJson: text("meta_json"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("audit_created_idx").on(t.createdAt)],
+);
+
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").notNull(),
+    severity: alertSeverityEnum("severity").notNull().default("WARNING"),
+    title: text("title").notNull(),
+    description: text("description"),
+    passId: text("pass_id").references(() => passes.id),
+    boatId: text("boat_id").references(() => boats.id),
+    resolvedAt: timestamp("resolved_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("alert_open_idx").on(t.resolvedAt, t.createdAt)],
+);
+
+export const incidents = pgTable(
+  "incidents",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").notNull(),
+    description: text("description").notNull(),
+    status: incidentStatusEnum("status").notNull().default("OPEN"),
+    passId: text("pass_id").references(() => passes.id),
+    pillarId: text("pillar_id").references(() => locations.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("incident_status_idx").on(t.status, t.createdAt)],
+);
 
 export const pricingConfig = pgTable("pricing_config", {
   id: text("id").primaryKey(),
@@ -278,14 +477,12 @@ export const pricingConfig = pgTable("pricing_config", {
   label: text("label").notNull(),
 });
 
-/** Ops + IT key/value settings (IT secrets stored hashed/masked as needed). */
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
-/** Generated report history for weekly/monthly CSV summaries. */
 export const reports = pgTable(
   "reports",
   {
@@ -307,6 +504,7 @@ export const reports = pgTable(
 export const usersRelations = relations(users, ({ one, many }) => ({
   handler: one(handlers),
   bookings: many(bookings),
+  passes: many(passes),
   sessions: many(sessions),
 }));
 
@@ -314,11 +512,31 @@ export const jettiesRelations = relations(jetties, ({ many }) => ({
   locations: many(locations),
   handlers: many(handlers),
   bookings: many(bookings),
+  boatOwners: many(boatOwners),
+  passes: many(passes),
+}));
+
+export const boatOwnersRelations = relations(boatOwners, ({ one, many }) => ({
+  user: one(users, {
+    fields: [boatOwners.userId],
+    references: [users.id],
+  }),
+  jetty: one(jetties, {
+    fields: [boatOwners.jettyId],
+    references: [jetties.id],
+  }),
+  boats: many(boats),
+  handlers: many(handlers),
+  passes: many(passes),
 }));
 
 export const handlersRelations = relations(handlers, ({ one, many }) => ({
   user: one(users, { fields: [handlers.userId], references: [users.id] }),
   jetty: one(jetties, { fields: [handlers.jettyId], references: [jetties.id] }),
+  boatOwner: one(boatOwners, {
+    fields: [handlers.boatOwnerId],
+    references: [boatOwners.id],
+  }),
   boats: many(boats),
   bookings: many(bookings),
 }));
@@ -326,10 +544,16 @@ export const handlersRelations = relations(handlers, ({ one, many }) => ({
 export const locationsRelations = relations(locations, ({ one, many }) => ({
   jetty: one(jetties, { fields: [locations.jettyId], references: [jetties.id] }),
   bookings: many(bookings),
+  passes: many(passes),
 }));
 
 export const boatsRelations = relations(boats, ({ one, many }) => ({
   handler: one(handlers, { fields: [boats.handlerId], references: [handlers.id] }),
+  owner: one(boatOwners, {
+    fields: [boats.ownerId],
+    references: [boatOwners.id],
+  }),
+  jetty: one(jetties, { fields: [boats.jettyId], references: [jetties.id] }),
   seats: many(boatSeats),
   bookings: many(bookings),
 }));
@@ -357,6 +581,22 @@ export const bookingsRelations = relations(bookings, ({ one, many }) => ({
   scans: many(scanEvents),
 }));
 
+export const passesRelations = relations(passes, ({ one, many }) => ({
+  user: one(users, { fields: [passes.userId], references: [users.id] }),
+  jetty: one(jetties, { fields: [passes.jettyId], references: [jetties.id] }),
+  pillar: one(locations, {
+    fields: [passes.pillarId],
+    references: [locations.id],
+  }),
+  boatOwner: one(boatOwners, {
+    fields: [passes.boatOwnerId],
+    references: [boatOwners.id],
+  }),
+  boat: one(boats, { fields: [passes.boatId], references: [boats.id] }),
+  qrTokens: many(passQrTokens),
+  scans: many(scanEvents),
+}));
+
 export const bookingSeatsRelations = relations(bookingSeats, ({ one }) => ({
   booking: one(bookings, {
     fields: [bookingSeats.bookingId],
@@ -369,6 +609,10 @@ export const bookingSeatsRelations = relations(bookingSeats, ({ one }) => ({
 }));
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
+export type AccountStatus = (typeof accountStatusEnum.enumValues)[number];
 export type BookingStatus = (typeof bookingStatusEnum.enumValues)[number];
+export type PassStatus = (typeof passStatusEnum.enumValues)[number];
 export type LocationSide = (typeof locationSideEnum.enumValues)[number];
+export type LocationStatus = (typeof locationStatusEnum.enumValues)[number];
+export type BoatStatus = (typeof boatStatusEnum.enumValues)[number];
 export type ReportType = (typeof reportTypeEnum.enumValues)[number];

@@ -1,4 +1,4 @@
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, reports } from "@/db/schema";
@@ -24,6 +24,7 @@ export default async function AdminReportsPage() {
   const jettyRows = await db
     .select({ id: jetties.id, name: jetties.name })
     .from(jetties)
+    .where(eq(jetties.active, true))
     .orderBy(asc(jetties.sortOrder), asc(jetties.name));
 
   return (

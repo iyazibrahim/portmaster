@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { PwaRegister } from "@/components/pwa-register";
+import { PwaInstallBanner } from "@/components/pwa-install-banner";
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import "./globals.css";
 
 const geist = Geist({
@@ -24,15 +26,15 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "PortMaster — Penang Bridge fishing ops",
+  title: "TiangPass — Penang Bridge fishing ops",
   description:
     "Book a bridge location, pick your boat seats, check in with QR. Ops app for Penang Bridge anglers and boatmen.",
-  applicationName: "PortMaster",
+  applicationName: "TiangPass",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PortMaster",
+    title: "TiangPass",
   },
   formatDetection: {
     telephone: false,
@@ -64,6 +66,8 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col font-sans">
         {children}
         <PwaRegister />
+        <PwaInstallBanner />
+        <CookieConsentBanner />
         <Toaster position="top-center" />
       </body>
     </html>

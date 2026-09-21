@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import {
-  actionToggleLocationStatus,
+  actionSetLocationStatus,
   actionUpsertLocation,
 } from "@/lib/actions/booking";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,8 @@ import {
   PaginationBar,
   useClientPagination,
 } from "@/hooks/use-client-pagination";
-import { sideLabel } from "@/lib/utils-app";
+import { formatEnumLabel, sideLabel } from "@/lib/utils-app";
+import type { LocationStatus } from "@/db/schema";
 import { toast } from "sonner";
 
 export type LocationRow = {
@@ -39,7 +40,8 @@ export type LocationRow = {
   number: number;
   side: "GEORGETOWN" | "SEBERANG_PERAI" | "GENERAL";
   name: string;
-  status: "OPEN" | "CLOSED";
+  status: LocationStatus;
+  maxOccupancy: number;
   notes: string | null;
 };
 
@@ -50,6 +52,14 @@ const SIDE_OPTIONS = [
   { value: "GEORGETOWN", label: "Georgetown" },
   { value: "SEBERANG_PERAI", label: "Seberang Perai" },
 ] as const;
+
+const STATUS_OPTIONS: { value: LocationStatus; label: string }[] = [
+  { value: "AVAILABLE", label: "Available" },
+  { value: "UNAVAILABLE", label: "Unavailable" },
+  { value: "TEMPORARILY_CLOSED", label: "Temporarily Closed" },
+  { value: "UNDER_MAINTENANCE", label: "Under Maintenance" },
+  { value: "RESTRICTED", label: "Restricted" },
+];
 
 export function LocationAdmin({
   initial,
@@ -62,13 +72,15 @@ export function LocationAdmin({
   const [sideFilter, setSideFilter] = useState("ALL");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
     jettyId: jetties[0]?.id ?? "",
     number: 1,
     side: "GENERAL" as "GEORGETOWN" | "SEBERANG_PERAI" | "GENERAL",
     name: "",
-    status: "OPEN" as const,
+    status: "AVAILABLE" as LocationStatus,
+    maxOccupancy: 4,
     notes: "",
   });
 
@@ -104,13 +116,29 @@ export function LocationAdmin({
   const pager = useClientPagination(filtered, 10);
 
   function openCreate() {
+    setEditId(null);
     setForm({
       jettyId: jetties[0]?.id ?? "",
       number: (initial.at(-1)?.number ?? 0) + 1,
       side: "GENERAL",
       name: "",
-      status: "OPEN",
+      status: "AVAILABLE",
+      maxOccupancy: 4,
       notes: "",
+    });
+    setCreateOpen(true);
+  }
+
+  function openEdit(row: LocationRow) {
+    setEditId(row.id);
+    setForm({
+      jettyId: row.jettyId,
+      number: row.number,
+      side: row.side,
+      name: row.name,
+      status: row.status,
+      maxOccupancy: row.maxOccupancy,
+      notes: row.notes ?? "",
     });
     setCreateOpen(true);
   }
@@ -119,11 +147,11 @@ export function LocationAdmin({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Open or close fishing locations for booking. Only OPEN spots appear in
-          the book flow.
+          Only <strong>Available</strong> pillars appear in pass purchase.
+          Max occupancy is per pillar.
         </p>
         <Button className="shrink-0" onClick={openCreate}>
-          Add location
+          Add pillar
         </Button>
       </div>
 
@@ -175,15 +203,16 @@ export function LocationAdmin({
               <TableHead>Name</TableHead>
               <TableHead>Jetty</TableHead>
               <TableHead>Side</TableHead>
+              <TableHead>Max</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[6rem]">Actions</TableHead>
+              <TableHead className="w-[10rem]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pager.pageItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground">
-                  No locations match.
+                <TableCell colSpan={7} className="text-muted-foreground">
+                  No pillars match.
                 </TableCell>
               </TableRow>
             ) : (
@@ -195,21 +224,36 @@ export function LocationAdmin({
                     {t.jettyName}
                   </TableCell>
                   <TableCell>{sideLabel(t.side)}</TableCell>
+                  <TableCell className="tabular-nums">{t.maxOccupancy}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={t.status === "OPEN" ? "default" : "secondary"}
+                      variant={
+                        t.status === "AVAILABLE" ? "default" : "secondary"
+                      }
                     >
-                      {t.status}
+                      {formatEnumLabel(t.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={pending}
+                      onClick={() => openEdit(t)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={pending}
                       onClick={() =>
                         startTransition(async () => {
-                          await actionToggleLocationStatus(t.id);
+                          const next =
+                            t.status === "AVAILABLE"
+                              ? "UNAVAILABLE"
+                              : "AVAILABLE";
+                          await actionSetLocationStatus(t.id, next);
                           toast.success("Status updated");
                         })
                       }
@@ -237,7 +281,7 @@ export function LocationAdmin({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add location</DialogTitle>
+            <DialogTitle>{editId ? "Edit pillar" : "Add pillar"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -262,6 +306,21 @@ export function LocationAdmin({
               />
             </div>
             <div className="flex flex-col gap-1.5">
+              <Label>Max occupancy</Label>
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={form.maxOccupancy}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    maxOccupancy: Number(e.target.value) || 4,
+                  }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
               <Label>Side</Label>
               <SearchableSelect
                 options={[...SIDE_OPTIONS]}
@@ -275,6 +334,16 @@ export function LocationAdmin({
                 placeholder="Side"
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Status</Label>
+              <SearchableSelect
+                options={STATUS_OPTIONS}
+                value={form.status}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, status: v as LocationStatus }))
+                }
+              />
+            </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label>Name</Label>
               <Input
@@ -282,7 +351,7 @@ export function LocationAdmin({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
-                placeholder="Berth 5"
+                placeholder="GT Pillar 1"
               />
             </div>
           </div>
@@ -295,8 +364,11 @@ export function LocationAdmin({
               onClick={() =>
                 startTransition(async () => {
                   try {
-                    await actionUpsertLocation(form);
-                    toast.success("Location saved");
+                    await actionUpsertLocation({
+                      id: editId ?? undefined,
+                      ...form,
+                    });
+                    toast.success("Pillar saved");
                     setCreateOpen(false);
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
@@ -304,7 +376,7 @@ export function LocationAdmin({
                 })
               }
             >
-              Save location
+              Save pillar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -24,6 +24,7 @@ export function safeInternalPath(next: string | undefined, role: string) {
     return next;
   }
   if (role === "ADMIN") return "/admin/ops";
+  if (role === "LLM_VIEWER") return "/llm";
   if (role === "HANDLER") return "/handler";
-  return "/book";
+  return "/pass";
 }
