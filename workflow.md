@@ -43,7 +43,7 @@ See [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for the full locked table.
 - UI: shadcn/ui; harbor-blue tokens; BM/EN via `tiangpass_locale` cookie.
 - Payment: `PaymentProvider` interface + mock only.
 - Photos: `data/photos/` via authenticated `/api/photos/[key]` (camera capture only for anglers).
-- Migrations: `drizzle/0004`–`0006` via `scripts/apply-srs-mvp1.ts`.
+- Migrations: Docker/Dokploy boot applies `0000` + `0002` then `0004`–`0007` via `scripts/apply-srs-mvp1.ts`.
 
 ## Local
 
@@ -80,3 +80,9 @@ Password: `password123`
 
 - Prefer local `npm run dev` for day-to-day work.
 - Mount or create `data/photos` so profile photo uploads work in containers.
+
+## Docker / Dokploy (2026-09-21)
+
+Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because only additive `0004`–`0007` ran. Boot now applies baseline `0000` + jetties `0002` first. Redeploy the new image; restarting the old one will keep failing.
+
+Validated: empty Postgres 16 → apply (users/jetties/passes) → apply again (idempotent) → seed.

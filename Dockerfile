@@ -56,6 +56,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/lib/utils-app.ts ./src/lib/ut
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-srs-mvp1.ts ./scripts/apply-srs-mvp1.ts
 COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
+RUN mkdir -p /app/data/photos && chown -R nextjs:nodejs /app/data
+
 USER nextjs
 EXPOSE 43127
 ENTRYPOINT ["sh", "./docker-entrypoint.sh"]
