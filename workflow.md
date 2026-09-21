@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Admin UX scale (2026-09-21):** Shared `AdminDataTable` (search, `min-h-11`, 15/page) + `StatusBadge` traffic lights (no underscore labels). Passes / Boats / Operators / Pillars / Jetties / Payments / Audit use the shell. Payments KPI widgets (today MYT). Alerts auto-refresh (overdue CI, boat permit ≤30d, failed pay) + resolve; incidents create + status flow. Reports live KPIs + equal-height controls. Settings bento for pass ops; IT unlock retained.
+
 ## Status
 
 **Account / GPS / PWA / compliance (2026-09-21):**

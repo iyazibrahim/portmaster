@@ -2,76 +2,54 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { alerts, incidents } from "@/db/schema";
 import { desc } from "drizzle-orm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/status-badge";
-import { formatEnumLabel } from "@/lib/utils-app";
+import { refreshOpsAlerts } from "@/lib/ops-alerts";
+import { AlertsIncidentsPanel } from "@/components/admin/alerts-incidents-panel";
 
 export default async function AdminAlertsPage() {
   await requireRole(["ADMIN"]);
+  await refreshOpsAlerts();
+
   const alertRows = await db
     .select()
     .from(alerts)
     .orderBy(desc(alerts.createdAt))
-    .limit(50);
+    .limit(100);
   const incidentRows = await db
     .select()
     .from(incidents)
     .orderBy(desc(incidents.createdAt))
-    .limit(50);
+    .limit(100);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Alerts &amp; Incidents
-      </h1>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Alerts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {alertRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No alerts.</p>
-            ) : (
-              alertRows.map((a) => (
-                <div key={a.id} className="rounded border px-3 py-2 text-sm">
-                  <div className="flex justify-between gap-2">
-                    <span className="font-medium">{a.title}</span>
-                    <StatusBadge status={a.severity} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {a.description}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Incidents</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {incidentRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No incidents.</p>
-            ) : (
-              incidentRows.map((i) => (
-                <div key={i.id} className="rounded border px-3 py-2 text-sm">
-                  <div className="flex justify-between gap-2">
-                    <span className="font-medium">
-                      {formatEnumLabel(i.type)}
-                    </span>
-                    <StatusBadge status={i.status} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {i.description}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Alerts &amp; Incidents
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Alerts are auto-generated from overdue check-ins, boat permit expiry,
+          and failed payments. Incidents are logged by ops.
+        </p>
       </div>
+      <AlertsIncidentsPanel
+        alerts={alertRows.map((a) => ({
+          id: a.id,
+          type: a.type,
+          severity: a.severity,
+          title: a.title,
+          description: a.description,
+          resolvedAt: a.resolvedAt?.toISOString() ?? null,
+          createdAt: a.createdAt.toISOString(),
+        }))}
+        incidents={incidentRows.map((i) => ({
+          id: i.id,
+          type: i.type,
+          description: i.description,
+          status: i.status,
+          createdAt: i.createdAt.toISOString(),
+          updatedAt: i.updatedAt.toISOString(),
+        }))}
+      />
     </div>
   );
 }

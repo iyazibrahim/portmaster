@@ -11,14 +11,18 @@ export default async function AdminSettingsPage() {
   const itUnlocked = await isItSettingsUnlocked();
 
   const ops = {
+    association_fee_cents: map.association_fee_cents ?? "500",
+    reservation_minutes: map.reservation_minutes ?? "10",
+    overdue_hours: map.overdue_hours ?? "8",
+    default_geofence_radius_m: map.default_geofence_radius_m ?? "100",
     support_phone: map.support_phone ?? "",
     support_whatsapp: map.support_whatsapp ?? "",
+    maintenance_banner_on: map.maintenance_banner_on ?? "false",
+    maintenance_banner_text: map.maintenance_banner_text ?? "",
     booking_window_copy: map.booking_window_copy ?? "",
     platform_commission_pct: map.platform_commission_pct ?? "20",
     location_side_labels: map.location_side_labels ?? "",
     default_party_size_max: map.default_party_size_max ?? "6",
-    maintenance_banner_on: map.maintenance_banner_on ?? "false",
-    maintenance_banner_text: map.maintenance_banner_text ?? "",
   };
 
   const it = {
@@ -37,8 +41,8 @@ export default async function AdminSettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Ops settings are open to admins. IT settings need a separate password
-          and unlock for ~20 minutes.
+          Pass-ops tiles are open to admins. IT integrations need a separate
+          password and unlock for ~20 minutes.
         </p>
       </div>
       <SettingsPanel ops={ops} it={it} itUnlocked={itUnlocked} />

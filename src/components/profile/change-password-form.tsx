@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -54,85 +53,88 @@ export function ChangePasswordButton({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) reset();
-      }}
-    >
-      <DialogTrigger
-        render={
-          <Button type="button" variant="outline" className={className ?? "min-h-11"} />
-        }
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        className={className ?? "min-h-11"}
+        onClick={() => setOpen(true)}
       >
         Change password
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Change password</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="currentPassword">Current password</Label>
-            <Input
-              id="currentPassword"
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="min-h-11"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">New password</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="min-h-11"
-              minLength={8}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm new password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="min-h-11"
-              minLength={8}
-              required
-            />
-          </div>
-          {error ? (
-            <p className="text-sm text-destructive">{error}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Use at least 8 characters. Keep this password private.
-            </p>
-          )}
-          <DialogFooter className="gap-2 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={pending} className="min-h-11">
-              {pending ? "Updating…" : "Update password"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) reset();
+        }}
+      >
+        <DialogContent className="z-[70] bg-card text-card-foreground shadow-lg sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change password</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current password</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="min-h-11"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="min-h-11"
+                minLength={8}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm new password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="min-h-11"
+                minLength={8}
+                required
+              />
+            </div>
+            {error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Use at least 8 characters. Keep this password private.
+              </p>
+            )}
+            <DialogFooter className="gap-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending} className="min-h-11">
+                {pending ? "Updating…" : "Update password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

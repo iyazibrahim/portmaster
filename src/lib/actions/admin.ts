@@ -14,9 +14,11 @@ import {
 import { db } from "@/db";
 import {
   accountBlocks,
+  alerts,
   boatOwners,
   boats,
   handlers,
+  incidents,
   jetties,
   locations,
   passes,
@@ -29,22 +31,32 @@ import {
 import { requireRole } from "@/lib/session";
 import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
 import { writeAudit } from "@/lib/audit";
-import { id } from "@/lib/utils-app";
-import type { AccountStatus, BoatStatus, UserRole } from "@/db/schema";
+import { id, DEFAULT_OVERDUE_HOURS } from "@/lib/utils-app";
+import type {
+  AccountStatus,
+  BoatStatus,
+  IncidentStatus,
+  UserRole,
+} from "@/db/schema";
 import { isBoatOperational } from "@/lib/geo";
+import { isOverdue } from "@/domain/pass";
 
 const IT_COOKIE = "it_settings_ok";
 const IT_SESSION_MINUTES = 20;
 
 const OPS_KEYS = [
+  "association_fee_cents",
+  "reservation_minutes",
+  "overdue_hours",
+  "default_geofence_radius_m",
   "support_phone",
   "support_whatsapp",
+  "maintenance_banner_on",
+  "maintenance_banner_text",
   "booking_window_copy",
   "platform_commission_pct",
   "location_side_labels",
   "default_party_size_max",
-  "maintenance_banner_on",
-  "maintenance_banner_text",
 ] as const;
 
 const IT_KEYS = [
@@ -161,6 +173,7 @@ export type ReportSummary = {
   revenueCents: number;
   activeAnglers: number;
   checkIns: number;
+  overdueCount: number;
   topLocations: { name: string; count: number }[];
 };
 
@@ -178,6 +191,7 @@ async function buildReportSummary(
       feeCents: passes.feeCents,
       status: passes.status,
       validOn: passes.validOn,
+      checkedInAt: passes.checkedInAt,
       pillarName: locations.name,
       pillarNumber: locations.number,
       jettyName: jetties.name,
@@ -246,6 +260,11 @@ async function buildReportSummary(
     revenueCents: Number(paid[0]?.cents ?? 0),
     activeAnglers: anglerIds.size,
     checkIns: Number(checkInRow?.count ?? 0),
+    overdueCount: passRows.filter(
+      (p) =>
+        p.status === "CHECKED_IN" &&
+        isOverdue(p.checkedInAt, DEFAULT_OVERDUE_HOURS),
+    ).length,
     topLocations,
   };
 
@@ -764,3 +783,75 @@ export async function actionLinkHandlerToOwner(input: {
   revalidatePath("/admin/operators");
   return { ok: true as const };
 }
+
+export async function actionResolveAlert(alertId: string) {
+  const session = await requireRole(["ADMIN"]);
+  await db
+    .update(alerts)
+    .set({ resolvedAt: new Date() })
+    .where(eq(alerts.id, alertId));
+  await writeAudit({
+    actorId: session.user.id,
+    action: "alert.resolve",
+    entityType: "alert",
+    entityId: alertId,
+  });
+  revalidatePath("/admin/alerts");
+  revalidatePath("/admin/ops");
+  return { ok: true as const };
+}
+
+export async function actionCreateIncident(input: {
+  type: string;
+  description: string;
+  passId?: string;
+  pillarId?: string;
+}) {
+  const session = await requireRole(["ADMIN"]);
+  const type = input.type.trim();
+  const description = input.description.trim();
+  if (!type || !description) {
+    throw new Error("Type and description are required.");
+  }
+  const incidentId = id("inc");
+  await db.insert(incidents).values({
+    id: incidentId,
+    type,
+    description,
+    status: "OPEN",
+    passId: input.passId || null,
+    pillarId: input.pillarId || null,
+  });
+  await writeAudit({
+    actorId: session.user.id,
+    action: "incident.create",
+    entityType: "incident",
+    entityId: incidentId,
+    next: { type, status: "OPEN" },
+  });
+  revalidatePath("/admin/alerts");
+  revalidatePath("/admin/ops");
+  return { ok: true as const, id: incidentId };
+}
+
+export async function actionUpdateIncidentStatus(
+  incidentId: string,
+  status: IncidentStatus,
+) {
+  const session = await requireRole(["ADMIN"]);
+  await db
+    .update(incidents)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(incidents.id, incidentId));
+  await writeAudit({
+    actorId: session.user.id,
+    action: "incident.status",
+    entityType: "incident",
+    entityId: incidentId,
+    next: { status },
+  });
+  revalidatePath("/admin/alerts");
+  revalidatePath("/admin/ops");
+  return { ok: true as const };
+}
+

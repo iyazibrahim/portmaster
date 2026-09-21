@@ -8,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -24,10 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  PaginationBar,
-  useClientPagination,
-} from "@/hooks/use-client-pagination";
+import { AdminDataTable } from "@/components/admin/admin-data-table";
+import { StatusBadge } from "@/components/status-badge";
 import { toast } from "sonner";
 
 export type JettyRow = {
@@ -70,6 +67,14 @@ const emptyForm = (sortOrder: number): JettyForm => ({
   active: true,
 });
 
+function compactGps(lat: string | null, lng: string | null) {
+  if (!lat || !lng) return "—";
+  const a = Number(lat);
+  const b = Number(lng);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return `${lat}, ${lng}`;
+  return `${a.toFixed(4)}, ${b.toFixed(4)}`;
+}
+
 export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -89,7 +94,6 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
     );
   }, [initial, query]);
 
-  const pager = useClientPagination(filtered, 10);
   const isEdit = Boolean(form.id);
 
   function openCreate() {
@@ -149,77 +153,65 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-1.5 sm:max-w-sm sm:flex-1">
-          <Label>Search</Label>
-          <Input
-            placeholder="Search jetties"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              pager.resetPage();
-            }}
-          />
-        </div>
-        <Button onClick={openCreate}>Add jetty</Button>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Area</TableHead>
-              <TableHead>GPS</TableHead>
-              <TableHead>Radius</TableHead>
-              <TableHead>Locations</TableHead>
-              <TableHead>Handlers</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[10rem]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pager.pageItems.length === 0 ? (
+    <div className="flex flex-col gap-4">
+      <AdminDataTable
+        items={filtered}
+        search={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Search jetties"
+        emptyMessage="No jetties match."
+        actions={
+          <Button className="min-h-11" onClick={openCreate}>
+            Add jetty
+          </Button>
+        }
+      >
+        {(pageItems) => (
+          <Table className="table-fixed w-full min-w-[52rem]">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={9} className="text-muted-foreground">
-                  No jetties match.
-                </TableCell>
+                <TableHead className="w-[18%] px-3">Name</TableHead>
+                <TableHead className="w-[14%] px-3">Area</TableHead>
+                <TableHead className="w-[18%] px-3">GPS</TableHead>
+                <TableHead className="w-[10%] px-3">Radius</TableHead>
+                <TableHead className="w-[10%] px-3">Counts</TableHead>
+                <TableHead className="w-[12%] px-3">Status</TableHead>
+                <TableHead className="w-[18%] px-3">Actions</TableHead>
               </TableRow>
-            ) : (
-              pager.pageItems.map((j) => (
+            </TableHeader>
+            <TableBody>
+              {pageItems.map((j) => (
                 <TableRow key={j.id}>
-                  <TableCell className="tabular-nums">{j.sortOrder}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{j.name}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground">
+                  <TableCell className="px-3 py-2">
+                    <div className="truncate font-medium">{j.name}</div>
+                    <div className="truncate font-mono text-[10px] text-muted-foreground">
                       {j.slug}
                     </div>
                   </TableCell>
-                  <TableCell>{j.area ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {j.lat && j.lng ? `${j.lat}, ${j.lng}` : "—"}
+                  <TableCell className="truncate px-3 py-2">
+                    {j.area ?? "—"}
                   </TableCell>
-                  <TableCell className="tabular-nums">
+                  <TableCell className="px-3 py-2 font-mono text-xs tabular-nums">
+                    {compactGps(j.lat, j.lng)}
+                  </TableCell>
+                  <TableCell className="px-3 py-2 tabular-nums">
                     {j.geofenceRadiusM} m
                   </TableCell>
-                  <TableCell className="tabular-nums">
-                    {j.locationCount}
+                  <TableCell className="px-3 py-2 tabular-nums text-muted-foreground">
+                    {j.locationCount} · {j.handlerCount}
                   </TableCell>
-                  <TableCell className="tabular-nums">
-                    {j.handlerCount}
+                  <TableCell className="px-3 py-2">
+                    <StatusBadge
+                      status={j.active ? "ACTIVE" : "INACTIVE"}
+                      label={j.active ? "Active" : "Inactive"}
+                    />
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={j.active ? "default" : "secondary"}>
-                      {j.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
+                  <TableCell className="px-3 py-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
+                        className="rounded-full"
                         disabled={pending}
                         onClick={() => openEdit(j)}
                       >
@@ -228,6 +220,7 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="rounded-full"
                         disabled={pending}
                         onClick={() =>
                           startTransition(async () => {
@@ -245,21 +238,11 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <PaginationBar
-        page={pager.page}
-        pageCount={pager.pageCount}
-        total={pager.total}
-        canPrev={pager.canPrev}
-        canNext={pager.canNext}
-        onPrev={pager.goPrev}
-        onNext={pager.goNext}
-      />
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </AdminDataTable>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

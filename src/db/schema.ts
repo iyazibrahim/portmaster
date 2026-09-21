@@ -616,3 +616,5 @@ export type LocationSide = (typeof locationSideEnum.enumValues)[number];
 export type LocationStatus = (typeof locationStatusEnum.enumValues)[number];
 export type BoatStatus = (typeof boatStatusEnum.enumValues)[number];
 export type ReportType = (typeof reportTypeEnum.enumValues)[number];
+export type IncidentStatus = (typeof incidentStatusEnum.enumValues)[number];
+export type AlertSeverity = (typeof alertSeverityEnum.enumValues)[number];

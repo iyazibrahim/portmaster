@@ -41,6 +41,9 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "boat.update": "Boat updated",
   "user.delete_account": "Account deleted (anonymised)",
   "handler.link_owner": "Handler linked to boat owner",
+  "alert.resolve": "Alert resolved",
+  "incident.create": "Incident logged",
+  "incident.status": "Incident status updated",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -53,6 +56,8 @@ const ENTITY_LABELS: Record<string, string> = {
   handler: "Handler",
   jetty: "Jetty",
   booking: "Booking",
+  alert: "Alert",
+  incident: "Incident",
 };
 
 /** Plain English for audit action codes. */

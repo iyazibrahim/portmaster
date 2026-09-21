@@ -45,78 +45,128 @@ export function SettingsPanel({
     setIt((o) => ({ ...o, [key]: value }));
   }
 
+  const maintenanceOn = ops.maintenance_banner_on === "true";
+
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Ops settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <BentoTile
+          title="Association fee"
+          description="Day-pass fee charged to anglers (sen)."
+        >
+          <Field
+            label="Fee (cents)"
+            value={ops.association_fee_cents}
+            onChange={(v) => setOp("association_fee_cents", v)}
+          />
+          <p className="text-xs text-muted-foreground">
+            {ops.association_fee_cents
+              ? `Display ≈ MYR ${(Number(ops.association_fee_cents) / 100).toFixed(2)}`
+              : "Set fee in cents, e.g. 500 = MYR 5.00"}
+          </p>
+        </BentoTile>
+
+        <BentoTile
+          title="Reservation & overdue"
+          description="Hold window after purchase and overdue check-in threshold."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field
+              label="Reservation (minutes)"
+              value={ops.reservation_minutes}
+              onChange={(v) => setOp("reservation_minutes", v)}
+            />
+            <Field
+              label="Overdue (hours)"
+              value={ops.overdue_hours}
+              onChange={(v) => setOp("overdue_hours", v)}
+            />
+          </div>
+        </BentoTile>
+
+        <BentoTile
+          title="Geofence default"
+          description="Default purchase radius for new jetties."
+        >
+          <Field
+            label="Default radius (metres)"
+            value={ops.default_geofence_radius_m}
+            onChange={(v) => setOp("default_geofence_radius_m", v)}
+          />
+        </BentoTile>
+
+        <BentoTile
+          title="Support"
+          description="Contact numbers shown to anglers."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field
               label="Support phone"
               value={ops.support_phone}
               onChange={(v) => setOp("support_phone", v)}
             />
             <Field
-              label="Support WhatsApp (display)"
+              label="WhatsApp"
               value={ops.support_whatsapp}
               onChange={(v) => setOp("support_whatsapp", v)}
             />
-            <Field
-              label="Platform commission %"
-              value={ops.platform_commission_pct}
-              onChange={(v) => setOp("platform_commission_pct", v)}
-            />
-            <Field
-              label="Default party-size max"
-              value={ops.default_party_size_max}
-              onChange={(v) => setOp("default_party_size_max", v)}
-            />
-            <Field
-              label="Location side labels"
-              value={ops.location_side_labels}
-              onChange={(v) => setOp("location_side_labels", v)}
-              className="sm:col-span-2"
-            />
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label>Booking window copy</Label>
-              <Textarea
-                className="min-h-24 max-w-2xl"
-                value={ops.booking_window_copy}
-                onChange={(e) => setOp("booking_window_copy", e.target.value)}
-              />
-            </div>
-            <Field
-              label="Maintenance banner on (true/false)"
-              value={ops.maintenance_banner_on}
-              onChange={(v) => setOp("maintenance_banner_on", v)}
-            />
-            <Field
-              label="Maintenance banner text"
+          </div>
+        </BentoTile>
+
+        <BentoTile
+          title="Maintenance"
+          description="Banner shown site-wide when enabled."
+          className="lg:col-span-2"
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="sm"
+              variant={maintenanceOn ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() =>
+                setOp("maintenance_banner_on", maintenanceOn ? "false" : "true")
+              }
+            >
+              {maintenanceOn ? "Banner on" : "Banner off"}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {maintenanceOn ? "Visible to users" : "Hidden"}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-col gap-1.5">
+            <Label>Banner text</Label>
+            <Textarea
+              className="min-h-20 max-w-2xl"
               value={ops.maintenance_banner_text}
-              onChange={(v) => setOp("maintenance_banner_text", v)}
+              onChange={(e) =>
+                setOp("maintenance_banner_text", e.target.value)
+              }
+              disabled={!maintenanceOn}
+              placeholder="Scheduled maintenance message…"
             />
           </div>
-        </CardContent>
-        <CardFooter className="justify-end border-t">
-          <Button
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                await actionSaveOpsSettings(ops);
-                toast.success("Ops settings saved");
-              })
-            }
-          >
-            Save ops settings
-          </Button>
-        </CardFooter>
-      </Card>
+        </BentoTile>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          className="min-h-11"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              await actionSaveOpsSettings(ops);
+              toast.success("Ops settings saved");
+            })
+          }
+        >
+          Save ops settings
+        </Button>
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>IT settings</CardTitle>
+          <CardTitle>IT / integrations</CardTitle>
         </CardHeader>
         <CardContent>
           {!unlocked ? (
@@ -133,13 +183,14 @@ export function SettingsPanel({
                 <Input
                   id="it-pass"
                   type="password"
-                  className="max-w-xs"
+                  className="max-w-xs min-h-11"
                   value={itPassword}
                   onChange={(e) => setItPassword(e.target.value)}
                 />
               </div>
               <div className="flex justify-end">
                 <Button
+                  className="min-h-11"
                   disabled={pending || !itPassword}
                   onClick={() =>
                     startTransition(async () => {
@@ -231,13 +282,38 @@ export function SettingsPanel({
                   type="password"
                   className="sm:col-span-2"
                 />
+                <Field
+                  label="Legacy booking window copy"
+                  value={ops.booking_window_copy}
+                  onChange={(v) => setOp("booking_window_copy", v)}
+                  className="sm:col-span-2"
+                />
+                <Field
+                  label="Default party-size max (legacy)"
+                  value={ops.default_party_size_max}
+                  onChange={(v) => setOp("default_party_size_max", v)}
+                />
               </div>
             </div>
           )}
         </CardContent>
         {unlocked ? (
-          <CardFooter className="justify-end border-t">
+          <CardFooter className="justify-end gap-2 border-t">
             <Button
+              variant="outline"
+              className="min-h-11"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  await actionSaveOpsSettings(ops);
+                  toast.success("Legacy ops fields saved");
+                })
+              }
+            >
+              Save legacy ops
+            </Button>
+            <Button
+              className="min-h-11"
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
@@ -266,6 +342,28 @@ export function SettingsPanel({
   );
 }
 
+function BentoTile({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl bg-muted/30 p-4 ring-1 ring-foreground/10 ${className ?? ""}`}
+    >
+      <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+      <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      <div className="mt-3 space-y-3">{children}</div>
+    </div>
+  );
+}
+
 function Field({
   label,
   value,
@@ -284,8 +382,8 @@ function Field({
       <Label>{label}</Label>
       <Input
         type={type}
-        className="max-w-md"
-        value={value}
+        className="min-h-11 max-w-md"
+        value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>

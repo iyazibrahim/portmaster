@@ -8,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -26,10 +25,11 @@ import {
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
-  PaginationBar,
-  useClientPagination,
-} from "@/hooks/use-client-pagination";
-import { formatEnumLabel, sideLabel } from "@/lib/utils-app";
+  AdminDataTable,
+  ADMIN_CONTROL,
+} from "@/components/admin/admin-data-table";
+import { StatusBadge } from "@/components/status-badge";
+import { sideLabel } from "@/lib/utils-app";
 import type { LocationStatus } from "@/db/schema";
 import { toast } from "sonner";
 
@@ -113,8 +113,6 @@ export function LocationAdmin({
     });
   }, [initial, jettyFilter, sideFilter, query]);
 
-  const pager = useClientPagination(filtered, 10);
-
   function openCreate() {
     setEditId(null);
     setForm({
@@ -144,139 +142,118 @@ export function LocationAdmin({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Only <strong>Available</strong> pillars appear in pass purchase.
-          Max occupancy is per pillar.
-        </p>
-        <Button className="shrink-0" onClick={openCreate}>
-          Add pillar
-        </Button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        Only <strong>Available</strong> pillars appear in pass purchase. Max
+        occupancy is per pillar.
+      </p>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex flex-col gap-1.5">
-          <Label>Search</Label>
-          <Input
-            className="w-full sm:w-56"
-            placeholder="Number or name"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              pager.resetPage();
-            }}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Jetty</Label>
-          <SearchableSelect
-            options={filterJettyOptions}
-            value={jettyFilter}
-            onValueChange={(v) => {
-              setJettyFilter(v);
-              pager.resetPage();
-            }}
-            className="w-full sm:w-56"
-            searchPlaceholder="Search jetty…"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Side</Label>
-          <SearchableSelect
-            options={sideFilterOptions}
-            value={sideFilter}
-            onValueChange={(v) => {
-              setSideFilter(v);
-              pager.resetPage();
-            }}
-            className="w-full sm:w-48"
-          />
-        </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Jetty</TableHead>
-              <TableHead>Side</TableHead>
-              <TableHead>Max</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[10rem]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pager.pageItems.length === 0 ? (
+      <AdminDataTable
+        items={filtered}
+        search={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Number or name"
+        emptyMessage="No pillars match."
+        filters={
+          <>
+            <div className="flex min-w-[12rem] flex-1 flex-col gap-1.5 sm:max-w-xs">
+              <Label>Jetty</Label>
+              <SearchableSelect
+                options={filterJettyOptions}
+                value={jettyFilter}
+                onValueChange={setJettyFilter}
+                className={ADMIN_CONTROL}
+                searchPlaceholder="Search jetty…"
+              />
+            </div>
+            <div className="flex min-w-[10rem] flex-col gap-1.5 sm:max-w-[12rem]">
+              <Label>Side</Label>
+              <SearchableSelect
+                options={sideFilterOptions}
+                value={sideFilter}
+                onValueChange={setSideFilter}
+                className={ADMIN_CONTROL}
+              />
+            </div>
+          </>
+        }
+        actions={
+          <Button className="min-h-11" onClick={openCreate}>
+            Add pillar
+          </Button>
+        }
+      >
+        {(pageItems) => (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground">
-                  No pillars match.
-                </TableCell>
+                <TableHead className="px-3">#</TableHead>
+                <TableHead className="px-3">Name</TableHead>
+                <TableHead className="px-3">Jetty</TableHead>
+                <TableHead className="px-3">Side</TableHead>
+                <TableHead className="px-3">Max</TableHead>
+                <TableHead className="px-3">Status</TableHead>
+                <TableHead className="px-3 w-[11rem]">Actions</TableHead>
               </TableRow>
-            ) : (
-              pager.pageItems.map((t) => (
+            </TableHeader>
+            <TableBody>
+              {pageItems.map((t) => (
                 <TableRow key={t.id}>
-                  <TableCell className="tabular-nums">{t.number}</TableCell>
-                  <TableCell>{t.name}</TableCell>
-                  <TableCell className="max-w-[12rem] truncate">
+                  <TableCell className="px-3 py-2 tabular-nums">
+                    {t.number}
+                  </TableCell>
+                  <TableCell className="px-3 py-2 font-medium">
+                    {t.name}
+                  </TableCell>
+                  <TableCell className="max-w-[12rem] truncate px-3 py-2">
                     {t.jettyName}
                   </TableCell>
-                  <TableCell>{sideLabel(t.side)}</TableCell>
-                  <TableCell className="tabular-nums">{t.maxOccupancy}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        t.status === "AVAILABLE" ? "default" : "secondary"
-                      }
-                    >
-                      {formatEnumLabel(t.status)}
-                    </Badge>
+                  <TableCell className="px-3 py-2">
+                    {sideLabel(t.side)}
                   </TableCell>
-                  <TableCell className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={pending}
-                      onClick={() => openEdit(t)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={pending}
-                      onClick={() =>
-                        startTransition(async () => {
-                          const next =
-                            t.status === "AVAILABLE"
-                              ? "UNAVAILABLE"
-                              : "AVAILABLE";
-                          await actionSetLocationStatus(t.id, next);
-                          toast.success("Status updated");
-                        })
-                      }
-                    >
-                      Toggle
-                    </Button>
+                  <TableCell className="px-3 py-2 tabular-nums">
+                    {t.maxOccupancy}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <StatusBadge status={t.status} />
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={pending}
+                        onClick={() => openEdit(t)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={pending}
+                        onClick={() =>
+                          startTransition(async () => {
+                            const next =
+                              t.status === "AVAILABLE"
+                                ? "UNAVAILABLE"
+                                : "AVAILABLE";
+                            await actionSetLocationStatus(t.id, next);
+                            toast.success("Status updated");
+                          })
+                        }
+                      >
+                        {t.status === "AVAILABLE" ? "Close" : "Open"}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <PaginationBar
-        page={pager.page}
-        pageCount={pager.pageCount}
-        total={pager.total}
-        canPrev={pager.canPrev}
-        canNext={pager.canNext}
-        onPrev={pager.goPrev}
-        onNext={pager.goNext}
-      />
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </AdminDataTable>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

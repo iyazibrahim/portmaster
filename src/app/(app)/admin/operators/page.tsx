@@ -2,15 +2,7 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { boatOwners, handlers, jetties, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OperatorsAdminTable } from "@/components/admin/operators-admin-table";
 
 export default async function AdminOperatorsPage() {
   await requireRole(["ADMIN"]);
@@ -30,36 +22,15 @@ export default async function AdminOperatorsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Boat Operators</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Operators / Skippers</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Jetty</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Licence</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.displayName}</TableCell>
-                  <TableCell>{r.email}</TableCell>
-                  <TableCell>{r.jetty}</TableCell>
-                  <TableCell>{r.owner ?? "—"}</TableCell>
-                  <TableCell>{r.licenseNo ?? "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Boat Operators
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Operators and skippers registered to jetties.
+        </p>
+      </div>
+      <OperatorsAdminTable rows={rows} />
     </div>
   );
 }

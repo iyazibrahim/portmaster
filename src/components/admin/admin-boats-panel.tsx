@@ -8,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -26,7 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { BoatStatus } from "@/db/schema";
-import { formatEnumLabel } from "@/lib/utils-app";
+import { StatusBadge } from "@/components/status-badge";
+import { AdminDataTable } from "@/components/admin/admin-data-table";
 import { toast } from "sonner";
 
 type BoatRow = {
@@ -69,6 +69,7 @@ export function AdminBoatsPanel({
   const [boatOpen, setBoatOpen] = useState(false);
   const [ownerOpen, setOwnerOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const [boatForm, setBoatForm] = useState({
     name: "",
@@ -106,6 +107,20 @@ export function AdminBoatsPanel({
     [handlers],
   );
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return initial;
+    return initial.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.registration ?? "").toLowerCase().includes(q) ||
+        (r.owner ?? "").toLowerCase().includes(q) ||
+        (r.jetty ?? "").toLowerCase().includes(q) ||
+        (r.operator ?? "").toLowerCase().includes(q) ||
+        r.status.toLowerCase().includes(q),
+    );
+  }, [initial, query]);
+
   function openCreateBoat() {
     setEditId(null);
     setBoatForm({
@@ -140,51 +155,77 @@ export function AdminBoatsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={openCreateBoat}>Add boat</Button>
-        <Button variant="outline" onClick={() => setOwnerOpen(true)}>
-          Register boat owner
-        </Button>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Reg</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Jetty</TableHead>
-              <TableHead>Operator</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {initial.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>{r.name}</TableCell>
-                <TableCell>{r.registration ?? "—"}</TableCell>
-                <TableCell>{r.owner ?? "—"}</TableCell>
-                <TableCell>{r.jetty ?? "—"}</TableCell>
-                <TableCell>{r.operator ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={r.status === "ACTIVE" ? "default" : "secondary"}
-                  >
-                    {formatEnumLabel(r.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button size="sm" variant="outline" onClick={() => openEditBoat(r)}>
-                    Edit
-                  </Button>
-                </TableCell>
+      <AdminDataTable
+        items={filtered}
+        search={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Search name, reg, owner, jetty…"
+        emptyMessage="No boats match."
+        actions={
+          <>
+            <Button className="min-h-11" onClick={openCreateBoat}>
+              Add boat
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setOwnerOpen(true)}
+            >
+              Register boat owner
+            </Button>
+          </>
+        }
+      >
+        {(pageItems) => (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-3">Name</TableHead>
+                <TableHead className="px-3">Reg</TableHead>
+                <TableHead className="px-3">Owner</TableHead>
+                <TableHead className="px-3">Jetty</TableHead>
+                <TableHead className="px-3">Operator</TableHead>
+                <TableHead className="px-3">Status</TableHead>
+                <TableHead className="px-3 w-[5rem]" />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {pageItems.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="px-3 py-2 font-medium">
+                    {r.name}
+                  </TableCell>
+                  <TableCell className="px-3 py-2 font-mono text-xs">
+                    {r.registration ?? "—"}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    {r.owner ?? "—"}
+                  </TableCell>
+                  <TableCell className="max-w-[10rem] truncate px-3 py-2">
+                    {r.jetty ?? "—"}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    {r.operator ?? "—"}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <StatusBadge status={r.status} />
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => openEditBoat(r)}
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </AdminDataTable>
 
       <Dialog open={boatOpen} onOpenChange={setBoatOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

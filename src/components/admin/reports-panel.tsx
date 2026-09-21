@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   actionGenerateReport,
@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -28,9 +27,10 @@ import {
 } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
-  PaginationBar,
-  useClientPagination,
-} from "@/hooks/use-client-pagination";
+  AdminDataTable,
+  ADMIN_CONTROL,
+} from "@/components/admin/admin-data-table";
+import { StatusBadge } from "@/components/status-badge";
 import { formatMYR } from "@/lib/utils-app";
 import { toast } from "sonner";
 
@@ -65,6 +65,7 @@ export function ReportsPanel({
     summary: ReportSummary;
     csv: string;
   } | null>(null);
+  const [historyQuery, setHistoryQuery] = useState("");
   const [pending, startTransition] = useTransition();
 
   const reportJettyId = jettyId === "all" ? undefined : jettyId;
@@ -77,27 +78,36 @@ export function ReportsPanel({
     [jetties],
   );
 
-  const historyPager = useClientPagination(history, 10);
+  const filteredHistory = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    if (!q) return history;
+    return history.filter(
+      (h) =>
+        h.title.toLowerCase().includes(q) ||
+        h.type.toLowerCase().includes(q) ||
+        h.periodStart.includes(q) ||
+        h.periodEnd.includes(q),
+    );
+  }, [history, historyQuery]);
 
-  const previewRows = useMemo(() => {
-    if (!preview) return [];
-    return [
-      { metric: "Bookings", value: String(preview.summary.bookingsCount) },
-      {
-        metric: "Revenue (mock)",
-        value: formatMYR(preview.summary.revenueCents),
-      },
-      {
-        metric: "Active anglers",
-        value: String(preview.summary.activeAnglers),
-      },
-      { metric: "Check-ins", value: String(preview.summary.checkIns) },
-      ...preview.summary.topLocations.map((l, i) => ({
-        metric: `Top location #${i + 1}`,
-        value: `${l.name} (${l.count})`,
-      })),
-    ];
-  }, [preview]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await actionPreviewReport({
+          type,
+          anchorDate,
+          jettyId: reportJettyId,
+        });
+        if (!cancelled) setPreview(result);
+      } catch {
+        /* keep prior preview on transient errors */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [type, anchorDate, reportJettyId]);
 
   function downloadCsv(filename: string, csv: string) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -109,20 +119,56 @@ export function ReportsPanel({
     URL.revokeObjectURL(url);
   }
 
+  const kpis = preview
+    ? [
+        { label: "Passes sold", value: String(preview.summary.passesCount) },
+        {
+          label: "Revenue",
+          value: formatMYR(preview.summary.revenueCents),
+        },
+        { label: "Check-ins", value: String(preview.summary.checkIns) },
+        {
+          label: "Overdue",
+          value: String(preview.summary.overdueCount ?? 0),
+        },
+      ]
+    : [
+        { label: "Passes sold", value: "—" },
+        { label: "Revenue", value: "—" },
+        { label: "Check-ins", value: "—" },
+        { label: "Overdue", value: "—" },
+      ];
+
   return (
     <div className="flex flex-col gap-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {kpis.map((k) => (
+          <div
+            key={k.label}
+            className="rounded-lg bg-muted/40 px-4 py-3 ring-1 ring-foreground/10"
+          >
+            <p className="text-xs font-medium text-muted-foreground">
+              {k.label}
+            </p>
+            <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+              {k.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Generate report</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
             <div className="flex flex-col gap-1.5">
               <Label>Period</Label>
-              <div className="flex w-fit gap-2">
+              <div className="flex min-h-11 gap-2">
                 <Button
                   type="button"
-                  size="sm"
+                  className="min-h-11 flex-1"
                   variant={type === "WEEKLY" ? "default" : "outline"}
                   onClick={() => setType("WEEKLY")}
                 >
@@ -130,7 +176,7 @@ export function ReportsPanel({
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
+                  className="min-h-11 flex-1"
                   variant={type === "MONTHLY" ? "default" : "outline"}
                   onClick={() => setType("MONTHLY")}
                 >
@@ -143,18 +189,17 @@ export function ReportsPanel({
               <Input
                 id="anchor"
                 type="date"
-                className="max-w-xs"
+                className={ADMIN_CONTROL}
                 value={anchorDate}
                 onChange={(e) => setAnchorDate(e.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 lg:col-span-2">
               <Label>Jetty</Label>
               <SearchableSelect
                 options={jettyOptions}
                 value={jettyId}
                 onValueChange={setJettyId}
-                className="max-w-md"
                 searchPlaceholder="Search jetty…"
               />
             </div>
@@ -163,6 +208,7 @@ export function ReportsPanel({
         <CardFooter className="justify-end gap-2 border-t">
           <Button
             variant="outline"
+            className="min-h-11"
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
@@ -181,9 +227,10 @@ export function ReportsPanel({
               })
             }
           >
-            Preview
+            Refresh preview
           </Button>
           <Button
+            className="min-h-11"
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
@@ -213,6 +260,7 @@ export function ReportsPanel({
           {preview ? (
             <Button
               variant="secondary"
+              className="min-h-11"
               onClick={() =>
                 downloadCsv(
                   `tiangpass-${type.toLowerCase()}-${preview.periodStart}.csv`,
@@ -242,10 +290,36 @@ export function ReportsPanel({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {previewRows.map((r) => (
-                  <TableRow key={r.metric}>
-                    <TableCell className="pl-4">{r.metric}</TableCell>
-                    <TableCell>{r.value}</TableCell>
+                <TableRow>
+                  <TableCell className="pl-4">Passes sold</TableCell>
+                  <TableCell>{preview.summary.passesCount}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="pl-4">Revenue</TableCell>
+                  <TableCell>
+                    {formatMYR(preview.summary.revenueCents)}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="pl-4">Active anglers</TableCell>
+                  <TableCell>{preview.summary.activeAnglers}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="pl-4">Check-ins</TableCell>
+                  <TableCell>{preview.summary.checkIns}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="pl-4">Overdue</TableCell>
+                  <TableCell>{preview.summary.overdueCount ?? 0}</TableCell>
+                </TableRow>
+                {preview.summary.topLocations.map((l, i) => (
+                  <TableRow key={l.name}>
+                    <TableCell className="pl-4">
+                      Top pillar #{i + 1}
+                    </TableCell>
+                    <TableCell>
+                      {l.name} ({l.count})
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -261,31 +335,43 @@ export function ReportsPanel({
             No saved reports yet. Generate one to start the archive.
           </p>
         ) : (
-          <>
-            <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
+          <AdminDataTable
+            items={filteredHistory}
+            search={historyQuery}
+            onSearchChange={setHistoryQuery}
+            searchPlaceholder="Search history…"
+            emptyMessage="No reports match."
+          >
+            {(pageItems) => (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Generated</TableHead>
-                    <TableHead className="w-[6rem]">Actions</TableHead>
+                    <TableHead className="px-3">Title</TableHead>
+                    <TableHead className="px-3">Type</TableHead>
+                    <TableHead className="px-3">Generated</TableHead>
+                    <TableHead className="px-3 w-[6rem]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historyPager.pageItems.map((h) => (
+                  {pageItems.map((h) => (
                     <TableRow key={h.id}>
-                      <TableCell className="font-medium">{h.title}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{h.type}</Badge>
+                      <TableCell className="px-3 py-2 font-medium">
+                        {h.title}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="px-3 py-2">
+                        <StatusBadge
+                          status={h.type}
+                          label={h.type === "WEEKLY" ? "Weekly" : "Monthly"}
+                        />
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-muted-foreground">
                         {new Date(h.generatedAt).toLocaleString("en-MY")}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-3 py-2">
                         <Button
                           size="sm"
                           variant="outline"
+                          className="rounded-full"
                           onClick={() =>
                             downloadCsv(
                               `${h.type.toLowerCase()}-${h.periodStart}.csv`,
@@ -300,17 +386,8 @@ export function ReportsPanel({
                   ))}
                 </TableBody>
               </Table>
-            </div>
-            <PaginationBar
-              page={historyPager.page}
-              pageCount={historyPager.pageCount}
-              total={historyPager.total}
-              canPrev={historyPager.canPrev}
-              canNext={historyPager.canNext}
-              onPrev={historyPager.goPrev}
-              onNext={historyPager.goNext}
-            />
-          </>
+            )}
+          </AdminDataTable>
         )}
       </div>
     </div>

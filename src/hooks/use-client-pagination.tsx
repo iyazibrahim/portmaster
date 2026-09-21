@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 15;
 
 export function useClientPagination<T>(
   items: T[],
@@ -69,7 +69,7 @@ export function PaginationBar({
       <div className="flex gap-2">
         <button
           type="button"
-          className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-sm disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm disabled:opacity-50"
           disabled={!canPrev}
           onClick={onPrev}
         >
@@ -77,7 +77,7 @@ export function PaginationBar({
         </button>
         <button
           type="button"
-          className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-sm disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm disabled:opacity-50"
           disabled={!canNext}
           onClick={onNext}
         >
