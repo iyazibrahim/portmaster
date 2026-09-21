@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
-import { db } from "./index";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import {
   alerts,
   auditLogs,
@@ -16,13 +17,19 @@ import {
   pricingConfig,
   settings,
   users,
-} from "./schema";
+} from "./schema.ts";
 import {
   hashMyKad,
   id,
   myKadLast4,
   todayMYT,
-} from "../lib/utils-app";
+} from "../lib/utils-app.ts";
+
+const connectionString =
+  process.env.DATABASE_URL ??
+  "postgresql://tiangpass:tiangpass@127.0.0.1:5432/tiangpass";
+const pg = postgres(connectionString, { max: 1, prepare: false });
+const db = drizzle(pg);
 
 function slugify(name: string) {
   return name
@@ -156,7 +163,7 @@ async function seed() {
     accounts,
     reports,
     accountBlocks,
-  } = await import("./schema");
+  } = await import("./schema.ts");
 
   await db.delete(scanEvents);
   await db.delete(passQrTokens);

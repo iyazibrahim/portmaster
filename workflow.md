@@ -88,3 +88,5 @@ Password: `password123`
 Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because only additive `0004`–`0007` ran. Boot now applies baseline `0000` + jetties `0002` first. Redeploy the new image; restarting the old one will keep failing.
 
 Validated: empty Postgres 16 → apply (users/jetties/passes) → apply again (idempotent) → seed.
+
+Seed on Docker uses `node --experimental-strip-types` (no tsx). Relative imports in `src/db/seed.ts` must include `.ts` extensions (`./schema.ts`, `../lib/utils-app.ts`) and not import `./index` (Node ESM cannot resolve extensionless paths).
