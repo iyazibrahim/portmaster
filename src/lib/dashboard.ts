@@ -122,8 +122,7 @@ export async function getDashboardMetrics() {
       max: p.maxOccupancy,
       status: p.status,
     }))
-    .sort((a, b) => b.occupied - a.occupied || a.label.localeCompare(b.label))
-    .slice(0, 12);
+    .sort((a, b) => b.occupied - a.occupied || a.label.localeCompare(b.label));
 
   const occupiedPillars = openPillars.filter(
     (p) => (pillarOcc.get(p.id) ?? 0) > 0,

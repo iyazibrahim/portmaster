@@ -26,6 +26,7 @@ import {
   Bell,
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
+import { PillarBarsCarousel } from "@/components/admin/pillar-bars-carousel";
 
 export default async function AdminOpsPage() {
   await requireRole(["ADMIN"]);
@@ -155,45 +156,7 @@ export default async function AdminOpsPage() {
             <CardTitle className="text-base">Anglers per Pillar</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex h-40 items-end gap-2">
-              {m.pillarBars.map((b) => {
-                const pct = (b.occupied / b.max) * 100;
-                const color =
-                  b.occupied >= b.max
-                    ? "bg-emerald-600"
-                    : b.occupied > 0
-                      ? "bg-amber-400"
-                      : "bg-muted/80";
-                return (
-                  <div
-                    key={b.id}
-                    className="flex flex-1 flex-col items-center gap-1"
-                  >
-                    <div className="flex h-28 w-full items-end rounded bg-muted/40">
-                      <div
-                        className={`w-full rounded-t ${color}`}
-                        style={{ height: `${Math.max(pct, b.occupied ? 12 : 4)}%` }}
-                        title={`${b.occupied}/${b.max}`}
-                      />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">
-                      {b.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="size-2 rounded-sm bg-amber-400" /> Occupied
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="size-2 rounded-sm bg-emerald-600" /> At capacity
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="size-2 rounded-sm bg-muted/80" /> Empty
-              </span>
-            </div>
+            <PillarBarsCarousel bars={m.pillarBars} />
           </CardContent>
         </Card>
       </div>

@@ -1,5 +1,9 @@
 # TiangPass workflow
 
+**Offline CI/CO phased (2026-09-22):** Flaky + true offline boarding for operators/admin/anglers. `scan_events.client_event_id` (migration `0008`) makes scan retries idempotent. Scanner IndexedDB queue + timeout flush; **Refresh offline pack** pulls today’s Active/Checked-In passes (photos inlined) for zero-signal CI/CO; sync marks `conflict_flag` for Admin at `/admin/sync-conflicts`. Anglers cache pass+QR via `PassWalletCache`; SW v5 warm-cache + `/pass/[id]/offline`. No offline purchase.
+
+**Anglers-per-Pillar carousel (2026-09-22):** Dashboard chart pages **12** bars at a time with left/right arrows; last page pads empty slots so bar width stays stable. Shows all open pillars (no longer capped at 12). Counter `1–12 of N` when more than one page.
+
 **Pass receipt + letterhead (2026-09-22):** Paid passes open `/pass/[id]/receipt` (A4 print / Save as PDF) with admin-configurable letterhead (org name, tagline, address, reg no, phone, email, footer, logo upload). Includes boarding QR when Active/Checked-In. Settings → **Receipt / letterhead**. Defaults in seed; logo falls back to `/brand/tiangpass-logo.png`.
 
 **Official logo (2026-09-21):** `TiangPass Logo.jpg` white backdrop removed (flood-fill) → transparent `public/brand/tiangpass-logo.png`; favicon / PWA icons / `BrandLogo` on landing, auth, nav, install banner. New fishing illustration is cache-busted **brush-edge** `tiangpass-scene-brush.png` (no metallic badge) on marketing + login/signup.
@@ -57,7 +61,7 @@ See [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) for the full locked table.
 - UI: shadcn/ui; harbor-blue tokens; BM/EN via `tiangpass_locale` cookie.
 - Payment: `PaymentProvider` interface + mock only.
 - Photos: `data/photos/` via authenticated `/api/photos/[key]` (camera capture only for anglers).
-- Migrations: Docker/Dokploy boot applies `0000` + `0002` then `0004`–`0007` via `scripts/apply-srs-mvp1.ts`.
+- Migrations: Docker/Dokploy boot applies `0000` + `0002` then `0004`–`0008` via `scripts/apply-srs-mvp1.ts`.
 
 ## Local
 
