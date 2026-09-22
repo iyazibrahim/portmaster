@@ -54,13 +54,13 @@
 - Modify: `src/db/schema.ts`
 - Add: migration script under existing `scripts/apply-srs-mvp1.ts` pattern (next migration id after `0008`)
 
-- [ ] Add nullable/boolean fields on `passes`:
+- [x] Add nullable/boolean fields on `passes`:
   - `intendsOvernight` boolean default false
   - `expectedReturnOn` text null (`YYYY-MM-DD` MYT)
   - `selfCheckedOutAt` timestamp null (optional; can reuse `checkedOutAt` + audit only — prefer **reuse `checkedOutAt`** and record method in audit/scan metadata to avoid duplicate truth)
-- [ ] Prefer lean schema: only `intends_overnight` + `expected_return_on`; checkout method via `scan_events` / audit payload (`method: "SELF" | "OPERATOR"`).
-- [ ] Apply migration path used by Docker boot.
-- [ ] Commit: `Add overnight intention columns on passes`
+- [x] Prefer lean schema: only `intends_overnight` + `expected_return_on`; checkout method via `scan_events` / audit payload (`method: "SELF" | "OPERATOR"`).
+- [x] Apply migration path used by Docker boot.
+- [x] Commit: `Add overnight intention columns on passes`
 
 ### Task 3: Server self-checkout + intention APIs
 
