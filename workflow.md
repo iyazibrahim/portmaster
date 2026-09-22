@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Live status + silent offline (2026-09-22):** Scan revalidates ops/passes/handler/trips/pass (not `/handler/scan`). Soft 12s `router.refresh` on ops, passes, handler Today. Scanner badge updates briefly on confirm. Offline pack banner only when offline or queued scans remain; online pull/sync runs silently.
+
 **Full EN/BM UI pass (2026-09-22):** Signup form, admin ops KPIs/widgets, People/Operators/shared pagination, admin page titles, handler Today/Fleet/Earnings chrome wired to `en.json`/`ms.json` (331 keys, parity). DB entity names and some dialog toasts still English.
 
 **Operator edit + optional licence (2026-09-22):** Admin can edit boat operators on **Operator Bot** (display name, jetty, owner, optional `handlers.licenseNo`). Same fields editable when creating/updating Operator role under People. Both paths update the same handler row. Operator licence ≠ boat permit (`boats.licenceInfo` / `permitExpiresAt`).

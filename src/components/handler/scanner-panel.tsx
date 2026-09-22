@@ -308,6 +308,9 @@ export function ScannerPanel({
     fetchedAt: string;
     passCount: number;
   } | null>(null);
+  const [online, setOnline] = useState(
+    () => typeof navigator === "undefined" || navigator.onLine,
+  );
   const { t } = useT();
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -483,7 +486,7 @@ export function ScannerPanel({
     }
   }
 
-  async function pullManifest() {
+  async function pullManifest(opts?: { silent?: boolean }) {
     if (pullingManifest) return;
     setPullingManifest(true);
     try {
@@ -492,7 +495,7 @@ export function ScannerPanel({
         SCAN_REQUEST_TIMEOUT_MS,
       );
       if (!res.ok) {
-        toast.error(res.error);
+        if (!opts?.silent) toast.error(res.error);
         return;
       }
       const saved = await saveBoardingManifest(res.manifest);
@@ -504,11 +507,15 @@ export function ScannerPanel({
         });
       }
       warmOperatorShell();
-      toast.success(t("scan.packReady", { count: saved.passes.length }));
+      if (!opts?.silent) {
+        toast.success(t("scan.packReady", { count: saved.passes.length }));
+      }
     } catch (err) {
       if (isNetworkError(err)) {
-        toast.message("Could not refresh offline pack — using last download.");
-      } else {
+        if (!opts?.silent) {
+          toast.message("Could not refresh offline pack — using last download.");
+        }
+      } else if (!opts?.silent) {
         toast.error(formatScanError(err));
       }
     } finally {
@@ -516,7 +523,7 @@ export function ScannerPanel({
     }
   }
 
-  async function flushScanQueue() {
+  async function flushScanQueue(opts?: { silent?: boolean }) {
     if (syncingRef.current) return;
     syncingRef.current = true;
     if (mountedRef.current) setSyncing(true);
@@ -540,7 +547,7 @@ export function ScannerPanel({
         SCAN_REQUEST_TIMEOUT_MS * 2,
       );
       if (!res.ok) {
-        toast.error(res.error);
+        if (!opts?.silent) toast.error(res.error);
         return;
       }
       let synced = 0;
@@ -562,11 +569,15 @@ export function ScannerPanel({
           });
         }
       }
-      if (synced) toast.success(`Synced ${synced} queued scan(s)`);
-      if (conflicts) toast.message(`${conflicts} conflict(s) for admin review`);
+      if (!opts?.silent) {
+        if (synced) toast.success(`Synced ${synced} queued scan(s)`);
+        if (conflicts) toast.message(`${conflicts} conflict(s) for admin review`);
+      } else if (conflicts) {
+        toast.message(`${conflicts} conflict(s) for admin review`);
+      }
       await refreshPendingCount();
     } catch (err) {
-      if (!isNetworkError(err)) toast.error(formatScanError(err));
+      if (!opts?.silent && !isNetworkError(err)) toast.error(formatScanError(err));
     } finally {
       syncingRef.current = false;
       if (mountedRef.current) setSyncing(false);
@@ -663,9 +674,19 @@ export function ScannerPanel({
     await patchManifestPassStatus(token, result.nextStatus);
     manifestRef.current = await getBoardingManifest();
     await refreshPendingCount();
+    setPreview((p) =>
+      p
+        ? {
+            ...p,
+            status: result.nextStatus,
+            nextAction: null,
+          }
+        : p,
+    );
     toast.success(
       result.action === "CHECK_IN" ? t("scan.queuedIn") : t("scan.queuedOut"),
     );
+    await new Promise((r) => window.setTimeout(r, 450));
     await readyForNextScan();
   }
 
@@ -698,6 +719,15 @@ export function ScannerPanel({
         }
         if (res.kind === "pass") {
           await patchManifestPassStatus(token, res.status);
+          setPreview((p) =>
+            p
+              ? {
+                  ...p,
+                  status: res.status,
+                  nextAction: null,
+                }
+              : p,
+          );
           toast.success(
             res.alreadyApplied
               ? t("scan.alreadyRecorded")
@@ -705,6 +735,7 @@ export function ScannerPanel({
                 ? t("scan.checkedIn")
                 : t("scan.checkedOut"),
           );
+          await new Promise((r) => window.setTimeout(r, 450));
         } else {
           toast.success(
             res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
@@ -940,8 +971,8 @@ export function ScannerPanel({
     const bootId = window.setTimeout(() => {
       void refreshPendingCount();
       void refreshManifestMeta();
-      void pullManifest();
-      void flushScanQueue();
+      void pullManifest({ silent: true });
+      void flushScanQueue({ silent: true });
     }, 0);
 
     const existing = cameraHub.liveStream();
@@ -958,14 +989,21 @@ export function ScannerPanel({
     }
 
     function onOnline() {
-      void flushScanQueue();
+      setOnline(true);
+      void flushScanQueue({ silent: true });
+      void pullManifest({ silent: true });
+    }
+    function onOffline() {
+      setOnline(false);
     }
     window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
 
     return () => {
       mountedRef.current = false;
       window.clearTimeout(bootId);
       window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
       if (resumeId != null) window.clearTimeout(resumeId);
       cameraGenRef.current += 1;
       detachVideo();
@@ -978,16 +1016,18 @@ export function ScannerPanel({
     function onVisibility() {
       if (document.visibilityState !== "visible" || !cameraOn) return;
       void ensureLiveCamera();
-      void flushScanQueue();
+      if (navigator.onLine) void flushScanQueue({ silent: true });
     }
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLiveCamera stable enough
   }, [cameraOn]);
 
+  const showOfflineBoard = !online || pendingCount > 0;
+
   return (
     <div className="flex flex-col gap-4">
-      {(pendingCount > 0 || manifestMeta) && (
+      {showOfflineBoard ? (
         <Alert>
           <AlertTitle>{t("scan.offlineTitle")}</AlertTitle>
           <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1003,27 +1043,31 @@ export function ScannerPanel({
                 : t("scan.packNone")}
             </span>
             <span className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pullingManifest}
-                onClick={() => void pullManifest()}
-              >
-                {pullingManifest ? t("scan.refreshing") : t("scan.refreshPack")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={syncing || pendingCount === 0}
-                onClick={() => void flushScanQueue()}
-              >
-                {syncing ? t("scan.syncing") : t("scan.syncNow")}
-              </Button>
+              {!online ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pullingManifest}
+                  onClick={() => void pullManifest()}
+                >
+                  {pullingManifest ? t("scan.refreshing") : t("scan.refreshPack")}
+                </Button>
+              ) : null}
+              {pendingCount > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={syncing || !online}
+                  onClick={() => void flushScanQueue()}
+                >
+                  {syncing ? t("scan.syncing") : t("scan.syncNow")}
+                </Button>
+              ) : null}
             </span>
           </AlertDescription>
         </Alert>
-      )}
+      ) : null}
 
       <Card>
         <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">

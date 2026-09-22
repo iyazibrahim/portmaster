@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { passes, users, locations, jetties } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { PassesAdminTable } from "@/components/admin/passes-admin-table";
+import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 import { getTranslator } from "@/i18n";
 
 export default async function AdminPassesPage() {
@@ -28,6 +29,7 @@ export default async function AdminPassesPage() {
 
   return (
     <div className="space-y-4">
+      <SoftLiveRefresh />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t("admin.passesTitle")}

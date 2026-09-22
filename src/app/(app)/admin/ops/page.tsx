@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { PillarBarsCarousel } from "@/components/admin/pillar-bars-carousel";
+import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 import { getTranslator } from "@/i18n";
 
 export default async function AdminOpsPage() {
@@ -110,6 +111,7 @@ export default async function AdminOpsPage() {
 
   return (
     <div className="space-y-6">
+      <SoftLiveRefresh />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

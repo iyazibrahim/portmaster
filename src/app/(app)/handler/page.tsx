@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { todayMYT } from "@/lib/utils-app";
 import { getTranslator } from "@/i18n";
+import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 
 export default async function HandlerHomePage() {
   const session = await requireRole(["HANDLER", "ADMIN"]);
@@ -96,6 +97,7 @@ export default async function HandlerHomePage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
+      <SoftLiveRefresh />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import { getTranslator } from "@/i18n";
+import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 
 export default async function TripsPage() {
   const session = await requireSession();
@@ -35,6 +36,7 @@ export default async function TripsPage() {
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-6 lg:max-w-xl">
+      <SoftLiveRefresh />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

@@ -160,11 +160,13 @@ export async function actionScanToken(
       expectedAction: expectedAction ?? null,
     });
     if (passResult) {
-      // Do not call revalidatePath here. Any revalidation re-renders the current
-      // /handler/scan route in the same response, remounts ScannerPanel, stops the
-      // camera (re-prompts permission on phones), and can throw a minified React
-      // error during confirm. Scanner UI is fully client-state; other pages refresh
-      // on the next navigation.
+      // Never revalidate /handler/scan — remounts ScannerPanel and kills the camera.
+      revalidatePath("/handler");
+      revalidatePath("/admin/ops");
+      revalidatePath("/admin/passes");
+      revalidatePath("/trips");
+      revalidatePath(`/pass/${passResult.passId}`);
+      revalidatePath("/llm");
       return {
         ok: true,
         kind: "pass",
