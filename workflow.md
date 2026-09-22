@@ -93,7 +93,7 @@ Password: `password123`
 
 Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because only additive `0004`–`0007` ran. Boot now applies baseline `0000` + jetties `0002` first. Redeploy the new image; restarting the old one will keep failing.
 
-**4GB VPS OOM harden (2026-09-21):** Build heap capped at 1.5GB (was 3GB), single `npm ci` then prune (no parallel installs), Next `cpus: 1` + webpack memory opts, Compose `mem_limit` on app (768MB) + Postgres (512MB, tuned `shared_buffers`). Strongly add **2GB swap** on the host before rebuild:
+**4GB VPS OOM harden (2026-09-22):** Compose: Postgres **448MB** (alpine, `jit=off`), app **640MB** runtime heap **448MB**, build arg heap **1280MB**, log rotation, `oom_score_adj` (keep DB over app). Dockerfile still single `npm ci` + webpack build. Add **2GB swap** on the host before rebuild:
 
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile

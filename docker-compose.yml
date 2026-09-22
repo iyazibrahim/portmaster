@@ -1,55 +1,66 @@
-# Tuned for small VPS (~4GB RAM). Build on-host with Dokploy/Compose
-# can still spike — prefer a 1–2GB swap file on the host.
+# Small VPS (~4GB RAM). Host should have 1–2GB swap before Dokploy rebuilds.
+# Image build spikes RAM outside these limits — use build.args below + stop other stacks during deploy.
+
+name: tiangpass
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: tiangpass
       POSTGRES_PASSWORD: tiangpass
       POSTGRES_DB: tiangpass
-    # Low-RAM Postgres settings (default shared_buffers is too large for 4GB hosts)
     command:
       - postgres
       - -c
-      - shared_buffers=128MB
+      - shared_buffers=96MB
       - -c
-      - effective_cache_size=384MB
+      - effective_cache_size=256MB
       - -c
-      - maintenance_work_mem=64MB
+      - maintenance_work_mem=32MB
       - -c
-      - work_mem=4MB
+      - work_mem=2MB
       - -c
-      - max_connections=40
+      - max_connections=30
       - -c
-      - wal_buffers=8MB
+      - wal_buffers=4MB
       - -c
       - checkpoint_completion_target=0.9
       - -c
       - random_page_cost=1.1
-    # App reaches DB via Docker network; bind localhost only if you need host tools
+      - -c
+      - jit=off
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - tiangpass_pg:/var/lib/postgresql/data
-    shm_size: 128mb
-    mem_limit: 512m
-    memswap_limit: 768m
-    cpus: "1.0"
+    shm_size: 96mb
+    mem_limit: 448m
+    mem_reservation: 192m
+    memswap_limit: 640m
+    cpus: "0.75"
+    oom_score_adj: -400
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "8m"
+        max-file: "2"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tiangpass -d tiangpass"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        # Override on larger builders: --build-arg NODE_MAX_OLD_SPACE_SIZE=3072
-        NODE_MAX_OLD_SPACE_SIZE: "1536"
+        # Lower = safer on 4GB hosts during `next build`; raise on CI (e.g. 2048).
+        NODE_MAX_OLD_SPACE_SIZE: "1280"
     restart: unless-stopped
     ports:
       - "${PORT:-43127}:43127"
@@ -60,23 +71,33 @@ services:
       AUTH_URL: ${APP_URL:-http://127.0.0.1:43127}
       PORT: "43127"
       AUTH_TRUST_HOST: "true"
-      NODE_OPTIONS: --max-old-space-size=512
+      NODE_OPTIONS: --max-old-space-size=448
+      UV_THREADPOOL_SIZE: "2"
     depends_on:
       postgres:
         condition: service_healthy
-    mem_limit: 768m
-    memswap_limit: 1024m
-    cpus: "1.5"
+    mem_limit: 640m
+    mem_reservation: 320m
+    memswap_limit: 896m
+    cpus: "1.0"
+    oom_score_adj: 300
+    init: true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test:
         [
           "CMD-SHELL",
           "node -e \"fetch('http://127.0.0.1:43127/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
         ]
-      interval: 10s
+      interval: 15s
       timeout: 5s
-      retries: 10
-      start_period: 60s
+      retries: 8
+      start_period: 90s
 
 volumes:
   tiangpass_pg:
