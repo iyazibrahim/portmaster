@@ -27,7 +27,7 @@ export default async function HandlerHomePage() {
       jettyName: jetties.name,
     })
     .from(handlers)
-    .innerJoin(jetties, eq(handlers.jettyId, jetties.id))
+    .leftJoin(jetties, eq(handlers.jettyId, jetties.id))
     .where(eq(handlers.userId, session.user.id))
     .limit(1);
 
@@ -36,7 +36,21 @@ export default async function HandlerHomePage() {
       <Alert variant="destructive">
         <AlertTitle>No operator profile</AlertTitle>
         <AlertDescription>
-          This account is not linked to an operator record.
+          This login is not linked to an operator record. Redeploy so boot can
+          repair demo links, or ask Association Admin to link you under Boat
+          Operators.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (handler && !handler.jettyId) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Operator jetty missing</AlertTitle>
+        <AlertDescription>
+          Your operator profile has no jetty. Ask Association Admin to assign
+          one.
         </AlertDescription>
       </Alert>
     );

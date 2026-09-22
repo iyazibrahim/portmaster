@@ -36,14 +36,21 @@ export async function loginWithCredentials(
   password: string,
   next?: string,
 ): Promise<LoginResult> {
+  let step = "start";
   try {
     const normalized = email.toLowerCase().trim();
     if (!normalized || !password) {
       return { ok: false, error: "Email and password are required." };
     }
 
+    step = "lookup";
     const [user] = await db
-      .select()
+      .select({
+        id: users.id,
+        passwordHash: users.passwordHash,
+        role: users.role,
+        accountStatus: users.accountStatus,
+      })
       .from(users)
       .where(eq(users.email, normalized))
       .limit(1);
@@ -60,11 +67,22 @@ export async function loginWithCredentials(
       return { ok: false, error: "Invalid email or password." };
     }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    step = "password";
+    let valid = false;
+    try {
+      valid = await bcrypt.compare(password, user.passwordHash);
+    } catch (hashErr) {
+      console.error("[loginWithCredentials] bcrypt", hashErr);
+      return {
+        ok: false,
+        error: "This account has a broken password hash. Ask admin to reset it.",
+      };
+    }
     if (!valid) {
       return { ok: false, error: "Invalid email or password." };
     }
 
+    step = "session";
     const sessionToken = randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + SESSION_MAX_AGE_SEC * 1000);
 
@@ -74,13 +92,14 @@ export async function loginWithCredentials(
       expires,
     });
 
+    step = "cookie";
     const cookieStore = await cookies();
     const secure = shouldUseSecureAuthCookies();
     cookieStore.set(authSessionCookieName(), sessionToken, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
-      expires,
+      maxAge: SESSION_MAX_AGE_SEC,
       secure,
     });
 
@@ -88,10 +107,12 @@ export async function loginWithCredentials(
     // redirect() throws inside startTransition and surfaces as React #441 + HTTP 500.
     return { ok: true, redirectTo: safeInternalPath(next, user.role) };
   } catch (err) {
-    console.error("[loginWithCredentials]", err);
+    console.error(`[loginWithCredentials:${step}]`, err);
+    const detail =
+      err instanceof Error ? err.message.slice(0, 160) : "unknown error";
     return {
       ok: false,
-      error: "Sign in failed. Please try again in a moment.",
+      error: `Sign in failed (${step}): ${detail}`,
     };
   }
 }

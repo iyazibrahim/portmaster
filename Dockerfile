@@ -54,6 +54,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=nextjs:nodejs /app/src/db ./src/db
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/utils-app.ts ./src/lib/utils-app.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-srs-mvp1.ts ./scripts/apply-srs-mvp1.ts
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/ensure-demo-ops.ts ./scripts/ensure-demo-ops.ts
 COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN mkdir -p /app/data/photos && chown -R nextjs:nodejs /app/data

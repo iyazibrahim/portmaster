@@ -17,8 +17,11 @@ if [ "$USER_COUNT" = "0" ]; then
   echo "Seeding demo data..."
   node --experimental-strip-types ./src/db/seed.ts
 else
-  echo "Database already has $USER_COUNT users; skipping seed."
+  echo "Database already has $USER_COUNT users; skipping full seed."
 fi
 
-echo "Starting PortMaster..."
+echo "Ensuring demo admin/operator links..."
+node --experimental-strip-types ./scripts/ensure-demo-ops.ts
+
+echo "Starting TiangPass..."
 exec node server.js
