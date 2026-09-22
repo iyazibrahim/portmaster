@@ -40,7 +40,10 @@ export function LoginForm() {
       const result = await loginWithCredentials(email, password, next);
       if (!result.ok) {
         setError(result.error);
+        return;
       }
+      // Full navigation so the new session cookie is applied on the next document.
+      window.location.assign(result.redirectTo);
     });
   }
 

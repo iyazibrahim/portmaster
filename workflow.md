@@ -93,7 +93,7 @@ Password: `password123`
 
 Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because only additive `0004`–`0007` ran. Boot now applies baseline `0000` + jetties `0002` first. Redeploy the new image; restarting the old one will keep failing.
 
-**4GB VPS OOM harden (2026-09-22):** Compose: Postgres **448MB** (alpine, `jit=off`), app **640MB** runtime heap **448MB**, build arg heap **1280MB**, log rotation, `oom_score_adj` (keep DB over app). Dockerfile still single `npm ci` + webpack build. Add **2GB swap** on the host before rebuild:
+**Login React #441 (2026-09-22):** Admin login POST returned HTTP 500 + minified React #441 because `redirect()` inside `loginWithCredentials` ran under `startTransition` and cookie-set triggered a bad RSC re-render. Login now returns `{ ok, redirectTo }` and the client `router.replace`s. Also nudged Compose app RAM back to 768MB / heap 512MB.
 
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile

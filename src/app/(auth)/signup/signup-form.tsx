@@ -65,7 +65,15 @@ export function SignUpForm() {
         setError(result.error);
         return;
       }
-      await loginWithCredentials(payload.email, payload.password);
+      const login = await loginWithCredentials(
+        payload.email,
+        payload.password,
+      );
+      if (!login.ok) {
+        setError(login.error);
+        return;
+      }
+      window.location.assign(login.redirectTo);
     });
   }
 

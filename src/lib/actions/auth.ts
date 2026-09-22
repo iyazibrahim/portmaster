@@ -24,7 +24,7 @@ import {
 const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
 
 export type LoginResult =
-  | { ok: true; role: string }
+  | { ok: true; redirectTo: string }
   | { ok: false; error: string };
 
 export type SignUpResult =
@@ -36,50 +36,64 @@ export async function loginWithCredentials(
   password: string,
   next?: string,
 ): Promise<LoginResult> {
-  const normalized = email.toLowerCase().trim();
-  if (!normalized || !password) {
-    return { ok: false, error: "Email and password are required." };
+  try {
+    const normalized = email.toLowerCase().trim();
+    if (!normalized || !password) {
+      return { ok: false, error: "Email and password are required." };
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalized))
+      .limit(1);
+
+    if (!user) {
+      return { ok: false, error: "Invalid email or password." };
+    }
+
+    if (user.accountStatus === "BLACKLISTED") {
+      return { ok: false, error: "This account has been blacklisted." };
+    }
+
+    if (!user.passwordHash) {
+      return { ok: false, error: "Invalid email or password." };
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      return { ok: false, error: "Invalid email or password." };
+    }
+
+    const sessionToken = randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + SESSION_MAX_AGE_SEC * 1000);
+
+    await db.insert(sessions).values({
+      sessionToken,
+      userId: user.id,
+      expires,
+    });
+
+    const cookieStore = await cookies();
+    const secure = shouldUseSecureAuthCookies();
+    cookieStore.set(authSessionCookieName(), sessionToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      expires,
+      secure,
+    });
+
+    // Return a path for the client to navigate — do not call redirect() here.
+    // redirect() throws inside startTransition and surfaces as React #441 + HTTP 500.
+    return { ok: true, redirectTo: safeInternalPath(next, user.role) };
+  } catch (err) {
+    console.error("[loginWithCredentials]", err);
+    return {
+      ok: false,
+      error: "Sign in failed. Please try again in a moment.",
+    };
   }
-
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, normalized))
-    .limit(1);
-
-  if (!user) {
-    return { ok: false, error: "Invalid email or password." };
-  }
-
-  if (user.accountStatus === "BLACKLISTED") {
-    return { ok: false, error: "This account has been blacklisted." };
-  }
-
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) {
-    return { ok: false, error: "Invalid email or password." };
-  }
-
-  const sessionToken = randomBytes(32).toString("hex");
-  const expires = new Date(Date.now() + SESSION_MAX_AGE_SEC * 1000);
-
-  await db.insert(sessions).values({
-    sessionToken,
-    userId: user.id,
-    expires,
-  });
-
-  const cookieStore = await cookies();
-  const secure = shouldUseSecureAuthCookies();
-  cookieStore.set(authSessionCookieName(), sessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    expires,
-    secure,
-  });
-
-  redirect(safeInternalPath(next, user.role));
 }
 
 export async function signUpAngler(input: {
