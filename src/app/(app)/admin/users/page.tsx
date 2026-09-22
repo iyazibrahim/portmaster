@@ -15,9 +15,11 @@ export default async function AdminUsersPage() {
       role: users.role,
       phone: users.phone,
       accountStatus: users.accountStatus,
+      handlerId: handlers.id,
       handlerName: handlers.displayName,
       handlerJettyId: handlers.jettyId,
       handlerJettyName: jetties.name,
+      handlerLicenseNo: handlers.licenseNo,
     })
     .from(users)
     .leftJoin(handlers, eq(handlers.userId, users.id))

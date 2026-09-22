@@ -435,6 +435,8 @@ export async function actionCreateUser(input: {
   phone?: string;
   handlerDisplayName?: string;
   jettyId?: string;
+  /** Optional skipper/operator licence number (not boat permit). */
+  licenseNo?: string;
 }) {
   await requireRole(["ADMIN"]);
   const name = input.name.trim();
@@ -483,11 +485,13 @@ export async function actionCreateUser(input: {
       userId,
       jettyId: input.jettyId!,
       displayName: input.handlerDisplayName!.trim(),
+      licenseNo: input.licenseNo?.trim() || null,
       mockEarningsCents: 0,
     });
   }
 
   revalidatePath("/admin/users");
+  revalidatePath("/admin/operators");
   return { ok: true as const };
 }
 
@@ -505,6 +509,8 @@ export async function actionUpdateUserRole(input: {
   role: UserRole;
   handlerDisplayName?: string;
   jettyId?: string;
+  /** Optional skipper/operator licence; omit to leave unchanged. */
+  licenseNo?: string;
 }) {
   const session = await requireRole(["ADMIN"]);
   if (input.userId === session.user.id && input.role !== "ADMIN") {
@@ -533,12 +539,17 @@ export async function actionUpdateUserRole(input: {
       input.handlerDisplayName?.trim() ||
       existingHandler?.displayName ||
       target.name;
+    const licenseNo =
+      input.licenseNo !== undefined
+        ? input.licenseNo.trim() || null
+        : (existingHandler?.licenseNo ?? null);
     if (existingHandler) {
       await db
         .update(handlers)
         .set({
           jettyId: input.jettyId,
           displayName,
+          licenseNo,
         })
         .where(eq(handlers.id, existingHandler.id));
     } else {
@@ -547,6 +558,7 @@ export async function actionUpdateUserRole(input: {
         userId: input.userId,
         jettyId: input.jettyId,
         displayName,
+        licenseNo,
         mockEarningsCents: 0,
       });
     }
@@ -559,6 +571,87 @@ export async function actionUpdateUserRole(input: {
     .set({ role: input.role })
     .where(eq(users.id, input.userId));
 
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/operators");
+  return { ok: true as const };
+}
+
+/** Edit boat operator (handler) profile — same row as People HANDLER. */
+export async function actionUpdateHandler(input: {
+  handlerId: string;
+  displayName: string;
+  jettyId: string;
+  licenseNo?: string;
+  boatOwnerId?: string | null;
+}) {
+  const session = await requireRole(["ADMIN"]);
+  const displayName = input.displayName.trim();
+  const jettyId = input.jettyId.trim();
+  if (!displayName) throw new Error("Display name is required.");
+  if (!jettyId) throw new Error("Jetty is required.");
+
+  const [existing] = await db
+    .select({ id: handlers.id })
+    .from(handlers)
+    .where(eq(handlers.id, input.handlerId))
+    .limit(1);
+  if (!existing) throw new Error("Operator not found.");
+
+  const [jetty] = await db
+    .select({ id: jetties.id })
+    .from(jetties)
+    .where(eq(jetties.id, jettyId))
+    .limit(1);
+  if (!jetty) throw new Error("Jetty not found.");
+
+  const boatOwnerId =
+    input.boatOwnerId === undefined
+      ? undefined
+      : input.boatOwnerId?.trim() || null;
+  if (boatOwnerId) {
+    const [owner] = await db
+      .select({ id: boatOwners.id })
+      .from(boatOwners)
+      .where(eq(boatOwners.id, boatOwnerId))
+      .limit(1);
+    if (!owner) throw new Error("Boat owner not found.");
+  }
+
+  const patch: {
+    displayName: string;
+    jettyId: string;
+    licenseNo?: string | null;
+    boatOwnerId?: string | null;
+  } = {
+    displayName,
+    jettyId,
+  };
+  if (input.licenseNo !== undefined) {
+    patch.licenseNo = input.licenseNo.trim() || null;
+  }
+  if (boatOwnerId !== undefined) {
+    patch.boatOwnerId = boatOwnerId;
+  }
+
+  await db
+    .update(handlers)
+    .set(patch)
+    .where(eq(handlers.id, input.handlerId));
+
+  await writeAudit({
+    actorId: session.user.id,
+    action: "handler.update",
+    entityType: "handler",
+    entityId: input.handlerId,
+    next: {
+      displayName,
+      jettyId,
+      licenseNo: patch.licenseNo,
+      boatOwnerId: patch.boatOwnerId,
+    },
+  });
+
+  revalidatePath("/admin/operators");
   revalidatePath("/admin/users");
   return { ok: true as const };
 }
@@ -837,6 +930,7 @@ export async function actionLinkHandlerToOwner(input: {
     next: { boatOwnerId: input.boatOwnerId },
   });
   revalidatePath("/admin/operators");
+  revalidatePath("/admin/users");
   return { ok: true as const };
 }
 

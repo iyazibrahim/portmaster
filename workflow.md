@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Operator edit + optional licence (2026-09-22):** Admin can edit boat operators on **Operator Bot** (display name, jetty, owner, optional `handlers.licenseNo`). Same fields editable when creating/updating Operator role under People. Both paths update the same handler row. Operator licence ≠ boat permit (`boats.licenceInfo` / `permitExpiresAt`).
+
 **Desktop signup + SRS age gate (2026-09-22):** Signup card spacing/alignment tightened (balanced two-column grid, full-width password + address, scrollable form). Live age from MyKad YYMMDD or DOB; `MIN_AGE=14` blocks submit with clear alert when under 14 (client + existing server `validateAnglerIdentity`). LocaleSwitcher on login/signup.
 
 **Responsive + full EN/BM (2026-09-22):** Viewport polish at 375/768/1024/1440 (tables stay tables: sticky first column, single overflow, KPI stacks, pillar carousel 6 bars on `<sm`). Full EN/BM UI via expanded `en.json`/`ms.json`, `LocaleProvider`/`useT`, wired nav + scan + key surfaces. Status badges translate known enums.

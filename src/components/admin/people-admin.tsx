@@ -45,9 +45,11 @@ export type PersonRow = {
   role: UserRole;
   phone: string | null;
   accountStatus: AccountStatus;
+  handlerId: string | null;
   handlerName: string | null;
   handlerJettyId: string | null;
   handlerJettyName: string | null;
+  handlerLicenseNo: string | null;
 };
 
 type JettyOption = { id: string; name: string };
@@ -67,6 +69,7 @@ const emptyForm = (jettyId: string) => ({
   phone: "",
   handlerDisplayName: "",
   jettyId,
+  licenseNo: "",
 });
 
 export function PeopleAdmin({
@@ -88,6 +91,7 @@ export function PeopleAdmin({
   const [editRole, setEditRole] = useState<UserRole>("USER");
   const [editJettyId, setEditJettyId] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
+  const [editLicenseNo, setEditLicenseNo] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [blockStatus, setBlockStatus] =
     useState<AccountStatus>("SUSPENDED");
@@ -122,6 +126,7 @@ export function PeopleAdmin({
     setEditRole(p.role);
     setEditJettyId(p.handlerJettyId ?? jetties[0]?.id ?? "");
     setEditDisplayName(p.handlerName ?? p.name);
+    setEditLicenseNo(p.handlerLicenseNo ?? "");
     setEditOpen(true);
   }
 
@@ -335,6 +340,19 @@ export function PeopleAdmin({
                     searchPlaceholder="Search jetty…"
                   />
                 </div>
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label>Operator licence (optional)</Label>
+                  <Input
+                    value={form.licenseNo}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, licenseNo: e.target.value }))
+                    }
+                    placeholder="e.g. PNG-H-1001"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Skipper/operator ID — not the boat permit (set under Boats).
+                  </p>
+                </div>
               </>
             ) : null}
           </div>
@@ -400,6 +418,14 @@ export function PeopleAdmin({
                     searchPlaceholder="Search jetty…"
                   />
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Operator licence (optional)</Label>
+                  <Input
+                    value={editLicenseNo}
+                    onChange={(e) => setEditLicenseNo(e.target.value)}
+                    placeholder="e.g. PNG-H-1001"
+                  />
+                </div>
               </>
             ) : null}
           </div>
@@ -418,6 +444,7 @@ export function PeopleAdmin({
                       role: editRole,
                       jettyId: editJettyId,
                       handlerDisplayName: editDisplayName,
+                      licenseNo: editLicenseNo,
                     });
                     toast.success("Role updated");
                     setEditOpen(false);
