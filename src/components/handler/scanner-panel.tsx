@@ -41,22 +41,12 @@ type JsQrFn = (
   options?: { inversionAttempts?: "dontInvert" | "attemptBoth" | "onlyInvert" },
 ) => { data: string } | null;
 
-type BarcodeDetectorLike = {
-  detect: (source: ImageBitmapSource) => Promise<{ rawValue: string }[]>;
-};
-
-type VideoWithFrameCallback = HTMLVideoElement & {
-  requestVideoFrameCallback?: (
-    callback: (now: number, metadata: unknown) => void,
-  ) => number;
-  cancelVideoFrameCallback?: (handle: number) => void;
-};
-
 /** Keep tracks warm across tab hops so Open camera does not re-prompt. */
 const CAMERA_RELEASE_MS = 30 * 60_000;
-const DECODE_MIN_MS = 70;
-const BARCODE_DETECT_TIMEOUT_MS = 400;
-const VIDEO_READY_TIMEOUT_MS = 8_000;
+/** Reliable timer decode — do not depend on requestVideoFrameCallback alone. */
+const DECODE_INTERVAL_MS = 100;
+const VIDEO_READY_TIMEOUT_MS = 10_000;
+const WARMUP_MS = 450;
 
 const cameraHub = {
   stream: null as MediaStream | null,
@@ -148,32 +138,59 @@ function getPosition(): Promise<{ lat: string; lng: string }> {
   });
 }
 
-async function applyContinuousFocus(stream: MediaStream) {
+async function applyScanTrackTweaks(stream: MediaStream) {
   for (const track of stream.getVideoTracks()) {
     try {
-      const constraints = {
-        advanced: [{ focusMode: "continuous" }],
-      } as unknown as MediaTrackConstraints;
+      const caps = track.getCapabilities?.() as
+        | {
+            focusMode?: string[];
+            zoom?: { min: number; max: number };
+          }
+        | undefined;
+      const advanced: Record<string, unknown>[] = [];
+      if (caps?.focusMode?.includes("continuous")) {
+        advanced.push({ focusMode: "continuous" });
+      }
+      const constraints: MediaTrackConstraints = {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 24, max: 30 },
+      };
+      if (advanced.length > 0) {
+        (constraints as MediaTrackConstraints & { advanced?: unknown[] }).advanced =
+          advanced;
+      }
       await track.applyConstraints(constraints);
     } catch {
-      /* device may not support continuous AF */
+      try {
+        await track.applyConstraints({
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        });
+      } catch {
+        /* keep whatever getUserMedia gave us */
+      }
     }
   }
 }
 
-async function openRearCamera(): Promise<MediaStream> {
-  const existing = cameraHub.liveStream();
-  if (existing) {
-    cameraHub.cancelRelease();
-    cameraHub.consumers += 1;
-    return existing;
-  }
+async function openRearCamera(forceNew = false): Promise<MediaStream> {
+  if (!forceNew) {
+    const existing = cameraHub.liveStream();
+    if (existing) {
+      cameraHub.cancelRelease();
+      cameraHub.consumers += 1;
+      return existing;
+    }
 
-  if (cameraHub.openPromise) {
-    const shared = await cameraHub.openPromise;
-    cameraHub.cancelRelease();
-    cameraHub.consumers += 1;
-    return shared;
+    if (cameraHub.openPromise) {
+      const shared = await cameraHub.openPromise;
+      cameraHub.cancelRelease();
+      cameraHub.consumers += 1;
+      return shared;
+    }
+  } else {
+    cameraHub.releaseHard();
   }
 
   const attempts: MediaStreamConstraints[] = [
@@ -181,9 +198,17 @@ async function openRearCamera(): Promise<MediaStream> {
       audio: false,
       video: {
         facingMode: { ideal: "environment" },
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        frameRate: { ideal: 15, max: 20 },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 24, max: 30 },
+      },
+    },
+    {
+      audio: false,
+      video: {
+        facingMode: { exact: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
       },
     },
     {
@@ -221,35 +246,19 @@ async function openRearCamera(): Promise<MediaStream> {
   }
 }
 
-function getBarcodeDetector(): BarcodeDetectorLike | null {
-  const Detector = (
-    window as unknown as {
-      BarcodeDetector?: new (opts: {
-        formats: string[];
-      }) => BarcodeDetectorLike;
-    }
-  ).BarcodeDetector;
-  if (!Detector) return null;
-  try {
-    return new Detector({ formats: ["qr_code"] });
-  } catch {
-    return null;
+function frameLooksLive(data: ImageData): boolean {
+  // Reject all-black / near-black warmup frames (common on first Open).
+  const step = Math.max(4, Math.floor(data.data.length / 400) * 4);
+  let bright = 0;
+  let samples = 0;
+  for (let i = 0; i < data.data.length; i += step) {
+    const r = data.data[i] ?? 0;
+    const g = data.data[i + 1] ?? 0;
+    const b = data.data[i + 2] ?? 0;
+    if (r + g + b > 40) bright += 1;
+    samples += 1;
   }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return new Promise((resolve) => {
-    const timer = window.setTimeout(() => resolve(null), ms);
-    promise
-      .then((value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      })
-      .catch(() => {
-        window.clearTimeout(timer);
-        resolve(null);
-      });
-  });
+  return samples > 0 && bright / samples > 0.02;
 }
 
 export function ScannerPanel({
@@ -263,22 +272,21 @@ export function ScannerPanel({
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const detectTimer = useRef<number | null>(null);
-  const frameHandle = useRef<number | null>(null);
+  const decodeTimer = useRef<number | null>(null);
   const decodeLoopGen = useRef(0);
   const startingRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const jsQrRef = useRef<JsQrFn | null>(null);
-  const barcodeRef = useRef<BarcodeDetectorLike | null>(null);
   const pausedRef = useRef(false);
   const holdUntilRef = useRef(0);
   const lastTokenRef = useRef("");
-  const lastDecodeAtRef = useRef(0);
+  const decodingBusyRef = useRef(false);
   const cameraBoxRef = useRef<HTMLDivElement>(null);
   const verifyRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
@@ -304,30 +312,25 @@ export function ScannerPanel({
     });
   }
 
-  function clearDetectTimers() {
-    if (detectTimer.current != null) {
-      window.clearTimeout(detectTimer.current);
-      detectTimer.current = null;
-    }
-    const video = videoRef.current as VideoWithFrameCallback | null;
-    if (frameHandle.current != null && video?.cancelVideoFrameCallback) {
-      video.cancelVideoFrameCallback(frameHandle.current);
-      frameHandle.current = null;
-    } else if (frameHandle.current != null) {
-      window.cancelAnimationFrame(frameHandle.current);
-      frameHandle.current = null;
-    }
-  }
-
   function stopDecodeLoops() {
     decodeLoopGen.current += 1;
-    clearDetectTimers();
+    decodingBusyRef.current = false;
+    if (decodeTimer.current != null) {
+      window.clearInterval(decodeTimer.current);
+      decodeTimer.current = null;
+    }
+    if (mountedRef.current) setScanning(false);
   }
 
   function detachVideo() {
     stopDecodeLoops();
     streamRef.current = null;
     if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+      } catch {
+        /* ignore */
+      }
       videoRef.current.srcObject = null;
     }
     setCameraOn(false);
@@ -369,8 +372,14 @@ export function ScannerPanel({
       if (!mountedRef.current || gen !== cameraGenRef.current) {
         throw new Error("Camera open cancelled.");
       }
-      if (video.readyState >= 2 && video.videoWidth >= 8) return;
-      await new Promise((r) => window.setTimeout(r, 50));
+      if (
+        !video.paused &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        video.videoWidth >= 16
+      ) {
+        return;
+      }
+      await new Promise((r) => window.setTimeout(r, 40));
     }
     throw new Error("Camera preview did not start. Tap Open camera again.");
   }
@@ -386,17 +395,30 @@ export function ScannerPanel({
     video.setAttribute("playsinline", "true");
     video.setAttribute("webkit-playsinline", "true");
     video.muted = true;
-    if (video.srcObject !== stream) {
-      video.srcObject = stream;
+    video.playsInline = true;
+    // Always re-assign so the element restarts the decoder pipeline.
+    if (video.srcObject) {
+      video.srcObject = null;
+    }
+    video.srcObject = stream;
+    try {
+      await video.play();
+    } catch {
+      // One retry after a paint — some WebViews need the element visible first.
+      await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+      await video.play();
+    }
+    await waitForVideoReady(video, gen);
+    // Let AE/AF settle and skip black warmup frames.
+    await new Promise((r) => window.setTimeout(r, WARMUP_MS));
+    if (!mountedRef.current || gen !== cameraGenRef.current) {
+      throw new Error("Camera open cancelled.");
     }
     try {
       await video.play();
     } catch {
-      throw new Error(
-        "Could not start camera preview. Tap Open camera again.",
-      );
+      /* already playing */
     }
-    await waitForVideoReady(video, gen);
     return video;
   }
 
@@ -442,16 +464,17 @@ export function ScannerPanel({
     }
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx || video.videoWidth < 8) return null;
+    if (!ctx || video.videoWidth < 16) return null;
 
     const srcW = video.videoWidth;
     const srcH = video.videoHeight;
-    const crop = 0.96;
+    // Wider crop — pass QR often fills most of the guide box.
+    const crop = 0.92;
     const cw = srcW * crop;
     const ch = srcH * crop;
     const sx = (srcW - cw) / 2;
     const sy = (srcH - ch) / 2;
-    const maxW = 480;
+    const maxW = 640;
     const scale = Math.min(1, maxW / cw);
     const dw = Math.max(1, Math.round(cw * scale));
     const dh = Math.max(1, Math.round(ch * scale));
@@ -463,142 +486,112 @@ export function ScannerPanel({
     return ctx.getImageData(0, 0, dw, dh);
   }
 
-  function scheduleNextFrame(loopGen: number, video: VideoWithFrameCallback) {
-    if (loopGen !== decodeLoopGen.current) return;
-    clearDetectTimers();
-
-    if (typeof video.requestVideoFrameCallback === "function") {
-      frameHandle.current = video.requestVideoFrameCallback(() => {
-        frameHandle.current = null;
-        void runDecodeTick(loopGen);
-      });
-      return;
+  async function ensureJsQr(): Promise<JsQrFn | null> {
+    if (jsQrRef.current) return jsQrRef.current;
+    try {
+      const { default: jsQR } = await import("jsqr");
+      jsQrRef.current = jsQR;
+      return jsQR;
+    } catch {
+      return null;
     }
-
-    frameHandle.current = window.requestAnimationFrame(() => {
-      frameHandle.current = null;
-      void runDecodeTick(loopGen);
-    });
   }
 
-  async function runDecodeTick(loopGen: number) {
+  function runDecodeOnce(loopGen: number) {
     if (loopGen !== decodeLoopGen.current) return;
     if (!streamRef.current || !mountedRef.current) return;
+    if (decodingBusyRef.current) return;
+    if (pausedRef.current || Date.now() < holdUntilRef.current) return;
 
-    if (pausedRef.current || Date.now() < holdUntilRef.current) {
-      detectTimer.current = window.setTimeout(() => {
-        detectTimer.current = null;
-        void runDecodeTick(loopGen);
-      }, 400);
+    const video = videoRef.current;
+    if (
+      !video ||
+      video.paused ||
+      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+      video.videoWidth < 16
+    ) {
+      void video?.play().catch(() => {});
       return;
     }
 
-    const video = videoRef.current as VideoWithFrameCallback | null;
-    if (!video || video.readyState < 2 || video.videoWidth < 8) {
-      detectTimer.current = window.setTimeout(() => {
-        detectTimer.current = null;
-        void runDecodeTick(loopGen);
-      }, 120);
-      return;
-    }
-
-    const now = Date.now();
-    const wait = DECODE_MIN_MS - (now - lastDecodeAtRef.current);
-    if (wait > 0) {
-      detectTimer.current = window.setTimeout(() => {
-        detectTimer.current = null;
-        void runDecodeTick(loopGen);
-      }, wait);
-      return;
-    }
-    lastDecodeAtRef.current = now;
-
-    // Optional native detector — timed so a hang never blocks jsQR.
-    const detector = barcodeRef.current;
-    if (detector) {
-      const codes = await withTimeout(
-        detector.detect(video),
-        BARCODE_DETECT_TIMEOUT_MS,
-      );
-      if (loopGen !== decodeLoopGen.current) return;
-      const nativeValue = codes?.[0]?.rawValue?.trim();
-      if (nativeValue) {
-        onDecoded(nativeValue);
-        scheduleNextFrame(loopGen, video);
-        return;
-      }
-    }
-
-    if (!jsQrRef.current) {
+    decodingBusyRef.current = true;
+    void (async () => {
       try {
-        const { default: jsQR } = await import("jsqr");
-        if (loopGen !== decodeLoopGen.current) return;
-        jsQrRef.current = jsQR;
-      } catch {
-        scheduleNextFrame(loopGen, video);
-        return;
-      }
-    }
+        const jsQR = await ensureJsQr();
+        if (loopGen !== decodeLoopGen.current || !jsQR) return;
 
-    const frame = drawScanFrame(video);
-    const jsQR = jsQrRef.current;
-    if (frame && jsQR) {
-      const code =
-        jsQR(frame.data, frame.width, frame.height, {
-          inversionAttempts: "dontInvert",
-        }) ??
-        jsQR(frame.data, frame.width, frame.height, {
-          inversionAttempts: "onlyInvert",
+        const frame = drawScanFrame(video);
+        if (!frame || !frameLooksLive(frame)) return;
+
+        const code = jsQR(frame.data, frame.width, frame.height, {
+          inversionAttempts: "attemptBoth",
         });
-      const value = code?.data?.trim();
-      if (value) onDecoded(value);
-    }
-
-    if (loopGen !== decodeLoopGen.current) return;
-    scheduleNextFrame(loopGen, video);
+        const value = code?.data?.trim();
+        if (value) onDecoded(value);
+      } finally {
+        if (loopGen === decodeLoopGen.current) {
+          decodingBusyRef.current = false;
+        }
+      }
+    })();
   }
 
   function startDecodeLoops() {
     stopDecodeLoops();
     const loopGen = decodeLoopGen.current;
-    barcodeRef.current = getBarcodeDetector();
-    void runDecodeTick(loopGen);
+    // Preload jsQR so the first ticks are not blocked on dynamic import.
+    void ensureJsQr();
+    setScanning(true);
+    // Interval is the source of truth — never rely on rVFC alone (can stall).
+    decodeTimer.current = window.setInterval(() => {
+      runDecodeOnce(loopGen);
+    }, DECODE_INTERVAL_MS);
+    // Immediate first attempt after warm-up already waited.
+    runDecodeOnce(loopGen);
   }
 
   async function prepareLiveCamera(stream: MediaStream, gen: number) {
     streamRef.current = stream;
     bindStreamHandlers(stream);
-    await applyContinuousFocus(stream);
+    await applyScanTrackTweaks(stream);
     if (!mountedRef.current || gen !== cameraGenRef.current) {
       throw new Error("Camera open cancelled.");
     }
-    // Bind while the video is sized under the placeholder (opacity-0, not display:none).
-    await bindStreamToVideo(stream, gen);
-    if (!mountedRef.current || gen !== cameraGenRef.current) {
-      throw new Error("Camera open cancelled.");
-    }
+
+    // Show the video element first so play()/frames are not blocked by opacity:0.
     setCameraOn(true);
     await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+    if (!mountedRef.current || gen !== cameraGenRef.current) {
+      throw new Error("Camera open cancelled.");
+    }
+
+    await bindStreamToVideo(stream, gen);
     if (!mountedRef.current || gen !== cameraGenRef.current) {
       throw new Error("Camera open cancelled.");
     }
     startDecodeLoops();
   }
 
-  async function startCamera() {
+  async function startCamera(opts?: { forceNew?: boolean }) {
     if (startingRef.current) return;
     const gen = ++cameraGenRef.current;
     startingRef.current = true;
     setError(null);
     try {
-      if (streamRef.current && !isStreamLive()) {
-        stopCamera();
+      // Explicit Open always takes a fresh stream — soft-reuse was leaving a
+      // preview that looked live but would not decode until Stop → Open.
+      const forceNew = opts?.forceNew === true;
+      if (forceNew || (streamRef.current && !isStreamLive())) {
+        stopCameraHard();
       }
 
       let stream =
-        streamRef.current && isStreamLive() ? streamRef.current : null;
+        !forceNew && streamRef.current && isStreamLive()
+          ? streamRef.current
+          : null;
       if (!stream) {
-        stream = await openRearCamera();
+        stream = await openRearCamera(forceNew);
       }
 
       if (!mountedRef.current || gen !== cameraGenRef.current) {
@@ -635,8 +628,8 @@ export function ScannerPanel({
         return;
       }
       startingRef.current = false;
-      stopCamera();
-      await startCamera();
+      stopCameraHard();
+      await startCamera({ forceNew: true });
     } catch (err) {
       if (!mountedRef.current || gen !== cameraGenRef.current) return;
       setError(
@@ -653,7 +646,7 @@ export function ScannerPanel({
     setPreview(null);
     setToken("");
     setError(null);
-    resumeDecoding(900);
+    resumeDecoding(700);
     scrollTo(cameraBoxRef.current);
     await ensureLiveCamera();
   }
@@ -705,7 +698,8 @@ export function ScannerPanel({
       streamRef.current = existing;
       bindStreamHandlers(existing);
       resumeId = window.setTimeout(() => {
-        if (mountedRef.current) void startCamera();
+        // Remount: reuse warm stream but rebind + restart decode.
+        if (mountedRef.current) void startCamera({ forceNew: false });
       }, 0);
     }
 
@@ -740,11 +734,10 @@ export function ScannerPanel({
             ref={cameraBoxRef}
             className="relative overflow-hidden rounded-lg bg-black"
           >
-            {/* Always mounted (never display:none) so bind/play gets real dimensions. */}
             <video
               ref={videoRef}
               className={cn(
-                "aspect-[4/3] max-h-[48vh] w-full object-cover sm:aspect-video",
+                "aspect-[4/3] max-h-[48vh] w-full bg-black object-cover sm:aspect-video",
                 !cameraOn && "pointer-events-none absolute inset-0 opacity-0",
               )}
               muted
@@ -757,7 +750,10 @@ export function ScannerPanel({
                   Paste a QR token below to check in without the camera, or open
                   the camera to scan.
                 </p>
-                <Button type="button" onClick={() => void startCamera()}>
+                <Button
+                  type="button"
+                  onClick={() => void startCamera({ forceNew: true })}
+                >
                   Open camera
                 </Button>
               </div>
@@ -768,7 +764,9 @@ export function ScannerPanel({
                     ? "Camera on — confirm below, then scan the next pass"
                     : loadingPreview
                       ? "Reading pass…"
-                      : "Point the camera at the pass QR"}
+                      : scanning
+                        ? "Scanning… hold the QR inside the box"
+                        : "Starting scanner…"}
                 </p>
                 <div className="pointer-events-none absolute inset-[4%] z-10 rounded-md border-2 border-white/80" />
                 <div className="absolute inset-x-0 bottom-0 z-10 flex justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
