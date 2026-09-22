@@ -806,6 +806,24 @@ async function seed() {
     { key: "qr_token_ttl_hours", value: "24" },
     { key: "maintenance_banner_on", value: "false" },
     { key: "maintenance_banner_text", value: "" },
+    { key: "receipt_org_name", value: "TiangPass" },
+    {
+      key: "receipt_tagline",
+      value: "Penang Bridge fishing association pass",
+    },
+    {
+      key: "receipt_address",
+      value: "Penang Bridge corridor jetties\nPulau Pinang, Malaysia",
+    },
+    { key: "receipt_reg_no", value: "" },
+    { key: "receipt_phone", value: "+60123456789" },
+    { key: "receipt_email", value: "ops@tiangpass.local" },
+    {
+      key: "receipt_footer",
+      value:
+        "Association fee · non-refundable. Show boarding QR at the jetty for check-in / check-out.",
+    },
+    { key: "receipt_logo_key", value: "" },
   ]);
 
   const activeCount = jettyRows.filter((j) => j.active).length;

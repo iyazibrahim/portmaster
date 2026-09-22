@@ -24,6 +24,17 @@ export default async function AdminSettingsPage() {
     platform_commission_pct: map.platform_commission_pct ?? "20",
     location_side_labels: map.location_side_labels ?? "",
     default_party_size_max: map.default_party_size_max ?? "6",
+    receipt_org_name: map.receipt_org_name ?? "TiangPass",
+    receipt_tagline:
+      map.receipt_tagline ?? "Penang Bridge fishing association pass",
+    receipt_address: map.receipt_address ?? "",
+    receipt_reg_no: map.receipt_reg_no ?? "",
+    receipt_phone: map.receipt_phone ?? map.support_phone ?? "",
+    receipt_email: map.receipt_email ?? "",
+    receipt_footer:
+      map.receipt_footer ??
+      "Association fee · non-refundable. Show boarding QR at the jetty for check-in / check-out.",
+    receipt_logo_key: map.receipt_logo_key ?? "",
   };
 
   const it = {

@@ -25,6 +25,27 @@ export async function saveProfilePhoto(input: {
   return key;
 }
 
+/** Ops letterhead logo for printable receipts. Keys are public to signed-in users. */
+export async function saveLetterheadLogo(input: {
+  bytes: Buffer;
+  mimeType: string;
+}): Promise<string> {
+  await ensurePhotosDir();
+  const ext =
+    input.mimeType === "image/png"
+      ? "png"
+      : input.mimeType === "image/webp"
+        ? "webp"
+        : "jpg";
+  const key = `letterhead_${nanoid(10)}.${ext}`;
+  await writeFile(path.join(PHOTOS_DIR, key), input.bytes);
+  return key;
+}
+
+export function isLetterheadLogoKey(photoKey: string): boolean {
+  return photoKey.startsWith("letterhead_");
+}
+
 export async function readProfilePhoto(
   photoKey: string,
 ): Promise<{ bytes: Buffer; mimeType: string } | null> {

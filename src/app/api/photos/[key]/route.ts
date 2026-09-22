@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { handlers, users } from "@/db/schema";
 import { requireSession } from "@/lib/session";
-import { readProfilePhoto } from "@/lib/photos";
+import { isLetterheadLogoKey, readProfilePhoto } from "@/lib/photos";
 
 export async function GET(
   _req: Request,
@@ -18,6 +18,16 @@ export async function GET(
   const photoKey = decodeURIComponent(key);
   const file = await readProfilePhoto(photoKey);
   if (!file) return new NextResponse("Not found", { status: 404 });
+
+  // Receipt letterhead logos are readable by any signed-in user (print page).
+  if (isLetterheadLogoKey(photoKey)) {
+    return new NextResponse(new Uint8Array(file.bytes), {
+      headers: {
+        "Content-Type": file.mimeType,
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
+  }
 
   const [owner] = await db
     .select({ id: users.id, role: users.role })

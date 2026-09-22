@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { QRCodeSVG } from "qrcode.react";
 import { requireSession } from "@/lib/session";
 import { db } from "@/db";
-import { jetties, locations, payments, passes, users } from "@/db/schema";
+import { jetties, locations, payments, passes } from "@/db/schema";
 import { getActiveQrToken } from "@/lib/pass";
 import { StatusBadge } from "@/components/status-badge";
 import { formatEnumLabel, formatMYR } from "@/lib/utils-app";
@@ -69,11 +69,6 @@ export default async function PassDetailPage({
     .from(locations)
     .where(eq(locations.id, pass.pillarId))
     .limit(1);
-  const [angler] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, pass.userId))
-    .limit(1);
   const [payment] = await db
     .select()
     .from(payments)
@@ -137,16 +132,7 @@ export default async function PassDetailPage({
           </dl>
 
           {payment?.status === "PAID" ? (
-            <DownloadReceiptButton
-              reference={pass.reference}
-              anglerName={angler?.name ?? session.user.name ?? "Angler"}
-              jettyName={jetty?.name ?? "—"}
-              pillarName={pillar?.name ?? "—"}
-              feeLabel={formatMYR(pass.feeCents)}
-              paymentRef={paymentLabel}
-              validOn={pass.validOn}
-              status={pass.status}
-            />
+            <DownloadReceiptButton passId={pass.id} />
           ) : null}
         </CardContent>
       </Card>

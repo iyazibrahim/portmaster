@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 import {
+  actionClearReceiptLogo,
   actionLockItSettings,
   actionSaveItSettings,
   actionSaveOpsSettings,
   actionUnlockItSettings,
+  actionUploadReceiptLogo,
 } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,9 @@ export function SettingsPanel({
   }
 
   const maintenanceOn = ops.maintenance_banner_on === "true";
+  const logoSrc = ops.receipt_logo_key
+    ? `/api/photos/${encodeURIComponent(ops.receipt_logo_key)}`
+    : "/brand/tiangpass-logo.png";
 
   return (
     <div className="flex flex-col gap-6">
@@ -172,6 +177,119 @@ export function SettingsPanel({
               disabled={!maintenanceOn}
               placeholder="Scheduled maintenance message…"
             />
+          </div>
+        </BentoTile>
+
+        <BentoTile
+          title="Receipt / letterhead"
+          description="Printed on Download / print receipt for paid passes (includes boarding QR)."
+          className="lg:col-span-2"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex shrink-0 flex-col items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoSrc ?? "/brand/tiangpass-logo.png"}
+                alt="Receipt logo"
+                className="h-20 w-20 rounded-lg border bg-white object-contain p-2"
+              />
+              <Label
+                htmlFor="receipt-logo"
+                className="cursor-pointer text-xs font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Upload logo
+              </Label>
+              <input
+                id="receipt-logo"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="sr-only"
+                disabled={pending}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  const fd = new FormData();
+                  fd.set("logo", file);
+                  startTransition(async () => {
+                    const result = await actionUploadReceiptLogo(fd);
+                    if (!result.ok) {
+                      toast.error(result.error);
+                      return;
+                    }
+                    setOp("receipt_logo_key", result.key);
+                    toast.success("Receipt logo updated");
+                  });
+                }}
+              />
+              {ops.receipt_logo_key ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      await actionClearReceiptLogo();
+                      setOp("receipt_logo_key", "");
+                      toast.message("Using default TiangPass logo");
+                    })
+                  }
+                >
+                  Use default logo
+                </Button>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">Default brand logo</p>
+              )}
+            </div>
+            <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
+              <Field
+                label="Organisation name"
+                value={ops.receipt_org_name}
+                onChange={(v) => setOp("receipt_org_name", v)}
+                className="sm:col-span-2"
+              />
+              <Field
+                label="Tagline"
+                value={ops.receipt_tagline}
+                onChange={(v) => setOp("receipt_tagline", v)}
+                className="sm:col-span-2"
+              />
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label>Address</Label>
+                <Textarea
+                  className="min-h-20 max-w-2xl"
+                  value={ops.receipt_address ?? ""}
+                  onChange={(e) => setOp("receipt_address", e.target.value)}
+                  placeholder="Street, postcode, city…"
+                />
+              </div>
+              <Field
+                label="Registration / permit no."
+                value={ops.receipt_reg_no}
+                onChange={(v) => setOp("receipt_reg_no", v)}
+              />
+              <Field
+                label="Receipt phone"
+                value={ops.receipt_phone}
+                onChange={(v) => setOp("receipt_phone", v)}
+              />
+              <Field
+                label="Receipt email"
+                value={ops.receipt_email}
+                onChange={(v) => setOp("receipt_email", v)}
+              />
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label>Footer note</Label>
+                <Textarea
+                  className="min-h-16 max-w-2xl"
+                  value={ops.receipt_footer ?? ""}
+                  onChange={(e) => setOp("receipt_footer", e.target.value)}
+                  placeholder="Association fee · non-refundable…"
+                />
+              </div>
+            </div>
           </div>
         </BentoTile>
       </div>

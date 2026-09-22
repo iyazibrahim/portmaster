@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Pass receipt + letterhead (2026-09-22):** Paid passes open `/pass/[id]/receipt` (A4 print / Save as PDF) with admin-configurable letterhead (org name, tagline, address, reg no, phone, email, footer, logo upload). Includes boarding QR when Active/Checked-In. Settings → **Receipt / letterhead**. Defaults in seed; logo falls back to `/brand/tiangpass-logo.png`.
+
 **Official logo (2026-09-21):** `TiangPass Logo.jpg` white backdrop removed (flood-fill) → transparent `public/brand/tiangpass-logo.png`; favicon / PWA icons / `BrandLogo` on landing, auth, nav, install banner. New fishing illustration is cache-busted **brush-edge** `tiangpass-scene-brush.png` (no metallic badge) on marketing + login/signup.
 
 **Operator scanner (2026-09-22):** Multi-pass flow: `ensureLiveCamera()` after confirm / scan another; mobile **Open camera** (user gesture, no auto `getUserMedia` on mount). Larger 4:3 scan box (~96% of the frame, 480px decode). Admin **Settings → Jetty GPS check** can turn off jetty radius for testing. Check-in no longer remounts `/handler/scan`.

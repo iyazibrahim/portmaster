@@ -36,6 +36,10 @@ import type { UserRole } from "@/db/schema";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { BrandLogo } from "@/components/brand-logo";
 
+function isPassReceiptPath(pathname: string) {
+  return /\/pass\/[^/]+\/receipt\/?$/.test(pathname);
+}
+
 type NavItem = {
   href: string;
   label: string;
@@ -162,6 +166,8 @@ export function AppNav({
   const items = navForRole(role);
   const isLlm = role === "LLM_VIEWER";
 
+  if (isPassReceiptPath(pathname)) return null;
+
   return (
       <aside className="hidden h-full min-h-0 shrink-0 overflow-hidden lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-sidebar-border lg:bg-sidebar">
         <div className="flex h-14 shrink-0 items-center gap-2 px-4">
@@ -217,6 +223,8 @@ export function MobileBottomNav({
   const [open, setOpen] = useState(false);
   const isAdmin = role === "ADMIN" || role === "LLM_VIEWER";
   const isLlm = role === "LLM_VIEWER";
+
+  if (isPassReceiptPath(pathname)) return null;
 
   return isAdmin ? (
     <div className="flex shrink-0 items-center gap-2 border-t border-border bg-background px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
@@ -299,6 +307,9 @@ export function MobileTopBar({
   title?: string;
   locale?: "en" | "ms";
 }) {
+  const pathname = usePathname();
+  if (isPassReceiptPath(pathname)) return null;
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6 lg:hidden">
       <span className="flex items-center gap-2 text-sm font-semibold tracking-tight">

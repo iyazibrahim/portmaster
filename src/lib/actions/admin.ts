@@ -58,6 +58,14 @@ const OPS_KEYS = [
   "platform_commission_pct",
   "location_side_labels",
   "default_party_size_max",
+  "receipt_org_name",
+  "receipt_tagline",
+  "receipt_address",
+  "receipt_reg_no",
+  "receipt_phone",
+  "receipt_email",
+  "receipt_footer",
+  "receipt_logo_key",
 ] as const;
 
 const IT_KEYS = [
@@ -93,6 +101,53 @@ export async function actionSaveOpsSettings(values: Record<string, string>) {
       });
   }
   revalidatePath("/admin/settings");
+  revalidatePath("/pass");
+  return { ok: true as const };
+}
+
+export async function actionUploadReceiptLogo(formData: FormData) {
+  await requireRole(["ADMIN"]);
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size < 1) {
+    return { ok: false as const, error: "Choose a logo image file." };
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    return { ok: false as const, error: "Logo must be under 2 MB." };
+  }
+  const mime = file.type;
+  if (!["image/png", "image/jpeg", "image/webp"].includes(mime)) {
+    return { ok: false as const, error: "Use PNG, JPEG, or WebP." };
+  }
+  const { saveLetterheadLogo } = await import("@/lib/photos");
+  const key = await saveLetterheadLogo({
+    bytes: Buffer.from(await file.arrayBuffer()),
+    mimeType: mime,
+  });
+  const now = new Date();
+  await db
+    .insert(settings)
+    .values({ key: "receipt_logo_key", value: key, updatedAt: now })
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value: key, updatedAt: now },
+    });
+  revalidatePath("/admin/settings");
+  revalidatePath("/pass");
+  return { ok: true as const, key };
+}
+
+export async function actionClearReceiptLogo() {
+  await requireRole(["ADMIN"]);
+  const now = new Date();
+  await db
+    .insert(settings)
+    .values({ key: "receipt_logo_key", value: "", updatedAt: now })
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value: "", updatedAt: now },
+    });
+  revalidatePath("/admin/settings");
+  revalidatePath("/pass");
   return { ok: true as const };
 }
 
