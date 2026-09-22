@@ -69,15 +69,15 @@
 - Modify: `src/lib/actions/pass.ts`
 - Modify: `src/lib/audit.ts` (label for new action)
 
-- [ ] `updateOvernightIntention(passId, userId, { intendsOvernight, expectedReturnOn })` — owner only; allowed for `ACTIVE` or `CHECKED_IN`.
-- [ ] `selfCheckOutPass({ passId, userId, lat, lng, shoreDeclarationAccepted })`:
+- [x] `updateOvernightIntention(passId, userId, { intendsOvernight, expectedReturnOn })` — owner only; allowed for `ACTIVE` or `CHECKED_IN`.
+- [x] `selfCheckOutPass({ passId, userId, lat, lng, shoreDeclarationAccepted })`:
   - Require declaration accepted
   - Load pass + jetty; geofence like scan (`purpose: "boarding"`)
   - Transition via domain helper; set `checkedOutAt`
   - Insert `scan_events` `CHECK_OUT` with actor user id, no handler (or null handler), metadata/method `SELF`
   - Audit `pass.self_check_out`
-- [ ] Wire thin server actions returning `{ ok, error }` for the client.
-- [ ] Commit: `Add angler jetty self-checkout server action`
+- [x] Wire thin server actions returning `{ ok, error }` for the client.
+- [x] Commit: `Add angler jetty self-checkout server action`
 
 ### Task 4: Pass detail self-checkout UI
 
@@ -86,11 +86,11 @@
 - Modify: `src/app/(app)/pass/[id]/page.tsx`
 - Modify: `src/i18n` EN/BM JSON
 
-- [ ] When `CHECKED_IN`, show panel: expected return (if set), shore checkbox, liability copy, **Check out at jetty** button.
-- [ ] Request GPS; call self-checkout action; show geofence errors inline.
-- [ ] Keep QR block for operator fallback.
-- [ ] In-app reminder banner if `today > expectedReturnOn` or overdue hours exceeded.
-- [ ] Commit: `Add geofenced self-checkout panel on pass detail`
+- [x] When `CHECKED_IN`, show panel: expected return (if set), shore checkbox, liability copy, **Check out at jetty** button.
+- [x] Request GPS; call self-checkout action; show geofence errors inline.
+- [x] Keep QR block for operator fallback.
+- [x] In-app reminder banner if `today > expectedReturnOn` or overdue hours exceeded.
+- [x] Commit: `Add geofenced self-checkout panel on pass detail`
 
 ### Task 5: Optional purchase / post-CI intention UI
 
@@ -99,10 +99,10 @@
 - Modify: pass create path in `src/lib/pass.ts` / actions
 - Modify: pass detail (edit intention while checked in)
 
-- [ ] Checkbox: “I may stay overnight” → date select default tomorrow.
-- [ ] Persist on create after payment success fields (or update right after activate).
-- [ ] Allow editing intention on pass detail while `ACTIVE`/`CHECKED_IN`.
-- [ ] Commit: `Collect overnight stay intention at purchase`
+- [x] Checkbox: “I may stay overnight” → date select default tomorrow.
+- [x] Persist on create after payment success fields (or update right after activate).
+- [x] Allow editing intention on pass detail while `ACTIVE`/`CHECKED_IN`.
+- [x] Commit: `Collect overnight stay intention at purchase`
 
 ### Task 6: Ops visibility + docs lock
 
@@ -111,17 +111,17 @@
 - Modify: `OPEN_QUESTIONS.md`
 - Modify: `workflow.md`
 
-- [ ] Show expected return on overdue rows when present.
-- [ ] Lock table row: Phase B self-checkout at jetty; Phase C claimed-ashore later; multi-day purchase still out of scope.
-- [ ] Commit: `Document overnight self-checkout Phase B decision`
+- [x] Show expected return on overdue rows when present.
+- [x] Lock table row: Phase B self-checkout at jetty; Phase C claimed-ashore later; multi-day purchase still out of scope.
+- [x] Commit: `Document overnight self-checkout Phase B decision`
 
 ### Task 7: Validate
 
-- [ ] `npm test`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] Manual: check-in via operator → angler self-checkout inside radius → outside radius fails → operator checkout still works on another pass
-- [ ] Commit any fixes; push branch; update PR
+- [x] `npm test`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [ ] Manual: check-in via operator → angler self-checkout inside radius → outside radius fails → operator checkout still works on another pass (needs live DB / GPS)
+- [x] Commit any fixes; push branch; update PR
 
 ---
 
