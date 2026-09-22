@@ -20,6 +20,7 @@ import {
   myKadLast4,
   parseMyKadDob,
 } from "@/lib/utils-app";
+import { asSqlTimestamp } from "@/lib/sql-value";
 
 const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
 
@@ -126,13 +127,16 @@ export async function loginWithCredentials(
 
     step = "session";
     const sessionToken = randomBytes(32).toString("hex");
-    const expires = new Date(Date.now() + SESSION_MAX_AGE_SEC * 1000);
+    // ISO string — never interpolate a JS Date into postgres.js tagged SQL.
+    const expiresIso = asSqlTimestamp(
+      Date.now() + SESSION_MAX_AGE_SEC * 1000,
+    );
 
     await pg`delete from public.sessions where user_id = ${row.id}`;
     try {
       await pg`
         insert into public.sessions (session_token, user_id, expires)
-        values (${sessionToken}, ${row.id}, ${expires})
+        values (${sessionToken}, ${row.id}, ${expiresIso}::timestamptz)
       `;
     } catch (sessionErr) {
       console.error("[loginWithCredentials:session]", {

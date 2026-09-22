@@ -27,7 +27,8 @@ async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   try {
-    // ICU/glibc image swaps on Postgres leave a stale collation version recorded.
+    // ICU/glibc image swaps leave a recorded collation version with no actual
+    // version (postinit.c CheckMyDatabase WARNING on every connection).
     try {
       const dbName = (await sql`select current_database() as name`)[0]?.name;
       if (dbName) {
@@ -40,6 +41,23 @@ async function main() {
       console.warn(
         "Collation refresh skipped:",
         collationErr instanceof Error ? collationErr.message : collationErr,
+      );
+    }
+    try {
+      await sql.unsafe(`
+        UPDATE pg_database
+        SET datcollversion = NULL
+        WHERE datname = current_database()
+          AND datcollversion IS NOT NULL
+          AND pg_database_collation_actual_version(oid) IS NULL
+      `);
+      console.log("Cleared recorded collation version with no actual version");
+    } catch (collationClearErr) {
+      console.warn(
+        "Collation version clear skipped:",
+        collationClearErr instanceof Error
+          ? collationClearErr.message
+          : collationClearErr,
       );
     }
 
@@ -178,9 +196,10 @@ async function main() {
     }
 
     const probeToken = `probe_${crypto.randomUUID().replace(/-/g, "")}`;
+    const probeExpires = new Date(Date.now() + 60_000).toISOString();
     await sql`
       insert into public.sessions (session_token, user_id, expires)
-      values (${probeToken}, ${adminRow.id}, ${new Date(Date.now() + 60_000)})
+      values (${probeToken}, ${adminRow.id}, ${probeExpires}::timestamptz)
     `;
     await sql`delete from public.sessions where session_token = ${probeToken}`;
     console.log("Admin session insert probe OK for", adminRow.id);

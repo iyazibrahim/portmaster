@@ -95,6 +95,8 @@ Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because
 
 **Admin ghost user / FK (2026-09-22):** Boot logs showed `sessions` FK 23503: selected admin id `usr_vOPUZFlAshyIRhZV` was not present in `users` for the FK check (stale FK OID / search_path shadow / orphan). `ensure-demo-ops` now forces `search_path=public`, refreshes collation, deletes orphan sessions, recreates `sessions_user_id_users_id_fk` → `public.users`, rebuilds demo admin, and probes session insert. Login uses `public.users` / `public.sessions` only.
 
+**Login Date TypeError (2026-09-22):** Next.js + postgres.js `prepare: false` interpolated a JS `Date` into session INSERT. The bundled encoder writes params with `utf8Write`, so Date throws `ERR_INVALID_ARG_TYPE`. Login and boot probe now bind ISO `timestamptz` strings (`asSqlTimestamp`). Alpine/musl collation warning (`no actual collation version, but a version was recorded`) is cleared on boot when libc reports no version.
+
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
 sudo mkswap /swapfile && sudo swapon /swapfile
