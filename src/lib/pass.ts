@@ -17,11 +17,16 @@ import {
   PASS_OCCUPANCY_STATUSES,
   PILLAR_SELLABLE_STATUS,
   assertCanCreatePass,
+  assertCanSetOvernightIntention,
+  canSelfCheckOut,
+  canUpdateOvernightIntention,
+  defaultExpectedReturnOn,
   isReservationExpired,
   nextStatusAfterCheckIn,
   nextStatusAfterCheckOut,
   nextStatusAfterPaymentFail,
   nextStatusAfterPaymentSuccess,
+  nextStatusAfterSelfCheckOut,
   remainingSlots,
   reservationExpiresAt,
   shouldExpireActivePass,
@@ -149,6 +154,8 @@ export async function createPassPendingPayment(input: {
   lat?: string;
   lng?: string;
   actorId?: string;
+  intendsOvernight?: boolean;
+  expectedReturnOn?: string | null;
 }) {
   await expireStaleReservations();
   await expireOvernightActivePasses();
@@ -216,6 +223,13 @@ export async function createPassPendingPayment(input: {
   });
   if (!rules.ok) throw new Error(rules.error);
 
+  const intention = assertCanSetOvernightIntention({
+    intendsOvernight: Boolean(input.intendsOvernight),
+    expectedReturnOn: input.expectedReturnOn,
+    validOn,
+  });
+  if (!intention.ok) throw new Error(intention.error);
+
   const minutes = await getSettingInt(
     "reservation_minutes",
     DEFAULT_RESERVATION_MINUTES,
@@ -240,6 +254,8 @@ export async function createPassPendingPayment(input: {
     status: "PENDING_PAYMENT",
     feeCents,
     reservedUntil,
+    intendsOvernight: intention.intendsOvernight,
+    expectedReturnOn: intention.expectedReturnOn,
   });
 
   const paymentId = id("pay");
@@ -400,6 +416,158 @@ export async function cancelActivePass(
     next: { status: "CANCELLED" },
   });
   return { passId };
+}
+
+export async function updateOvernightIntention(input: {
+  passId: string;
+  userId: string;
+  intendsOvernight: boolean;
+  expectedReturnOn?: string | null;
+}) {
+  const [pass] = await db
+    .select()
+    .from(passes)
+    .where(eq(passes.id, input.passId))
+    .limit(1);
+  if (!pass || pass.userId !== input.userId) {
+    throw new Error("Pass not found.");
+  }
+  if (!canUpdateOvernightIntention(pass.status)) {
+    throw new Error(
+      "Overnight intention can only be updated while the pass is Active or Checked-In.",
+    );
+  }
+
+  const intention = assertCanSetOvernightIntention({
+    intendsOvernight: input.intendsOvernight,
+    expectedReturnOn:
+      input.intendsOvernight && !input.expectedReturnOn
+        ? defaultExpectedReturnOn(pass.validOn)
+        : input.expectedReturnOn,
+    validOn: pass.validOn,
+  });
+  if (!intention.ok) throw new Error(intention.error);
+
+  const now = new Date();
+  await db
+    .update(passes)
+    .set({
+      intendsOvernight: intention.intendsOvernight,
+      expectedReturnOn: intention.expectedReturnOn,
+      updatedAt: now,
+    })
+    .where(eq(passes.id, pass.id));
+
+  await writeAudit({
+    actorId: input.userId,
+    action: "pass.overnight_intention",
+    entityType: "pass",
+    entityId: pass.id,
+    prev: {
+      intendsOvernight: pass.intendsOvernight,
+      expectedReturnOn: pass.expectedReturnOn,
+    },
+    next: {
+      intendsOvernight: intention.intendsOvernight,
+      expectedReturnOn: intention.expectedReturnOn,
+    },
+  });
+
+  return {
+    passId: pass.id,
+    intendsOvernight: intention.intendsOvernight,
+    expectedReturnOn: intention.expectedReturnOn,
+  };
+}
+
+/**
+ * Angler self check-out at boarding jetty (Phase B).
+ * Requires shore declaration + jetty geofence. Operator scan remains the fallback.
+ */
+export async function selfCheckOutPass(input: {
+  passId: string;
+  userId: string;
+  lat?: string;
+  lng?: string;
+  shoreDeclarationAccepted: boolean;
+}) {
+  if (!input.shoreDeclarationAccepted) {
+    throw new Error(
+      "Confirm you are already on shore and accept responsibility before checking out.",
+    );
+  }
+
+  const [pass] = await db
+    .select()
+    .from(passes)
+    .where(eq(passes.id, input.passId))
+    .limit(1);
+  if (!pass || pass.userId !== input.userId) {
+    throw new Error("Pass not found.");
+  }
+  if (!canSelfCheckOut(pass.status)) {
+    throw new Error("Only Checked-In passes can self check-out.");
+  }
+
+  const next = nextStatusAfterSelfCheckOut(pass.status);
+  if (!next) throw new Error("Invalid self check-out transition.");
+
+  const [jetty] = await db
+    .select()
+    .from(jetties)
+    .where(eq(jetties.id, pass.jettyId))
+    .limit(1);
+  if (!jetty) throw new Error("Jetty not found.");
+
+  const geo = assertWithinGeofence({
+    device:
+      input.lat != null && input.lng != null
+        ? { lat: Number(input.lat), lng: Number(input.lng) }
+        : null,
+    jettyLat: jetty.lat,
+    jettyLng: jetty.lng,
+    radiusM: jetty.geofenceRadiusM,
+    bypass: !(await isJettyGeofenceRequired()),
+    purpose: "boarding",
+  });
+  if (!geo.ok) throw new Error(geo.error);
+
+  const now = new Date();
+  await db
+    .update(passes)
+    .set({
+      status: next,
+      checkedOutAt: now,
+      updatedAt: now,
+    })
+    .where(eq(passes.id, pass.id));
+
+  await db.insert(scanEvents).values({
+    id: id("scn"),
+    passId: pass.id,
+    handlerId: null,
+    actorUserId: input.userId,
+    type: "CHECK_OUT",
+    scannedAt: now,
+    lat: input.lat,
+    lng: input.lng,
+    note: `Pass ${pass.reference} · method SELF · shore declaration accepted`,
+  });
+
+  await writeAudit({
+    actorId: input.userId,
+    action: "pass.self_check_out",
+    entityType: "pass",
+    entityId: pass.id,
+    next: {
+      status: next,
+      method: "SELF",
+      distanceM: geo.distanceM,
+      shoreDeclarationAccepted: true,
+    },
+  });
+
+  return { passId: pass.id, status: next as PassStatus };
 }
 
 export async function listOpenPillarsForJetty(jettyId: string) {
@@ -760,7 +928,7 @@ export async function scanPassQrToken(params: {
       scannedAt: now,
       lat: params.lat,
       lng: params.lng,
-      note: `Pass ${row.pass.reference}`,
+      note: `Pass ${row.pass.reference} · method OPERATOR`,
       clientEventId,
     });
     await writeAudit({
@@ -768,7 +936,7 @@ export async function scanPassQrToken(params: {
       action: "pass.check_out",
       entityType: "pass",
       entityId: row.pass.id,
-      next: { status: next },
+      next: { status: next, method: "OPERATOR" },
     });
     return {
       action: "CHECK_OUT",

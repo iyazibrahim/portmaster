@@ -1,18 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
   assertCanCreatePass,
+  assertCanSetOvernightIntention,
+  addCalendarDays,
   canReserveSlot,
+  canSelfCheckOut,
+  canUpdateOvernightIntention,
+  defaultExpectedReturnOn,
   remainingSlots,
   validateAnglerIdentity,
   nextStatusAfterPaymentSuccess,
   nextStatusAfterPaymentFail,
   nextStatusAfterCheckIn,
   nextStatusAfterCheckOut,
+  nextStatusAfterSelfCheckOut,
   canCancelPass,
   isOverdue,
   reservationExpiresAt,
   isReservationExpired,
   shouldExpireActivePass,
+  shouldRemindSelfCheckOut,
 } from "../domain/pass";
 import type { PassStatus } from "../db/schema";
 import { assertWithinGeofence, haversineMeters } from "../lib/geo";
@@ -250,6 +257,91 @@ describe("cancel / overdue", () => {
     const checkedInAt = new Date(Date.now() - 9 * 3600_000);
     expect(isOverdue(checkedInAt, 8)).toBe(true);
     expect(isOverdue(checkedInAt, 10)).toBe(false);
+  });
+});
+
+describe("overnight intention + self-checkout (Phase B)", () => {
+  it("adds calendar days", () => {
+    expect(addCalendarDays("2026-09-22", 1)).toBe("2026-09-23");
+    expect(addCalendarDays("2026-09-30", 1)).toBe("2026-10-01");
+    expect(defaultExpectedReturnOn("2026-09-22")).toBe("2026-09-23");
+  });
+
+  it("clears expected return when not overnight", () => {
+    const r = assertCanSetOvernightIntention({
+      intendsOvernight: false,
+      expectedReturnOn: "2026-09-23",
+      validOn: "2026-09-22",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.intendsOvernight).toBe(false);
+      expect(r.expectedReturnOn).toBeNull();
+    }
+  });
+
+  it("requires expected return after validOn within max nights", () => {
+    expect(
+      assertCanSetOvernightIntention({
+        intendsOvernight: true,
+        expectedReturnOn: "2026-09-22",
+        validOn: "2026-09-22",
+      }).ok,
+    ).toBe(false);
+    expect(
+      assertCanSetOvernightIntention({
+        intendsOvernight: true,
+        expectedReturnOn: "2026-09-26",
+        validOn: "2026-09-22",
+        maxNights: 3,
+      }).ok,
+    ).toBe(false);
+    const ok = assertCanSetOvernightIntention({
+      intendsOvernight: true,
+      expectedReturnOn: "2026-09-25",
+      validOn: "2026-09-22",
+      maxNights: 3,
+    });
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.expectedReturnOn).toBe("2026-09-25");
+  });
+
+  it("allows self-checkout only when checked in", () => {
+    expect(canSelfCheckOut("CHECKED_IN")).toBe(true);
+    expect(canSelfCheckOut("ACTIVE")).toBe(false);
+    expect(nextStatusAfterSelfCheckOut("CHECKED_IN")).toBe("CHECKED_OUT");
+    expect(canUpdateOvernightIntention("ACTIVE")).toBe(true);
+    expect(canUpdateOvernightIntention("CHECKED_OUT")).toBe(false);
+  });
+
+  it("reminds when past expected return or overdue hours", () => {
+    expect(
+      shouldRemindSelfCheckOut({
+        status: "CHECKED_IN",
+        expectedReturnOn: "2026-09-21",
+        checkedInAt: new Date(),
+        overdueHours: 8,
+        today: "2026-09-22",
+      }),
+    ).toBe(true);
+    expect(
+      shouldRemindSelfCheckOut({
+        status: "CHECKED_IN",
+        expectedReturnOn: "2026-09-23",
+        checkedInAt: new Date(Date.now() - 9 * 3600_000),
+        overdueHours: 8,
+        today: "2026-09-22",
+      }),
+    ).toBe(true);
+    expect(
+      shouldRemindSelfCheckOut({
+        status: "ACTIVE",
+        expectedReturnOn: "2026-09-21",
+        checkedInAt: null,
+        overdueHours: 8,
+        today: "2026-09-22",
+      }),
+    ).toBe(false);
   });
 });
 

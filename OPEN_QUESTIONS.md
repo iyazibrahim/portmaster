@@ -12,7 +12,7 @@ Aligned to the 21 Sep PRD pack with product decisions locked in workshop (2026-0
 | Owner vs handler | Owners have login accounts. Handlers are staff under an owner (or the same person). Many boats / many handlers per owner. |
 | Geofence | Enforce on **purchase + check-in + check-out** for anglers/operators. **Admin bypasses.** |
 | Overnight | Unused **Active → Expired** at end of calendar day (slot frees). **Checked-In stays** until checkout (including next day). No fishing duration cap. |
-| Overnight self-checkout | **Phase B (planned):** angler self-checkout only at boarding jetty geofence + shore/liability declaration; optional expected-return intention (not a multi-day pass). Operator scan remains fallback. **Phase C (later):** remote claimed-ashore + ops confirm/grace. |
+| Overnight self-checkout | **Phase B (shipped):** angler self-checkout only at boarding jetty geofence + shore/liability declaration; optional expected-return intention (not a multi-day pass). Operator scan remains fallback. **Phase C (later):** remote claimed-ashore + ops confirm/grace. |
 | Offline CI/CO | **Phased (locked 2026-09-22).** Phase 1: flaky-network queue + idempotent `clientEventId`. Phase 2: jetty day-manifest + local apply + sync with Admin conflict review. Angler pass wallet is **read-only offline** (cached QR). No offline purchase. |
 | Scan UX | **Camera + paste.** Show angler photo. No MyKad/mobile fallback lookup yet. |
 | Photo | **Required at signup.** Shown to operator at scan. |

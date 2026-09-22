@@ -68,6 +68,21 @@ export function todayMYT(date = new Date()): string {
   }).format(date);
 }
 
+/** Add calendar days to a YYYY-MM-DD string (UTC date arithmetic). */
+export function addCalendarDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Default expected return = next calendar day after validOn. */
+export function defaultExpectedReturnOn(validOn: string): string {
+  return addCalendarDays(validOn, 1);
+}
+
+/** Max nights beyond validOn for overnight stay intention (Phase B). */
+export const DEFAULT_MAX_OVERNIGHT_NIGHTS = 3;
+
 export function normalizeMyKad(raw: string): string {
   return raw.replace(/[\s-]/g, "").toUpperCase();
 }

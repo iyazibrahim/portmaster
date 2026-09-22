@@ -334,6 +334,9 @@ export const passes = pgTable(
     activatedAt: timestamp("activated_at", { mode: "date" }),
     checkedInAt: timestamp("checked_in_at", { mode: "date" }),
     checkedOutAt: timestamp("checked_out_at", { mode: "date" }),
+    /** UX/ops only — not a multi-day pass. */
+    intendsOvernight: boolean("intends_overnight").notNull().default(false),
+    expectedReturnOn: text("expected_return_on"), // YYYY-MM-DD MYT
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },

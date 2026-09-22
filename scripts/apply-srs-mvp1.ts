@@ -3,7 +3,7 @@
  * Usage: npx tsx --env-file=.env scripts/apply-srs-mvp1.ts
  * Docker / Dokploy boot: node --experimental-strip-types scripts/apply-srs-mvp1.ts
  *
- * Order: baseline 0000 + jetties 0002, then additive 0004–0008.
+ * Order: baseline 0000 + jetties 0002, then additive 0004–0009.
  * Skip 0001 (legacy tiangs rename) and 0003 (legacy trip groups).
  *
  * Optional: CLEAR_LEGACY_PAYMENTS=1 to wipe old booking payments (one-time upgrade).
@@ -117,6 +117,7 @@ async function main() {
     resolve("drizzle/0006_jetty_radius_100.sql"),
     resolve("drizzle/0007_emergency_contact_name.sql"),
     resolve("drizzle/0008_scan_client_event_id.sql"),
+    resolve("drizzle/0009_overnight_intention.sql"),
   ];
 
   for (const migrationPath of migrationPaths) {

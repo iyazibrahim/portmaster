@@ -40,13 +40,13 @@
 - Modify: `src/domain/pass.ts`
 - Modify: `src/domain/pass.test.ts`
 
-- [ ] Add helpers, e.g.:
+- [x] Add helpers, e.g.:
   - `assertCanSetOvernightIntention({ validOn, expectedReturnOn, maxNights })`
   - `canSelfCheckOut({ status })` → true only for `CHECKED_IN`
   - `nextStatusAfterSelfCheckOut` → same as checkout (`CHECKED_OUT`)
-- [ ] Cap expected return (default max 3 nights from `validOn`, MYT date strings).
-- [ ] Write failing Vitest cases, then implement until green.
-- [ ] Commit: `Add overnight intention and self-checkout domain rules`
+- [x] Cap expected return (default max 3 nights from `validOn`, MYT date strings).
+- [x] Write failing Vitest cases, then implement until green.
+- [x] Commit: `Add overnight intention and self-checkout domain rules`
 
 ### Task 2: Schema
 

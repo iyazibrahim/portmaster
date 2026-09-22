@@ -1,6 +1,8 @@
 # TiangPass workflow
 
-**Overnight self-checkout plan (2026-09-22):** Product direction locked — **Phase B now** (jetty-geofenced angler self-checkout + shore/liability declaration + optional expected-return intention; not multi-day purchase), **Phase C later** (remote claimed-ashore + ops confirm). Spec: `docs/superpowers/specs/2026-09-22-overnight-self-checkout-design.md`. Plan: `docs/superpowers/plans/2026-09-22-overnight-self-checkout.md`. Implementation not started pending approval of the plan.
+**Overnight self-checkout Phase B (2026-09-22):** Implemented jetty-geofenced angler self-checkout + shore/liability declaration; optional `intends_overnight` / `expected_return_on` (not multi-day pass). Migration `0009_overnight_intention`. Phase C remote claimed-ashore still deferred.
+
+**Overnight self-checkout plan (2026-09-22):** Product direction locked — **Phase B now** (jetty-geofenced angler self-checkout + shore/liability declaration + optional expected-return intention; not multi-day purchase), **Phase C later** (remote claimed-ashore + ops confirm). Spec: `docs/superpowers/specs/2026-09-22-overnight-self-checkout-design.md`. Plan: `docs/superpowers/plans/2026-09-22-overnight-self-checkout.md`.
 
 **Live status + silent offline (2026-09-22):** Scan revalidates ops/passes/handler/trips/pass (not `/handler/scan`). Soft 12s `router.refresh` on ops, passes, handler Today. Scanner badge updates briefly on confirm. Offline pack banner only when offline or queued scans remain; online pull/sync runs silently.
 
