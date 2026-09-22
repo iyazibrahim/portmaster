@@ -4,6 +4,8 @@
 
 **Operator scanner (2026-09-22):** Multi-pass flow: `ensureLiveCamera()` after confirm / scan another; mobile **Open camera** (user gesture, no auto `getUserMedia` on mount). Larger 4:3 scan box (~96% of the frame, 480px decode). Admin **Settings → Jetty GPS check** can turn off jetty radius for testing. Check-in no longer remounts `/handler/scan`.
 
+**Scanner bind-before-decode (2026-09-22):** First Open often failed to detect QR because decode started before `srcObject`/`play()`, and Chrome `BarcodeDetector` could hang with no jsQR fallback. Open now binds → awaits play + `videoWidth` → then decodes. jsQR always runs; native detector is optional with a 400ms timeout. Continuous AF when supported. Video stays mounted (`opacity-0`, never `display:none`) so WebKit gets real dimensions.
+
 **Scan check-in + camera permission (2026-09-21):** `actionScanToken` no longer calls `revalidatePath`. Camera hub soft-release (30 min) reuses live streams across remounts. **Open camera** is manual (paste check-in works without camera). After each confirm, `ensureLiveCamera()` + resume decode for multi-pass. Scan/preview return `{ ok, error }` for GPS/jetty messages.
 
 **Ops dashboard / alerts / payments (2026-09-22):** Anglers-per-Pillar bar colors match Pillar Status (occupied = amber, at capacity = emerald). Long stays use **Still under bridge** on dashboard (`overdue_hours` from settings); no auto `OVERDUE_CHECKIN` alert spam (boat permit, failed pay, incidents unchanged). Alerts & incidents tables paginate **5**/page; dashboard alert/incident widgets cap at 5 + link to `/admin/alerts`. Payments: jetty filter beside search; KPI row **Monthly collected** (MYT MTD) + today + paid/pending/failed (5 cards).
