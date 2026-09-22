@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Newsreader } from "next/font/google";
 import { signUpAngler, loginWithCredentials } from "@/lib/actions/auth";
@@ -26,12 +26,62 @@ const newsreader = Newsreader({
   display: "swap",
 });
 
+const MIN_AGE = 14;
+
+/** Client-safe MyKad / age helpers (mirror server utils). */
+function normalizeMyKad(raw: string) {
+  return raw.replace(/[\s-]/g, "").toUpperCase();
+}
+
+function parseMyKadDob(raw: string): string | null {
+  const n = normalizeMyKad(raw);
+  if (!/^\d{12}$/.test(n)) return null;
+  const yy = Number(n.slice(0, 2));
+  const mm = Number(n.slice(2, 4));
+  const dd = Number(n.slice(4, 6));
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  const year = yy <= 30 ? 2000 + yy : 1900 + yy;
+  return `${year.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+}
+
+function todayMYT(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kuala_Lumpur",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function ageFromDob(dob: string, onDate = todayMYT()): number {
+  const [y, m, d] = dob.split("-").map(Number);
+  const [cy, cm, cd] = onDate.split("-").map(Number);
+  let age = cy - y;
+  if (cm < m || (cm === m && cd < d)) age -= 1;
+  return age;
+}
+
 export function SignUpForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [cameraOpen, setCameraOpen] = useState(false);
   const [photo, setPhoto] = useState<EkycCaptureResult | null>(null);
+  const [myKad, setMyKad] = useState("");
+  const [dob, setDob] = useState("");
   const { t, locale } = useT();
+
+  const ageCheck = useMemo(() => {
+    const fromIc = parseMyKadDob(myKad);
+    const effectiveDob = dob.trim() || fromIc || null;
+    if (!effectiveDob) {
+      return { status: "unknown" as const, age: null as number | null, dob: null as string | null };
+    }
+    const age = ageFromDob(effectiveDob);
+    if (age < MIN_AGE) {
+      return { status: "blocked" as const, age, dob: effectiveDob };
+    }
+    return { status: "ok" as const, age, dob: effectiveDob };
+  }, [myKad, dob]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -42,6 +92,19 @@ export function SignUpForm() {
       );
       return;
     }
+    if (ageCheck.status === "blocked") {
+      setError(
+        `Anglers must be at least ${MIN_AGE} years old. Detected age: ${ageCheck.age}.`,
+      );
+      return;
+    }
+    if (ageCheck.status === "unknown") {
+      setError(
+        "Could not determine age. Enter a valid 12-digit MyKad or date of birth.",
+      );
+      return;
+    }
+
     const fd = new FormData(e.currentTarget);
 
     startTransition(async () => {
@@ -54,7 +117,7 @@ export function SignUpForm() {
         address: String(fd.get("address") ?? ""),
         myKad: String(fd.get("myKad") ?? ""),
         citizenship: String(fd.get("citizenship") ?? "MY"),
-        dob: String(fd.get("dob") ?? "") || undefined,
+        dob: ageCheck.dob ?? undefined,
         password: String(fd.get("password") ?? ""),
         acceptPolicy: fd.get("acceptPolicy") === "on",
         acceptPdpa: fd.get("acceptPdpa") === "on",
@@ -84,13 +147,16 @@ export function SignUpForm() {
     <main
       className={cn(
         newsreader.variable,
-        "relative flex min-h-dvh flex-col overflow-hidden",
+        "relative flex min-h-dvh flex-col overflow-x-hidden",
       )}
     >
       <MarketingBackground />
 
-      <header className="relative z-10 flex h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
-        <Link href="/" className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight">
+      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight"
+        >
           <BrandLogo size={32} className="h-8 w-8 shrink-0" priority />
           TiangPass
         </Link>
@@ -105,35 +171,37 @@ export function SignUpForm() {
         </div>
       </header>
 
-      <div className="relative z-10 flex flex-1 items-center px-4 py-8 sm:px-6 lg:px-10">
-        <div className="mx-auto grid w-full max-w-5xl items-start gap-8 lg:grid-cols-2 lg:gap-14">
-          <FishingScene className="max-w-[220px] lg:hidden" />
-          <div className="hidden space-y-4 pt-4 lg:block">
+      <div className="relative z-10 flex flex-1 items-start px-4 py-6 sm:px-6 sm:py-8 lg:items-center lg:px-10 lg:py-10">
+        <div className="mx-auto grid w-full max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)] lg:gap-12 xl:gap-16">
+          <FishingScene className="mx-auto max-w-[200px] lg:hidden" />
+          <div className="hidden space-y-5 lg:sticky lg:top-8 lg:block lg:self-start">
             <div className="flex items-center gap-3">
-              <BrandLogo size={64} className="h-16 w-16" />
+              <BrandLogo size={64} className="h-16 w-16 shrink-0" />
               <p className="font-[family-name:var(--font-display-landing)] text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
                 TiangPass
               </p>
             </div>
-            <p className="max-w-sm text-muted-foreground">
+            <p className="max-w-md text-base leading-relaxed text-muted-foreground">
               Register as a Malaysian angler (14+) to buy a same-day Association
-              fishing pass under authorised bridge pillars.
+              fishing pass under authorised bridge pillars. Age is checked from
+              MyKad (or DOB).
             </p>
             <FishingScene className="max-w-md" />
           </div>
 
-          <div className="w-full rounded-xl border border-border/80 bg-background/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
-            <div className="mb-6 space-y-1">
+          <div className="w-full rounded-xl border border-border/80 bg-background/90 p-5 shadow-sm backdrop-blur-sm sm:p-7 lg:p-8">
+            <div className="mb-6 space-y-1.5">
               <h1 className="text-2xl font-semibold tracking-tight">
                 Angler sign up
               </h1>
-              <p className="text-sm text-muted-foreground">
-                Malaysian citizens aged 14 and above. MyDigitalID optional later.
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Malaysian citizens aged {MIN_AGE}+ only. Under-{MIN_AGE}{" "}
+                registration is blocked (SRS). MyDigitalID optional later.
               </p>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={onSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                 <Field id="name" label="Full name" required />
                 <Field id="email" label="Email" type="email" required />
                 <Field id="phone" label="Mobile" type="tel" required />
@@ -148,12 +216,21 @@ export function SignUpForm() {
                   type="tel"
                   required
                 />
-                <Field
-                  id="myKad"
-                  label="MyKad (12 digits)"
-                  required
-                  autoComplete="off"
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="myKad">MyKad (12 digits)</Label>
+                  <Input
+                    id="myKad"
+                    name="myKad"
+                    required
+                    autoComplete="off"
+                    inputMode="numeric"
+                    maxLength={14}
+                    value={myKad}
+                    onChange={(e) => setMyKad(e.target.value)}
+                    className="min-h-11"
+                    placeholder="YYMMDD######"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="citizenship">Citizenship</Label>
                   <select
@@ -167,34 +244,76 @@ export function SignUpForm() {
                     <option value="OTHER">Non-Malaysian (not allowed)</option>
                   </select>
                 </div>
-                <Field
-                  id="dob"
-                  label="Date of birth (optional if MyKad valid)"
-                  type="date"
-                />
-                <Field
-                  id="password"
-                  label="Password"
-                  type="password"
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <textarea
-                  id="address"
-                  name="address"
-                  required
-                  rows={2}
-                  className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="dob">
+                    Date of birth
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      (if MyKad year unclear)
+                    </span>
+                  </Label>
+                  <Input
+                    id="dob"
+                    name="dob"
+                    type="date"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    className="min-h-11"
+                    max={todayMYT()}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    minLength={8}
+                    className="min-h-11"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    At least 8 characters.
+                  </p>
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="address">Address</Label>
+                  <textarea
+                    id="address"
+                    name="address"
+                    required
+                    rows={3}
+                    className="flex min-h-[5.5rem] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-3 rounded-lg border border-border/70 p-3">
+              {ageCheck.status === "blocked" ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Under age</AlertTitle>
+                  <AlertDescription>
+                    Anglers must be at least {MIN_AGE} years old (SRS). Based on{" "}
+                    {dob.trim() ? "date of birth" : "MyKad"}, age is{" "}
+                    {ageCheck.age}. Registration cannot continue.
+                  </AlertDescription>
+                </Alert>
+              ) : ageCheck.status === "ok" ? (
+                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+                  Age check passed: {ageCheck.age} years old (minimum {MIN_AGE}
+                  ).
+                </p>
+              ) : myKad.trim().length > 0 ? (
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Enter a valid 12-digit MyKad or DOB so we can verify you are{" "}
+                  {MIN_AGE}+.
+                </p>
+              ) : null}
+
+              <div className="space-y-3 rounded-lg border border-border/70 p-4">
                 <Label>Identity photo (required)</Label>
-                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                  <div className="size-20 overflow-hidden rounded-full border border-border bg-muted">
+                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                  <div className="size-24 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
                     {photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -208,7 +327,7 @@ export function SignUpForm() {
                       </div>
                     )}
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <Button
                       type="button"
                       variant="outline"
@@ -217,7 +336,7 @@ export function SignUpForm() {
                     >
                       {photo ? "Retake photo" : "Open camera"}
                     </Button>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="max-w-sm text-xs text-muted-foreground">
                       Align your face in the oval and snap. File upload is not
                       allowed.
                     </p>
@@ -225,56 +344,58 @@ export function SignUpForm() {
                 </div>
               </div>
 
-              <label className="flex min-h-11 items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="acceptPolicy"
-                  className="mt-1 size-4 accent-[var(--primary)]"
-                  required
-                />
-                <span>
-                  I agree to the{" "}
-                  <Link
-                    href="/policy"
-                    className="text-primary underline-offset-4 hover:underline"
-                    target="_blank"
-                  >
-                    Privacy Policy
-                  </Link>
-                  .
-                </span>
-              </label>
-              <label className="flex min-h-11 items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="acceptPdpa"
-                  className="mt-1 size-4 accent-[var(--primary)]"
-                  required
-                />
-                <span>
-                  I consent to PDPA processing of my identity data (
-                  <Link
-                    href="/consent"
-                    className="text-primary underline-offset-4 hover:underline"
-                    target="_blank"
-                  >
-                    notice
-                  </Link>
-                  ).
-                </span>
-              </label>
-              <label className="flex min-h-11 items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="acceptLocation"
-                  className="mt-1 size-4 accent-[var(--primary)]"
-                  required
-                />
-                <span>
-                  I consent to location capture to verify I am at the jetty when
-                  buying a pass and during boarding.
-                </span>
-              </label>
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 text-sm leading-snug">
+                  <input
+                    type="checkbox"
+                    name="acceptPolicy"
+                    className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+                    required
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <Link
+                      href="/policy"
+                      className="text-primary underline-offset-4 hover:underline"
+                      target="_blank"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 text-sm leading-snug">
+                  <input
+                    type="checkbox"
+                    name="acceptPdpa"
+                    className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+                    required
+                  />
+                  <span>
+                    I consent to PDPA processing of my identity data (
+                    <Link
+                      href="/consent"
+                      className="text-primary underline-offset-4 hover:underline"
+                      target="_blank"
+                    >
+                      notice
+                    </Link>
+                    ).
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 text-sm leading-snug">
+                  <input
+                    type="checkbox"
+                    name="acceptLocation"
+                    className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+                    required
+                  />
+                  <span>
+                    I consent to location capture to verify I am at the jetty
+                    when buying a pass and during boarding.
+                  </span>
+                </label>
+              </div>
 
               {error ? (
                 <Alert variant="destructive">
@@ -286,19 +407,19 @@ export function SignUpForm() {
               <Button
                 type="submit"
                 className="min-h-11 w-full"
-                disabled={pending}
+                disabled={pending || ageCheck.status === "blocked"}
               >
                 {pending ? "Creating…" : "Create account"}
               </Button>
             </form>
 
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="mt-5 text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link
                 href="/login"
                 className="text-primary underline-offset-4 hover:underline"
               >
-                Sign in
+                {t("auth.loginLink")}
               </Link>
             </p>
           </div>
