@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Desktop signup + SRS age gate (2026-09-22):** Signup card spacing/alignment tightened (balanced two-column grid, full-width password + address, scrollable form). Live age from MyKad YYMMDD or DOB; `MIN_AGE=14` blocks submit with clear alert when under 14 (client + existing server `validateAnglerIdentity`). LocaleSwitcher on login/signup.
+
 **Responsive + full EN/BM (2026-09-22):** Viewport polish at 375/768/1024/1440 (tables stay tables: sticky first column, single overflow, KPI stacks, pillar carousel 6 bars on `<sm`). Full EN/BM UI via expanded `en.json`/`ms.json`, `LocaleProvider`/`useT`, wired nav + scan + key surfaces. Status badges translate known enums.
 
 **Offline CI/CO phased (2026-09-22):** Flaky + true offline boarding for operators/admin/anglers. `scan_events.client_event_id` (migration `0008`) makes scan retries idempotent. Scanner IndexedDB queue + timeout flush; **Refresh offline pack** pulls today’s Active/Checked-In passes (photos inlined) for zero-signal CI/CO; sync marks `conflict_flag` for Admin at `/admin/sync-conflicts`. Anglers cache pass+QR via `PassWalletCache`; SW v5 warm-cache + `/pass/[id]/offline`. No offline purchase.
