@@ -27,6 +27,25 @@ async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   try {
+    // ICU/glibc image swaps on Postgres leave a stale collation version recorded.
+    try {
+      const dbName = (await sql`select current_database() as name`)[0]?.name;
+      if (dbName) {
+        await sql.unsafe(
+          `ALTER DATABASE "${String(dbName).replace(/"/g, '""')}" REFRESH COLLATION VERSION`,
+        );
+        console.log("Refreshed collation version for", dbName);
+      }
+    } catch (collationErr) {
+      console.warn(
+        "Collation refresh skipped:",
+        collationErr instanceof Error ? collationErr.message : collationErr,
+      );
+    }
+
+    // Ensure search_path cannot shadow public.users (would explain SELECT-ok + FK-fail).
+    await sql`select set_config('search_path', 'public', false)`;
+
     const sessionCols = await sql`
       select column_name, data_type, is_nullable, column_default
       from information_schema.columns
@@ -43,21 +62,76 @@ async function main() {
         .join(" | "),
     );
 
-    // Wipe prior demo admin sessions, then upsert a stable admin id.
+    const userRel = await sql`
+      select c.relkind, n.nspname
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where c.relname = 'users'
+      order by n.nspname
+    `;
+    console.log(
+      "relations named users:",
+      userRel.map((r) => `${r.nspname}.${r.relkind}`).join(", ") || "(none)",
+    );
+
+    // Drop orphan sessions first, then rebuild FK against public.users.
     await sql`
-      delete from sessions
-      where user_id in (
-        select id from users where lower(email) = ${ADMIN_EMAIL}
+      delete from public.sessions s
+      where not exists (
+        select 1 from public.users u where u.id = s.user_id
       )
     `;
+    await sql.unsafe(`
+      alter table public.sessions
+        drop constraint if exists sessions_user_id_users_id_fk
+    `);
+    await sql.unsafe(`
+      alter table public.sessions
+        add constraint sessions_user_id_users_id_fk
+        foreign key (user_id) references public.users(id)
+        on delete cascade
+    `);
+    console.log("Recreated sessions_user_id_users_id_fk → public.users(id)");
 
-    const existingAdmins = await sql`
-      select id from users where lower(email) = ${ADMIN_EMAIL}
+    // Nuclear demo-admin rebuild so login never references a ghost id.
+    const oldAdminIds = await sql<{ id: string }[]>`
+      select id from public.users where lower(email) = ${ADMIN_EMAIL}
     `;
+    for (const row of oldAdminIds) {
+      await sql`delete from public.sessions where user_id = ${row.id}`;
+    }
 
-    if (existingAdmins.length === 0) {
+    // Clear optional FKs that may block user delete (best-effort).
+    for (const row of oldAdminIds) {
+      try {
+        await sql`update public.audit_logs set actor_id = null where actor_id = ${row.id}`;
+      } catch {
+        /* column may not exist on older DBs */
+      }
+      try {
+        await sql`update public.account_blocks set created_by = null where created_by = ${row.id}`;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    try {
+      await sql`delete from public.users where lower(email) = ${ADMIN_EMAIL}`;
+      await sql`delete from public.sessions where user_id = ${ADMIN_ID}`;
+      await sql`delete from public.users where id = ${ADMIN_ID}`;
+    } catch (delErr) {
+      console.warn(
+        "Could not fully delete old admin (FK in use); will upsert instead:",
+        delErr instanceof Error ? delErr.message : delErr,
+      );
+    }
+
+    const stillThere = await sql`
+      select id from public.users where id = ${ADMIN_ID} or lower(email) = ${ADMIN_EMAIL}
+    `;
+    if (stillThere.length === 0) {
       await sql`
-        insert into users (
+        insert into public.users (
           id, name, email, password_hash, role, phone, citizenship, account_status
         ) values (
           ${ADMIN_ID},
@@ -70,46 +144,52 @@ async function main() {
           'ACTIVE'
         )
       `;
-      console.log("Created demo admin", ADMIN_ID);
+      console.log("Recreated demo admin", ADMIN_ID);
     } else {
       await sql`
-        update users
+        update public.users
         set
           email = ${ADMIN_EMAIL},
           password_hash = ${passwordHash},
           role = 'ADMIN',
           account_status = 'ACTIVE',
           name = coalesce(nullif(name, ''), 'Amina Admin')
-        where lower(email) = ${ADMIN_EMAIL}
+        where id = ${stillThere[0]!.id}
       `;
-      console.log("Reset demo admin password + role for", existingAdmins[0]!.id);
+      console.log("Upserted demo admin in place", stillThere[0]!.id);
     }
 
-    const admin = (
+    const adminRow = (
       await sql<{ id: string }[]>`
-        select id from users where lower(email) = ${ADMIN_EMAIL} limit 1
+        select id from public.users where lower(email) = ${ADMIN_EMAIL} limit 1
       `
     )[0];
-    if (!admin?.id) {
+    if (!adminRow?.id) {
       throw new Error("Admin row missing after upsert");
     }
 
-    // Prove sessions insert works for this admin (root cause of live login failure).
-    const probeToken = `probe_${crypto.randomUUID().replace(/-/g, "")}`;
-    try {
-      await sql`
-        insert into sessions (session_token, user_id, expires)
-        values (${probeToken}, ${admin.id}, ${new Date(Date.now() + 60_000)})
-      `;
-      await sql`delete from sessions where session_token = ${probeToken}`;
-      console.log("Admin session insert probe OK for", admin.id);
-    } catch (probeErr) {
-      console.error("Admin session insert probe FAILED", probeErr);
-      throw probeErr;
+    const verify = await sql`
+      select id from public.users where id = ${adminRow.id} limit 1
+    `;
+    if (verify.length === 0) {
+      throw new Error(
+        `Admin id ${adminRow.id} selected by email but missing by primary key`,
+      );
     }
 
+    const probeToken = `probe_${crypto.randomUUID().replace(/-/g, "")}`;
+    await sql`
+      insert into public.sessions (session_token, user_id, expires)
+      values (${probeToken}, ${adminRow.id}, ${new Date(Date.now() + 60_000)})
+    `;
+    await sql`delete from public.sessions where session_token = ${probeToken}`;
+    console.log("Admin session insert probe OK for", adminRow.id);
+
     const jetties = await sql`
-      select id, name from jetties where active = true order by sort_order asc, name asc
+      select id, name
+      from public.jetties
+      where active = true
+      order by sort_order asc, name asc
     `;
     if (jetties.length === 0) {
       console.warn("No active jetties — cannot link operators");
@@ -118,7 +198,7 @@ async function main() {
 
     const handlerUsers = await sql`
       select id, name, email
-      from users
+      from public.users
       where role = 'HANDLER'
       order by email asc
     `;
@@ -127,7 +207,7 @@ async function main() {
     for (let i = 0; i < handlerUsers.length; i++) {
       const u = handlerUsers[i]!;
       const existing = await sql`
-        select id from handlers where user_id = ${u.id} limit 1
+        select id from public.handlers where user_id = ${u.id} limit 1
       `;
       if (existing.length > 0) continue;
 
@@ -138,8 +218,9 @@ async function main() {
           ? u.name.trim()
           : String(u.email);
       await sql`
-        insert into handlers (id, user_id, jetty_id, display_name, license_no, mock_earnings_cents)
-        values (
+        insert into public.handlers (
+          id, user_id, jetty_id, display_name, license_no, mock_earnings_cents
+        ) values (
           ${handlerId},
           ${u.id},
           ${jetty.id},
@@ -153,7 +234,7 @@ async function main() {
     }
 
     await sql`
-      update users
+      update public.users
       set password_hash = ${passwordHash}, account_status = 'ACTIVE'
       where lower(email) in (
         'handler@tiangpass.local',
@@ -164,7 +245,7 @@ async function main() {
     `;
 
     console.log(
-      `ensure-demo-ops done · admin=${admin.id} · handlers linked: ${linked} · handler users: ${handlerUsers.length}`,
+      `ensure-demo-ops done · admin=${adminRow.id} · handlers linked: ${linked} · handler users: ${handlerUsers.length}`,
     );
   } finally {
     await sql.end({ timeout: 2 });

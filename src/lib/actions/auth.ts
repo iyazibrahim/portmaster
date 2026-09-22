@@ -70,7 +70,7 @@ export async function loginWithCredentials(
     }
 
     step = "lookup";
-    // Case-insensitive match — production emails may differ in casing.
+    // Always hit public.users — a shadowed users view/table caused SELECT-ok + FK-fail.
     const found = await pg<
       {
         id: string;
@@ -80,13 +80,25 @@ export async function loginWithCredentials(
       }[]
     >`
       select id, password_hash, role::text as role, account_status::text as account_status
-      from users
+      from public.users
       where lower(email) = ${normalized}
       limit 1
     `;
     const row = found[0];
     if (!row?.id) {
       return { ok: false, error: "Invalid email or password." };
+    }
+
+    // Confirm PK exists in the same table the FK references (guards ghost rows).
+    const alive = await pg<{ id: string }[]>`
+      select id from public.users where id = ${row.id} limit 1
+    `;
+    if (!alive[0]?.id) {
+      return {
+        ok: false,
+        error:
+          "Account row is inconsistent in the database. Redeploy so boot can repair demo admin.",
+      };
     }
 
     if (row.account_status === "BLACKLISTED") {
@@ -116,11 +128,10 @@ export async function loginWithCredentials(
     const sessionToken = randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + SESSION_MAX_AGE_SEC * 1000);
 
-    // Raw SQL avoids Drizzle/Date edge cases. One active session per login is enough.
-    await pg`delete from sessions where user_id = ${row.id}`;
+    await pg`delete from public.sessions where user_id = ${row.id}`;
     try {
       await pg`
-        insert into sessions (session_token, user_id, expires)
+        insert into public.sessions (session_token, user_id, expires)
         values (${sessionToken}, ${row.id}, ${expires})
       `;
     } catch (sessionErr) {

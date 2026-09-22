@@ -93,7 +93,7 @@ Password: `password123`
 
 Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because only additive `0004`–`0007` ran. Boot now applies baseline `0000` + jetties `0002` first. Redeploy the new image; restarting the old one will keep failing.
 
-**Admin session insert (2026-09-22):** Live admin login failed at `insert into sessions` after password OK. Login now uses raw SQL + case-insensitive email lookup, replaces prior sessions for that user, and surfaces Postgres `code`/`detail`. Boot `ensure-demo-ops` logs `sessions` columns and probes an admin session insert before starting the app.
+**Admin ghost user / FK (2026-09-22):** Boot logs showed `sessions` FK 23503: selected admin id `usr_vOPUZFlAshyIRhZV` was not present in `users` for the FK check (stale FK OID / search_path shadow / orphan). `ensure-demo-ops` now forces `search_path=public`, refreshes collation, deletes orphan sessions, recreates `sessions_user_id_users_id_fk` → `public.users`, rebuilds demo admin, and probes session insert. Login uses `public.users` / `public.sessions` only.
 
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
