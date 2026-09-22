@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
+import { useT } from "@/i18n/locale-provider";
 
 const DEMO_LOGINS = [
   { email: "admin@tiangpass.local", label: "Admin" },
@@ -25,6 +26,7 @@ export function LoginForm() {
   const [pending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { t } = useT();
 
   function fillDemo(demoEmail: string) {
     setEmail(demoEmail);
@@ -60,7 +62,7 @@ export function LoginForm() {
           href="/signup"
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          Create account
+          {t("auth.signupLink")}
         </Link>
       </header>
 
@@ -77,23 +79,24 @@ export function LoginForm() {
               </p>
             </div>
             <p className="max-w-sm text-muted-foreground">
-              Sign in to book Penang jetty trips, manage boarding QR, or run
-              ops.
+              {t("auth.loginSub")}
             </p>
             <FishingScene className="max-w-md" />
           </div>
 
           <div className="w-full rounded-xl border border-border/80 bg-background/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
             <div className="mb-6 space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {t("auth.loginTitle")}
+              </h1>
               <p className="text-sm text-muted-foreground">
-                Anglers, boatmen, and admins.
+                {t("auth.loginSub")}
               </p>
             </div>
 
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("auth.email")}</Label>
                 <Input
                   id="email"
                   name="email"
@@ -110,7 +113,7 @@ export function LoginForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("auth.password")}</Label>
                 <Input
                   id="password"
                   name="password"
@@ -135,7 +138,7 @@ export function LoginForm() {
                 className="min-h-11 w-full"
                 disabled={pending}
               >
-                {pending ? "Signing in…" : "Sign in"}
+                {pending ? t("common.loading") : t("auth.submitLogin")}
               </Button>
             </form>
 
@@ -145,7 +148,7 @@ export function LoginForm() {
                 href="/signup"
                 className="text-primary underline-offset-4 hover:underline"
               >
-                Create an account
+                {t("auth.signupLink")}
               </Link>
             </p>
             <p className="mt-2 text-xs text-muted-foreground">

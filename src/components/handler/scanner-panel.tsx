@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/status-badge";
 import { photoUrl } from "@/lib/photos-client";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/locale-provider";
 import {
   SCAN_REQUEST_TIMEOUT_MS,
   countPendingScans,
@@ -307,6 +308,7 @@ export function ScannerPanel({
     fetchedAt: string;
     passCount: number;
   } | null>(null);
+  const { t } = useT();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -502,7 +504,7 @@ export function ScannerPanel({
         });
       }
       warmOperatorShell();
-      toast.success(`Offline pack ready (${saved.passes.length} passes)`);
+      toast.success(t("scan.packReady", { count: saved.passes.length }));
     } catch (err) {
       if (isNetworkError(err)) {
         toast.message("Could not refresh offline pack — using last download.");
@@ -662,9 +664,7 @@ export function ScannerPanel({
     manifestRef.current = await getBoardingManifest();
     await refreshPendingCount();
     toast.success(
-      result.action === "CHECK_IN"
-        ? "Checked in (queued offline)"
-        : "Checked out (queued offline)",
+      result.action === "CHECK_IN" ? t("scan.queuedIn") : t("scan.queuedOut"),
     );
     await readyForNextScan();
   }
@@ -700,10 +700,10 @@ export function ScannerPanel({
           await patchManifestPassStatus(token, res.status);
           toast.success(
             res.alreadyApplied
-              ? "Already recorded"
+              ? t("scan.alreadyRecorded")
               : res.action === "CHECK_IN"
-                ? "Checked in"
-                : "Checked out",
+                ? t("scan.checkedIn")
+                : t("scan.checkedOut"),
           );
         } else {
           toast.success(
@@ -989,15 +989,18 @@ export function ScannerPanel({
     <div className="flex flex-col gap-4">
       {(pendingCount > 0 || manifestMeta) && (
         <Alert>
-          <AlertTitle>Offline boarding</AlertTitle>
+          <AlertTitle>{t("scan.offlineTitle")}</AlertTitle>
           <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm">
               {pendingCount > 0
-                ? `${pendingCount} scan(s) waiting to sync.`
-                : "Queue clear."}{" "}
+                ? t("scan.queuePending", { count: pendingCount })
+                : t("scan.queueClear")}{" "}
               {manifestMeta
-                ? `Pack: ${manifestMeta.passCount} passes · ${new Date(manifestMeta.fetchedAt).toLocaleTimeString()}`
-                : "No offline pack yet."}
+                ? t("scan.packMeta", {
+                    count: manifestMeta.passCount,
+                    when: new Date(manifestMeta.fetchedAt).toLocaleTimeString(),
+                  })
+                : t("scan.packNone")}
             </span>
             <span className="flex flex-wrap gap-2">
               <Button
@@ -1007,7 +1010,7 @@ export function ScannerPanel({
                 disabled={pullingManifest}
                 onClick={() => void pullManifest()}
               >
-                {pullingManifest ? "Refreshing…" : "Refresh offline pack"}
+                {pullingManifest ? t("scan.refreshing") : t("scan.refreshPack")}
               </Button>
               <Button
                 type="button"
@@ -1015,7 +1018,7 @@ export function ScannerPanel({
                 disabled={syncing || pendingCount === 0}
                 onClick={() => void flushScanQueue()}
               >
-                {syncing ? "Syncing…" : "Sync now"}
+                {syncing ? t("scan.syncing") : t("scan.syncNow")}
               </Button>
             </span>
           </AlertDescription>
@@ -1024,7 +1027,7 @@ export function ScannerPanel({
 
       <Card>
         <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">
-          <CardTitle className="text-base">Scan fishing pass QR</CardTitle>
+          <CardTitle className="text-base">{t("scan.cardTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-4 sm:px-5">
           <div
@@ -1034,7 +1037,7 @@ export function ScannerPanel({
             <video
               ref={videoRef}
               className={cn(
-                "aspect-[4/3] max-h-[48vh] w-full bg-black object-cover sm:aspect-video",
+                "aspect-[4/3] max-h-[min(42vh,calc(100dvh-16rem))] w-full bg-black object-cover sm:aspect-video sm:max-h-[48vh]",
                 !cameraOn && "pointer-events-none absolute inset-0 opacity-0",
               )}
               muted
@@ -1042,28 +1045,27 @@ export function ScannerPanel({
               autoPlay
             />
             {!cameraOn ? (
-              <div className="relative z-10 flex aspect-[4/3] max-h-[48vh] w-full flex-col items-center justify-center gap-3 bg-muted px-4 sm:aspect-video">
+              <div className="relative z-10 flex aspect-[4/3] max-h-[min(42vh,calc(100dvh-16rem))] w-full flex-col items-center justify-center gap-3 bg-muted px-4 sm:aspect-video sm:max-h-[48vh]">
                 <p className="text-center text-sm text-muted-foreground">
-                  Paste a QR token below to check in without the camera, or open
-                  the camera to scan.
+                  {t("scan.cameraHint")}
                 </p>
                 <Button
                   type="button"
                   onClick={() => void startCamera({ forceNew: true })}
                 >
-                  Open camera
+                  {t("scan.openCamera")}
                 </Button>
               </div>
             ) : (
               <>
                 <p className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/55 to-transparent px-3 py-2 text-center text-xs text-white">
                   {preview
-                    ? "Camera on — confirm below, then scan the next pass"
+                    ? t("scan.cameraReady")
                     : loadingPreview
-                      ? "Reading pass…"
+                      ? t("scan.reading")
                       : scanning
-                        ? "Scanning… hold the QR inside the box"
-                        : "Starting scanner…"}
+                        ? t("scan.scanning")
+                        : t("scan.starting")}
                 </p>
                 <div className="pointer-events-none absolute inset-[4%] z-10 rounded-md border-2 border-white/80" />
                 <div className="absolute inset-x-0 bottom-0 z-10 flex justify-end bg-gradient-to-t from-black/60 to-transparent p-3">
@@ -1073,31 +1075,29 @@ export function ScannerPanel({
                     variant="secondary"
                     onClick={stopCameraHard}
                   >
-                    Stop camera
+                    {t("scan.stopCamera")}
                   </Button>
                 </div>
               </>
             )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="token">Or paste QR token</Label>
+            <Label htmlFor="token">{t("scan.pasteLabel")}</Label>
             <Input
               id="token"
               className="min-h-11 font-mono text-sm"
-              placeholder="Opaque token from angler QR"
+              placeholder={t("scan.pastePlaceholder")}
               value={token}
               onChange={(e) => setToken(e.target.value)}
             />
           </div>
           {isAdmin || !requireJettyGps ? (
             <p className="text-xs text-muted-foreground">
-              {isAdmin
-                ? "Admin scan: jetty geofence bypassed."
-                : "Testing: jetty GPS check is off in Settings."}
+              {isAdmin ? t("scan.gpsAdmin") : t("scan.gpsOff")}
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              GPS is required on Confirm. You must be at your registered jetty.
+              {t("scan.gpsRequired")}
             </p>
           )}
         </CardContent>
@@ -1105,7 +1105,7 @@ export function ScannerPanel({
 
       {error ? (
         <Alert variant="destructive">
-          <AlertTitle>Scan error</AlertTitle>
+          <AlertTitle>{t("scan.errorTitle")}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
@@ -1114,7 +1114,7 @@ export function ScannerPanel({
         <div ref={verifyRef} className="scroll-mt-4">
           <Card>
             <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">
-              <CardTitle className="text-base">Angler verification</CardTitle>
+              <CardTitle className="text-base">{t("scan.verifyTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:px-5 sm:pb-5">
               {preview.photoDataUrl || preview.photoKey ? (
@@ -1130,45 +1130,45 @@ export function ScannerPanel({
                 />
               ) : (
                 <div className="flex size-28 items-center justify-center rounded-lg border bg-muted text-xs text-muted-foreground">
-                  No photo
+                  {t("scan.noPhoto")}
                 </div>
               )}
               <dl className="grid flex-1 gap-2 text-sm">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">Name</dt>
+                  <dt className="text-muted-foreground">{t("scan.name")}</dt>
                   <dd className="font-medium">{preview.anglerName}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">MyKad</dt>
+                  <dt className="text-muted-foreground">{t("scan.myKad")}</dt>
                   <dd className="font-mono">
                     ****{preview.myKadLast4 ?? "----"}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">Pass</dt>
+                  <dt className="text-muted-foreground">{t("scan.passRef")}</dt>
                   <dd>{preview.reference}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">Pillar</dt>
+                  <dt className="text-muted-foreground">{t("pass.pillar")}</dt>
                   <dd>{preview.pillarName}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">Jetty</dt>
+                  <dt className="text-muted-foreground">{t("pass.jetty")}</dt>
                   <dd>{preview.jettyName}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">Status</dt>
+                  <dt className="text-muted-foreground">{t("common.status")}</dt>
                   <dd>
                     <StatusBadge status={preview.status} />
                   </dd>
                 </div>
                 {preview.fromOfflineCache ? (
                   <p className="text-xs text-amber-700 dark:text-amber-400">
-                    Showing cached offline pack (may be stale until sync).
+                    {t("scan.offlineCacheHint")}
                   </p>
                 ) : null}
                 <p className="text-xs text-muted-foreground">
-                  Visually compare the person to the photo before confirming.
+                  {t("scan.compareHint")}
                 </p>
               </dl>
             </CardContent>
@@ -1180,7 +1180,7 @@ export function ScannerPanel({
                 disabled={busy}
                 onClick={scanAnother}
               >
-                Scan another
+                {t("scan.another")}
               </Button>
               <Button
                 type="button"
@@ -1189,10 +1189,10 @@ export function ScannerPanel({
                 onClick={() => void confirmScan()}
               >
                 {confirming
-                  ? "Working…"
+                  ? t("scan.working")
                   : preview.nextAction === "CHECK_OUT"
-                    ? "Confirm check-out"
-                    : "Confirm check-in"}
+                    ? t("scan.confirmOut")
+                    : t("scan.confirmIn")}
               </Button>
             </CardFooter>
           </Card>
@@ -1208,7 +1208,7 @@ export function ScannerPanel({
             void loadPreview(token);
           }}
         >
-          {loadingPreview ? "Loading…" : "Preview pass"}
+          {loadingPreview ? t("common.loading") : t("scan.preview")}
         </Button>
       ) : null}
     </div>

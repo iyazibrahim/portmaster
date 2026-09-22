@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { PwaRegister } from "@/components/pwa-register";
 import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { LocaleProvider } from "@/i18n/locale-provider";
+import { getCatalog, getLocale } from "@/i18n";
 import "./globals.css";
 
 const geist = Geist({
@@ -58,20 +60,25 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+  const messages = getCatalog(locale);
+
   return (
     <html
-      lang="en"
+      lang={locale === "ms" ? "ms" : "en"}
       className={`${geist.variable} ${geistMono.variable} ${newsreader.variable} h-full`}
     >
       <body className="flex min-h-full flex-col font-sans">
-        {children}
-        <PwaRegister />
-        <PwaInstallBanner />
-        <CookieConsentBanner />
-        <Toaster position="top-center" />
+        <LocaleProvider locale={locale} messages={messages}>
+          {children}
+          <PwaRegister />
+          <PwaInstallBanner />
+          <CookieConsentBanner />
+          <Toaster position="top-center" />
+        </LocaleProvider>
       </body>
     </html>
   );

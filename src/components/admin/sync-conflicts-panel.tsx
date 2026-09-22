@@ -9,12 +9,14 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/locale-provider";
 
 type ConflictRow = Awaited<ReturnType<typeof actionListScanConflicts>>[number];
 
 export function SyncConflictsPanel({ conflicts }: { conflicts: ConflictRow[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const { t } = useT();
 
   function resolve(
     scanEventId: string,
@@ -26,30 +28,26 @@ export function SyncConflictsPanel({ conflicts }: { conflicts: ConflictRow[] }) 
         toast.error(res.error);
         return;
       }
-      toast.success("Conflict resolved");
+      toast.success(t("common.save"));
       router.refresh();
     });
   }
 
   if (conflicts.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No open sync conflicts. Offline scans that cannot apply cleanly appear
-        here.
-      </p>
+      <p className="text-sm text-muted-foreground">{t("admin.noConflicts")}</p>
     );
   }
 
   return (
     <div className="space-y-3">
       {conflicts.map((c) => (
-        <div
-          key={c.id}
-          className="rounded-lg border p-4 text-sm"
-        >
+        <div key={c.id} className="rounded-lg border p-4 text-sm">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p className="font-medium">{c.reference ?? c.passId ?? c.id}</p>
+            <div className="min-w-0">
+              <p className="truncate font-medium">
+                {c.reference ?? c.passId ?? c.id}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {c.type.replaceAll("_", " ")} ·{" "}
                 {new Date(c.scannedAt).toLocaleString()}
@@ -68,7 +66,7 @@ export function SyncConflictsPanel({ conflicts }: { conflicts: ConflictRow[] }) 
               disabled={pending}
               onClick={() => resolve(c.id, "keep_server")}
             >
-              Keep server status
+              {t("admin.keepServer")}
             </Button>
             <Button
               type="button"
@@ -77,7 +75,7 @@ export function SyncConflictsPanel({ conflicts }: { conflicts: ConflictRow[] }) 
               disabled={pending}
               onClick={() => resolve(c.id, "force_check_in")}
             >
-              Force checked-in
+              {t("admin.forceIn")}
             </Button>
             <Button
               type="button"
@@ -85,7 +83,7 @@ export function SyncConflictsPanel({ conflicts }: { conflicts: ConflictRow[] }) 
               disabled={pending}
               onClick={() => resolve(c.id, "force_check_out")}
             >
-              Force checked-out
+              {t("admin.forceOut")}
             </Button>
           </div>
         </div>

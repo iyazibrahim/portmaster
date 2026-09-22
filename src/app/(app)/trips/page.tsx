@@ -7,14 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
+import { getTranslator } from "@/i18n";
 
 export default async function TripsPage() {
   const session = await requireSession();
+  const { t } = await getTranslator();
   if (session.user.role === "HANDLER") {
     return (
-      <p className="text-sm text-muted-foreground">
-        Operators use the Scan screen.
-      </p>
+      <p className="text-sm text-muted-foreground">{t("scan.subtitle")}</p>
     );
   }
 
@@ -37,7 +37,9 @@ export default async function TripsPage() {
     <div className="mx-auto w-full max-w-lg space-y-6 lg:max-w-xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My passes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("trips.title")}
+          </h1>
           <p className="text-sm text-muted-foreground">
             Same-day Association fishing passes.
           </p>

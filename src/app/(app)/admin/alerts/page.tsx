@@ -4,10 +4,12 @@ import { alerts, incidents } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { refreshOpsAlerts } from "@/lib/ops-alerts";
 import { AlertsIncidentsPanel } from "@/components/admin/alerts-incidents-panel";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminAlertsPage() {
   await requireRole(["ADMIN"]);
   await refreshOpsAlerts();
+  const { t } = await getTranslator();
 
   const alertRows = await db
     .select()
@@ -24,12 +26,9 @@ export default async function AdminAlertsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Alerts &amp; Incidents
+          {t("admin.alertsTitle")}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Alerts are auto-generated from overdue check-ins, boat permit expiry,
-          and failed payments. Incidents are logged by ops.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("admin.alertsSub")}</p>
       </div>
       <AlertsIncidentsPanel
         alerts={alertRows.map((a) => ({

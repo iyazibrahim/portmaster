@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
+import { useT } from "@/i18n/locale-provider";
 
 const DISMISS_KEY = "tiangpass_pwa_dismiss";
 
@@ -55,6 +56,7 @@ function getDismissed() {
 /** Soft, dismissible install prompt for mobile anglers. */
 export function PwaInstallBanner() {
   const isClient = useIsClient();
+  const { t } = useT();
   const dismissed = useSyncExternalStore(
     subscribeDismiss,
     getDismissed,
@@ -102,7 +104,7 @@ export function PwaInstallBanner() {
         <div className="flex min-w-0 items-start gap-3">
           <BrandLogo size={40} className="mt-0.5 h-10 w-10 shrink-0" />
           <div className="min-w-0 space-y-0.5">
-            <p className="text-sm font-medium">Install TiangPass</p>
+            <p className="text-sm font-medium">{t("pwa.install")}</p>
             <p className="text-xs text-muted-foreground">
               {iosHint
                 ? "On iPhone: Share → Add to Home Screen for quicker boarding."
@@ -118,7 +120,7 @@ export function PwaInstallBanner() {
             className="min-h-10"
             onClick={dismiss}
           >
-            Not now
+            {t("pwa.dismiss")}
           </Button>
           {deferred ? (
             <Button
@@ -127,7 +129,7 @@ export function PwaInstallBanner() {
               className="min-h-10"
               onClick={() => void install()}
             >
-              Install
+              {t("pwa.install")}
             </Button>
           ) : iosHint ? (
             <Button

@@ -19,7 +19,7 @@ export default async function AppLayout({
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
         <MobileTopBar locale={locale} />
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 sm:px-6 lg:px-8 lg:py-7">
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:py-7 lg:pb-7">
           {children}
         </main>
         <MobileBottomNav role={session.user.role} locale={locale} />

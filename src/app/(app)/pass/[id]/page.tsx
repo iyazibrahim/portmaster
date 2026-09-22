@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DownloadReceiptButton } from "@/components/pass/download-receipt-button";
 import { PassWalletCache } from "@/components/pass/pass-wallet-cache";
+import { getTranslator } from "@/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function PassDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await requireSession();
+  const { t } = await getTranslator();
   const { id } = await params;
 
   const [pass] = await db
@@ -31,11 +33,10 @@ export default async function PassDetailPage({
   if (!pass || pass.userId !== session.user.id) {
     return (
       <div className="mx-auto w-full max-w-lg space-y-4 lg:max-w-xl">
-        <h1 className="text-2xl font-semibold tracking-tight">Pass not found</h1>
-        <p className="text-sm text-muted-foreground">
-          This pass is missing or belongs to another account. Open My Passes
-          to view tickets on this login.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("pass.notFound")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("pass.notFoundHint")}</p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link
             href="/trips"
@@ -84,7 +85,9 @@ export default async function PassDetailPage({
   return (
     <div className="mx-auto w-full max-w-lg space-y-6 lg:max-w-xl">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Fishing pass</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("pass.detailTitle")}
+        </h1>
         <p className="text-sm text-muted-foreground">{pass.reference}</p>
       </div>
 

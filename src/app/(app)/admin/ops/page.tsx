@@ -27,10 +27,12 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { PillarBarsCarousel } from "@/components/admin/pillar-bars-carousel";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminOpsPage() {
   await requireRole(["ADMIN"]);
   const m = await getDashboardMetrics();
+  const { t } = await getTranslator();
 
   const kpis = [
     {
@@ -95,10 +97,10 @@ export default async function AdminOpsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Live overview of Jambatan Pulau Pinang fishing operations.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("admin.opsTitle")}
+          </h1>
+          <p className="text-sm text-muted-foreground">{t("admin.opsSub")}</p>
         </div>
         <p className="text-xs text-muted-foreground">
           {new Date(m.now).toLocaleString("en-MY", {
@@ -107,7 +109,7 @@ export default async function AdminOpsPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => {
           const Icon = k.icon;
           return (

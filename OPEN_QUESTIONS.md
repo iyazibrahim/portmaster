@@ -21,7 +21,7 @@ Aligned to the 21 Sep PRD pack with product decisions locked in workshop (2026-0
 | Payment | **Mock UI + `PaymentProvider`** so any gateway can drop in later. |
 | Identity | **Form signup now.** MyDigital ID later. |
 | Blacklist | Admin can suspend / blacklist / reactivate + reason. Blocked cannot buy. |
-| Language | **Real BM / EN switch.** |
+| Language | **Full EN / BM UI** via `tiangpass_locale` catalogs + LocaleProvider (nav, scan, admin chrome, statuses). DB entity names untranslated. |
 | LLM | View-only dashboards with real sub-pages. |
 | Reports | Pass-based Excel/CSV. PDF later. |
 | Receipts | On-screen + **downloadable**. No email yet. |

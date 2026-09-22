@@ -7,6 +7,7 @@ import {
   PaginationBar,
   useClientPagination,
 } from "@/hooks/use-client-pagination";
+import { useT } from "@/i18n/locale-provider";
 
 export const ADMIN_PAGE_SIZE = 15;
 export const ADMIN_CONTROL =
@@ -28,30 +29,34 @@ type AdminDataTableProps<T> = {
 
 /**
  * Shared admin list shell: min-h-11 toolbar, 15/page, compact table slot.
+ * Horizontal scroll lives on nested Table — avoid a second scroll wrapper.
  */
 export function AdminDataTable<T>({
   items,
   search,
   onSearchChange,
-  searchPlaceholder = "Search…",
+  searchPlaceholder,
   pageSize = ADMIN_PAGE_SIZE,
   filters,
   actions,
-  emptyMessage = "No rows match.",
+  emptyMessage,
   children,
   className,
 }: AdminDataTableProps<T>) {
+  const { t } = useT();
   const pager = useClientPagination(items, pageSize);
+  const placeholder = searchPlaceholder ?? `${t("common.search")}…`;
+  const empty = emptyMessage ?? t("common.noRows");
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="flex min-w-[12rem] flex-1 flex-col gap-1.5 sm:max-w-xs">
-            <Label>Search</Label>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[12rem] sm:max-w-xs">
+            <Label>{t("admin.search")}</Label>
             <Input
               className={ADMIN_CONTROL}
-              placeholder={searchPlaceholder}
+              placeholder={placeholder}
               value={search}
               onChange={(e) => {
                 onSearchChange(e.target.value);
@@ -66,10 +71,10 @@ export function AdminDataTable<T>({
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
+      <div className="rounded-lg ring-1 ring-foreground/10">
         {items.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {emptyMessage}
+            {empty}
           </p>
         ) : (
           children(pager.pageItems)

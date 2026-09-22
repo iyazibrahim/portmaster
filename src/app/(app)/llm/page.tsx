@@ -16,10 +16,12 @@ import {
 } from "@/components/ui/table";
 import { Eye } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
+import { getTranslator } from "@/i18n";
 
 export default async function LlmDashboardPage() {
   await requireRole(["LLM_VIEWER", "ADMIN"]);
   const m = await getDashboardMetrics();
+  const { t } = await getTranslator();
   const occupancyPct =
     m.totalSlots > 0
       ? Math.round((m.currentCheckedIn / m.totalSlots) * 100)
@@ -31,11 +33,11 @@ export default async function LlmDashboardPage() {
         <div>
           <div className="mb-1 flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">
-              LLM Dashboard (View Only)
+              {t("llm.title")}
             </h1>
             <Badge variant="secondary" className="gap-1">
               <Eye className="size-3" />
-              View only
+              {t("common.viewOnly")}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">

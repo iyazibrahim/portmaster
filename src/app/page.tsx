@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
+import { getTranslator } from "@/i18n";
+import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 
 const newsreader = Newsreader({
   subsets: ["latin"],
@@ -24,6 +26,8 @@ export default async function HomePage() {
     redirect("/pass");
   }
 
+  const { t, locale } = await getTranslator();
+
   return (
     <main
       className={cn(
@@ -40,18 +44,19 @@ export default async function HomePage() {
             TiangPass
           </span>
         </Link>
-        <nav className="flex items-center gap-5 text-sm">
+        <nav className="flex items-center gap-3 text-sm sm:gap-5">
+          <LocaleSwitcher locale={locale} />
           <Link
             href="/policy"
             className="text-muted-foreground hover:text-foreground"
           >
-            Policy
+            {t("home.policy")}
           </Link>
           <Link
             href="/login"
             className="font-medium text-foreground hover:text-primary"
           >
-            Sign in
+            {t("common.signIn")}
           </Link>
         </nav>
       </header>
@@ -65,19 +70,16 @@ export default async function HomePage() {
                 className="h-20 w-20 sm:h-24 sm:w-24"
                 priority
               />
-              <p
-                className="font-[family-name:var(--font-display-landing)] text-5xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)] sm:text-6xl lg:text-7xl"
-              >
+              <p className="font-[family-name:var(--font-display-landing)] text-5xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)] sm:text-6xl lg:text-7xl">
                 TiangPass
               </p>
             </div>
             <div className="space-y-3 animate-[fadeUp_0.7s_ease-out_0.12s_both]">
               <h1 className="max-w-lg text-xl font-medium tracking-tight text-foreground sm:text-2xl">
-                Same-day Association fishing passes under authorised pillars.
+                {t("home.headline")}
               </h1>
               <p className="max-w-md text-base text-muted-foreground sm:text-lg">
-                Pay RM5 Association fee, pick a boarding jetty and pillar, show
-                your QR at check-in. Boat fare stays with your skipper.
+                {t("home.sub")}
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row animate-[fadeUp_0.7s_ease-out_0.22s_both]">
@@ -88,7 +90,7 @@ export default async function HomePage() {
                   "min-h-11 w-full sm:w-auto sm:min-w-44",
                 )}
               >
-                Buy today&apos;s pass
+                {t("home.ctaBuy")}
               </Link>
               <Link
                 href="/login"
@@ -97,16 +99,16 @@ export default async function HomePage() {
                   "min-h-11 w-full sm:w-auto sm:min-w-44",
                 )}
               >
-                Sign in
+                {t("home.ctaSignIn")}
               </Link>
             </div>
             <p className="text-sm text-muted-foreground animate-[fadeUp_0.7s_ease-out_0.3s_both]">
-              New angler?{" "}
+              {t("auth.noAccount")}{" "}
               <Link
                 href="/signup"
                 className="text-primary underline-offset-4 hover:underline"
               >
-                Create an account
+                {t("auth.signupLink")}
               </Link>
             </p>
           </div>

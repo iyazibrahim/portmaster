@@ -1,6 +1,16 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
-import { formatEnumLabel } from "@/lib/utils-app";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/locale-provider";
+
+function formatEnumLabel(value: string) {
+  return value
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
 
 /** Fixed-width status pill so labels align in tables and lists. */
 const PILL =
@@ -54,15 +64,20 @@ export function StatusBadge({
   className,
 }: {
   status: string;
-  /** Override display text (defaults to title-cased enum). */
+  /** Override display text (defaults to i18n status.* or title-cased enum). */
   label?: string;
   className?: string;
 }) {
+  const { t } = useT();
   const key = status.toUpperCase().replace(/\s+/g, "_");
   const tone = PASS_TONES[key] ?? "bg-secondary text-secondary-foreground";
+  const translated = t(`status.${key}`);
+  const text =
+    label ??
+    (translated === `status.${key}` ? formatEnumLabel(status) : translated);
   return (
     <Badge variant="secondary" className={cn(PILL, tone, className)}>
-      {label ?? formatEnumLabel(status)}
+      {text}
     </Badge>
   );
 }
