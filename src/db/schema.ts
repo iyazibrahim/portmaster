@@ -393,21 +393,27 @@ export const bookingAccessTokens = pgTable(
   (t) => [index("access_token_idx").on(t.token)],
 );
 
-export const scanEvents = pgTable("scan_events", {
-  id: text("id").primaryKey(),
-  bookingId: text("booking_id").references(() => bookings.id, {
-    onDelete: "cascade",
-  }),
-  passId: text("pass_id").references(() => passes.id, { onDelete: "cascade" }),
-  handlerId: text("handler_id").references(() => handlers.id),
-  actorUserId: text("actor_user_id").references(() => users.id),
-  type: scanTypeEnum("type").notNull(),
-  scannedAt: timestamp("scanned_at", { mode: "date" }).notNull().defaultNow(),
-  lat: text("lat"),
-  lng: text("lng"),
-  note: text("note"),
-  conflictFlag: boolean("conflict_flag").notNull().default(false),
-});
+export const scanEvents = pgTable(
+  "scan_events",
+  {
+    id: text("id").primaryKey(),
+    bookingId: text("booking_id").references(() => bookings.id, {
+      onDelete: "cascade",
+    }),
+    passId: text("pass_id").references(() => passes.id, { onDelete: "cascade" }),
+    handlerId: text("handler_id").references(() => handlers.id),
+    actorUserId: text("actor_user_id").references(() => users.id),
+    type: scanTypeEnum("type").notNull(),
+    scannedAt: timestamp("scanned_at", { mode: "date" }).notNull().defaultNow(),
+    lat: text("lat"),
+    lng: text("lng"),
+    note: text("note"),
+    conflictFlag: boolean("conflict_flag").notNull().default(false),
+    /** Device-generated id so flaky retries / offline sync stay idempotent. */
+    clientEventId: text("client_event_id"),
+  },
+  (t) => [uniqueIndex("scan_events_client_event_id_uidx").on(t.clientEventId)],
+);
 
 export const accountBlocks = pgTable(
   "account_blocks",

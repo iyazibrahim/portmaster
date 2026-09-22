@@ -9,15 +9,30 @@ export default function OfflinePage() {
         You&apos;re offline
       </h1>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        TiangPass shell is available offline, but booking and API actions need
-        a network connection.
+        TiangPass shell works offline. Operators can board from a downloaded
+        offline pack; anglers can show a cached pass QR. Purchase and Admin
+        still need a network connection.
       </p>
-      <Link
-        href="/"
-        className="mt-6 text-sm text-primary underline-offset-4 hover:underline"
-      >
-        Try home
-      </Link>
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+        <Link
+          href="/handler/scan"
+          className="text-sm text-primary underline-offset-4 hover:underline"
+        >
+          Operator scanner
+        </Link>
+        <Link
+          href="/trips"
+          className="text-sm text-primary underline-offset-4 hover:underline"
+        >
+          My passes
+        </Link>
+        <Link
+          href="/"
+          className="text-sm text-primary underline-offset-4 hover:underline"
+        >
+          Try home
+        </Link>
+      </div>
     </main>
   );
 }

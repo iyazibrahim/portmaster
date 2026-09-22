@@ -5,6 +5,10 @@ import {
   actionPreviewPassToken,
   actionScanToken,
 } from "@/lib/actions/booking";
+import {
+  actionFetchBoardingManifest,
+  actionSyncOfflineScans,
+} from "@/lib/actions/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +24,25 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/status-badge";
 import { photoUrl } from "@/lib/photos-client";
 import { cn } from "@/lib/utils";
+import {
+  SCAN_REQUEST_TIMEOUT_MS,
+  countPendingScans,
+  enqueueScan,
+  isNetworkError,
+  listPendingScans,
+  newClientEventId,
+  updateQueuedScan,
+  withTimeout,
+} from "@/lib/offline/scan-queue";
+import {
+  findManifestPass,
+  getBoardingManifest,
+  patchManifestPassStatus,
+  saveBoardingManifest,
+  type BoardingManifest,
+} from "@/lib/offline/boarding-manifest";
+import { applyLocalScan, previewLocalPass } from "@/lib/offline/local-scan";
+import { warmOperatorShell } from "@/lib/offline/warm-cache";
 
 type Preview = {
   passId: string;
@@ -29,9 +52,11 @@ type Preview = {
   anglerName: string;
   myKadLast4: string | null;
   photoKey: string | null;
+  photoDataUrl?: string | null;
   pillarName: string;
   jettyName: string;
   nextAction: "CHECK_IN" | "CHECK_OUT" | null;
+  fromOfflineCache?: boolean;
 };
 
 type JsQrFn = (
@@ -275,6 +300,13 @@ export function ScannerPanel({
   const [scanning, setScanning] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [pullingManifest, setPullingManifest] = useState(false);
+  const [manifestMeta, setManifestMeta] = useState<{
+    fetchedAt: string;
+    passCount: number;
+  } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -291,6 +323,8 @@ export function ScannerPanel({
   const verifyRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
   const cameraGenRef = useRef(0);
+  const syncingRef = useRef(false);
+  const manifestRef = useRef<BoardingManifest | null>(null);
 
   const busy = loadingPreview || confirming;
 
@@ -422,20 +456,165 @@ export function ScannerPanel({
     return video;
   }
 
+  async function refreshPendingCount() {
+    try {
+      const n = await countPendingScans();
+      if (mountedRef.current) setPendingCount(n);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function refreshManifestMeta() {
+    try {
+      const m = await getBoardingManifest();
+      manifestRef.current = m;
+      if (!mountedRef.current) return;
+      if (m) {
+        setManifestMeta({
+          fetchedAt: m.fetchedAt,
+          passCount: m.passes.length,
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function pullManifest() {
+    if (pullingManifest) return;
+    setPullingManifest(true);
+    try {
+      const res = await withTimeout(
+        actionFetchBoardingManifest(),
+        SCAN_REQUEST_TIMEOUT_MS,
+      );
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const saved = await saveBoardingManifest(res.manifest);
+      manifestRef.current = saved;
+      if (mountedRef.current) {
+        setManifestMeta({
+          fetchedAt: saved.fetchedAt,
+          passCount: saved.passes.length,
+        });
+      }
+      warmOperatorShell();
+      toast.success(`Offline pack ready (${saved.passes.length} passes)`);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        toast.message("Could not refresh offline pack — using last download.");
+      } else {
+        toast.error(formatScanError(err));
+      }
+    } finally {
+      if (mountedRef.current) setPullingManifest(false);
+    }
+  }
+
+  async function flushScanQueue() {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    if (mountedRef.current) setSyncing(true);
+    try {
+      const pending = await listPendingScans();
+      if (pending.length === 0) {
+        await refreshPendingCount();
+        return;
+      }
+      const res = await withTimeout(
+        actionSyncOfflineScans(
+          pending.map((p) => ({
+            clientEventId: p.clientEventId,
+            token: p.token,
+            expectedAction: p.expectedAction,
+            lat: p.lat,
+            lng: p.lng,
+            scannedAt: p.createdAt,
+          })),
+        ),
+        SCAN_REQUEST_TIMEOUT_MS * 2,
+      );
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      let synced = 0;
+      let conflicts = 0;
+      for (const r of res.results) {
+        if (r.status === "synced") {
+          await updateQueuedScan(r.clientEventId, { status: "synced" });
+          synced += 1;
+        } else if (r.status === "conflict") {
+          await updateQueuedScan(r.clientEventId, {
+            status: "conflict",
+            lastError: "Conflict — admin review needed",
+          });
+          conflicts += 1;
+        } else {
+          await updateQueuedScan(r.clientEventId, {
+            status: "failed",
+            lastError: r.error ?? "Sync failed",
+          });
+        }
+      }
+      if (synced) toast.success(`Synced ${synced} queued scan(s)`);
+      if (conflicts) toast.message(`${conflicts} conflict(s) for admin review`);
+      await refreshPendingCount();
+    } catch (err) {
+      if (!isNetworkError(err)) toast.error(formatScanError(err));
+    } finally {
+      syncingRef.current = false;
+      if (mountedRef.current) setSyncing(false);
+    }
+  }
+
   async function loadPreview(raw: string) {
     setError(null);
     setLoadingPreview(true);
     try {
-      const res = await actionPreviewPassToken(raw);
-      if (!mountedRef.current) return;
-      if (!res.ok) {
+      try {
+        const res = await withTimeout(
+          actionPreviewPassToken(raw),
+          SCAN_REQUEST_TIMEOUT_MS,
+        );
+        if (!mountedRef.current) return;
+        if (res.ok) {
+          setPreview(res.preview);
+          window.setTimeout(() => scrollTo(verifyRef.current), 50);
+          return;
+        }
+        // Fall through to local manifest on not-found only if offline path available
+        const manifest =
+          manifestRef.current ?? (await getBoardingManifest());
+        const local = manifest ? findManifestPass(manifest, raw) : null;
+        if (local) {
+          setPreview({ ...previewLocalPass(local), fromOfflineCache: true });
+          window.setTimeout(() => scrollTo(verifyRef.current), 50);
+          return;
+        }
         setPreview(null);
         setError(res.error);
         resumeDecoding(600);
         return;
+      } catch (err) {
+        if (!isNetworkError(err)) throw err;
+        const manifest =
+          manifestRef.current ?? (await getBoardingManifest());
+        const local = manifest ? findManifestPass(manifest, raw) : null;
+        if (!local) {
+          setPreview(null);
+          setError(
+            "Offline and pass not in local pack. Connect once and tap Refresh offline pack.",
+          );
+          resumeDecoding(600);
+          return;
+        }
+        setPreview({ ...previewLocalPass(local), fromOfflineCache: true });
+        window.setTimeout(() => scrollTo(verifyRef.current), 50);
       }
-      setPreview(res.preview);
-      window.setTimeout(() => scrollTo(verifyRef.current), 50);
     } catch (err) {
       if (!mountedRef.current) return;
       setPreview(null);
@@ -443,6 +622,105 @@ export function ScannerPanel({
       resumeDecoding(600);
     } finally {
       if (mountedRef.current) setLoadingPreview(false);
+    }
+  }
+
+  async function confirmOffline(
+    coords: { lat?: string; lng?: string },
+    clientEventId: string,
+  ) {
+    const manifest = manifestRef.current ?? (await getBoardingManifest());
+    if (!manifest) {
+      throw new Error(
+        "No offline pack. Connect and tap Refresh offline pack, then try again.",
+      );
+    }
+    const local = findManifestPass(manifest, token);
+    if (!local) {
+      throw new Error("Pass not in offline pack.");
+    }
+    const result = applyLocalScan({
+      pass: local,
+      isAdmin,
+      requireJettyGps: manifest.requireJettyGps,
+      handlerJettyId: manifest.handlerJettyId,
+      coords,
+    });
+    if (!result.ok) throw new Error(result.error);
+
+    await enqueueScan({
+      clientEventId,
+      token: token.trim(),
+      expectedAction: result.action,
+      lat: coords.lat,
+      lng: coords.lng,
+      appliedLocally: true,
+      passId: result.preview.passId,
+      reference: result.preview.reference,
+    });
+    await patchManifestPassStatus(token, result.nextStatus);
+    manifestRef.current = await getBoardingManifest();
+    await refreshPendingCount();
+    toast.success(
+      result.action === "CHECK_IN"
+        ? "Checked in (queued offline)"
+        : "Checked out (queued offline)",
+    );
+    await readyForNextScan();
+  }
+
+  async function confirmScan() {
+    if (!token.trim() || confirming) return;
+    setError(null);
+    setConfirming(true);
+    const clientEventId = newClientEventId();
+    const expectedAction = preview?.nextAction ?? undefined;
+    try {
+      let coords: { lat?: string; lng?: string } = {};
+      if (!isAdmin && requireJettyGps) {
+        coords = await getPosition();
+      }
+
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        await confirmOffline(coords, clientEventId);
+        return;
+      }
+
+      try {
+        const res = await withTimeout(
+          actionScanToken(token, coords, clientEventId, expectedAction),
+          SCAN_REQUEST_TIMEOUT_MS,
+        );
+        if (!mountedRef.current) return;
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
+        if (res.kind === "pass") {
+          await patchManifestPassStatus(token, res.status);
+          toast.success(
+            res.alreadyApplied
+              ? "Already recorded"
+              : res.action === "CHECK_IN"
+                ? "Checked in"
+                : "Checked out",
+          );
+        } else {
+          toast.success(
+            res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
+          );
+        }
+        await readyForNextScan();
+      } catch (err) {
+        if (!isNetworkError(err)) throw err;
+        await confirmOffline(coords, clientEventId);
+      }
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setError(formatScanError(err));
+      if (preview) resumeDecoding(600);
+    } finally {
+      if (mountedRef.current) setConfirming(false);
     }
   }
 
@@ -655,40 +933,16 @@ export function ScannerPanel({
     void readyForNextScan();
   }
 
-  async function confirmScan() {
-    if (!token.trim() || confirming) return;
-    setError(null);
-    setConfirming(true);
-    try {
-      let coords: { lat?: string; lng?: string } = {};
-      if (!isAdmin && requireJettyGps) {
-        coords = await getPosition();
-      }
-      const res = await actionScanToken(token, coords);
-      if (!mountedRef.current) return;
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      if (res.kind === "pass") {
-        toast.success(res.action === "CHECK_IN" ? "Checked in" : "Checked out");
-      } else {
-        toast.success(
-          res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
-        );
-      }
-      await readyForNextScan();
-    } catch (err) {
-      if (!mountedRef.current) return;
-      setError(formatScanError(err));
-      if (preview) resumeDecoding(600);
-    } finally {
-      if (mountedRef.current) setConfirming(false);
-    }
-  }
-
   useEffect(() => {
     mountedRef.current = true;
+    warmOperatorShell();
+    // Defer IndexedDB / network bootstrap so we don't sync-setState in effect body.
+    const bootId = window.setTimeout(() => {
+      void refreshPendingCount();
+      void refreshManifestMeta();
+      void pullManifest();
+      void flushScanQueue();
+    }, 0);
 
     const existing = cameraHub.liveStream();
     let resumeId: number | undefined;
@@ -703,8 +957,15 @@ export function ScannerPanel({
       }, 0);
     }
 
+    function onOnline() {
+      void flushScanQueue();
+    }
+    window.addEventListener("online", onOnline);
+
     return () => {
       mountedRef.current = false;
+      window.clearTimeout(bootId);
+      window.removeEventListener("online", onOnline);
       if (resumeId != null) window.clearTimeout(resumeId);
       cameraGenRef.current += 1;
       detachVideo();
@@ -717,6 +978,7 @@ export function ScannerPanel({
     function onVisibility() {
       if (document.visibilityState !== "visible" || !cameraOn) return;
       void ensureLiveCamera();
+      void flushScanQueue();
     }
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
@@ -725,6 +987,41 @@ export function ScannerPanel({
 
   return (
     <div className="flex flex-col gap-4">
+      {(pendingCount > 0 || manifestMeta) && (
+        <Alert>
+          <AlertTitle>Offline boarding</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm">
+              {pendingCount > 0
+                ? `${pendingCount} scan(s) waiting to sync.`
+                : "Queue clear."}{" "}
+              {manifestMeta
+                ? `Pack: ${manifestMeta.passCount} passes · ${new Date(manifestMeta.fetchedAt).toLocaleTimeString()}`
+                : "No offline pack yet."}
+            </span>
+            <span className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pullingManifest}
+                onClick={() => void pullManifest()}
+              >
+                {pullingManifest ? "Refreshing…" : "Refresh offline pack"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={syncing || pendingCount === 0}
+                onClick={() => void flushScanQueue()}
+              >
+                {syncing ? "Syncing…" : "Sync now"}
+              </Button>
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">
           <CardTitle className="text-base">Scan fishing pass QR</CardTitle>
@@ -820,10 +1117,14 @@ export function ScannerPanel({
               <CardTitle className="text-base">Angler verification</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:px-5 sm:pb-5">
-              {preview.photoKey ? (
+              {preview.photoDataUrl || preview.photoKey ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={photoUrl(preview.photoKey) ?? undefined}
+                  src={
+                    preview.photoDataUrl ??
+                    photoUrl(preview.photoKey) ??
+                    undefined
+                  }
                   alt={preview.anglerName}
                   className="size-28 rounded-lg border object-cover"
                 />
@@ -861,6 +1162,11 @@ export function ScannerPanel({
                     <StatusBadge status={preview.status} />
                   </dd>
                 </div>
+                {preview.fromOfflineCache ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Showing cached offline pack (may be stale until sync).
+                  </p>
+                ) : null}
                 <p className="text-xs text-muted-foreground">
                   Visually compare the person to the photo before confirming.
                 </p>

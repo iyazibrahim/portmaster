@@ -114,6 +114,8 @@ export async function actionPreviewPassToken(token: string): Promise<
 export async function actionScanToken(
   token: string,
   coords?: { lat?: string; lng?: string },
+  clientEventId?: string,
+  expectedAction?: "CHECK_IN" | "CHECK_OUT",
 ): Promise<
   | {
       ok: true;
@@ -122,6 +124,8 @@ export async function actionScanToken(
       passId: string;
       reference: string;
       status: string;
+      alreadyApplied?: boolean;
+      conflict?: boolean;
     }
   | {
       ok: true;
@@ -152,6 +156,8 @@ export async function actionScanToken(
       actorRole: session.user.role,
       lat: coords?.lat,
       lng: coords?.lng,
+      clientEventId,
+      expectedAction: expectedAction ?? null,
     });
     if (passResult) {
       // Do not call revalidatePath here. Any revalidation re-renders the current
@@ -166,6 +172,8 @@ export async function actionScanToken(
         passId: passResult.passId,
         reference: passResult.reference,
         status: passResult.status,
+        alreadyApplied: passResult.alreadyApplied,
+        conflict: passResult.conflict,
       };
     }
 

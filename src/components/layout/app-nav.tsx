@@ -58,6 +58,7 @@ function navForRole(role: UserRole): NavItem[] {
       { href: "/admin/jetties", label: "Jetties", icon: Anchor },
       { href: "/admin/payments", label: "Payments", icon: Wallet },
       { href: "/admin/alerts", label: "Alerts & Incidents", icon: Bell },
+      { href: "/admin/sync-conflicts", label: "Sync Conflicts", icon: AlertTriangle },
       { href: "/admin/reports", label: "Reports", icon: FileBarChart },
       { href: "/admin/settings", label: "System Settings", icon: Settings },
       { href: "/admin/audit", label: "Audit Trail", icon: ScrollText },

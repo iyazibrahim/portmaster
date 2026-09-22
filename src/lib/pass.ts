@@ -522,16 +522,83 @@ export async function scanPassQrToken(params: {
   actorRole: "HANDLER" | "ADMIN" | string;
   lat?: string;
   lng?: string;
+  /** Idempotency key from device (flaky retry / offline sync). */
+  clientEventId?: string | null;
+  /**
+   * When syncing an offline event: expected action. If server state cannot
+   * apply it, mark conflict instead of throwing when `recordConflict` is set.
+   */
+  expectedAction?: "CHECK_IN" | "CHECK_OUT" | null;
+  /** Scanned-at from device (offline); defaults to now. */
+  scannedAt?: Date;
+  /** If true, invalid transition inserts a conflict-flagged scan_event. */
+  recordConflict?: boolean;
 }): Promise<{
   action: "CHECK_IN" | "CHECK_OUT";
   passId: string;
   reference: string;
   status: PassStatus;
   preview: ScanPreview;
+  conflict?: boolean;
+  alreadyApplied?: boolean;
 } | null> {
   await expireOvernightActivePasses();
   const raw = params.token.trim();
   if (!raw) return null;
+
+  const clientEventId = params.clientEventId?.trim() || null;
+  if (clientEventId) {
+    const [existing] = await db
+      .select()
+      .from(scanEvents)
+      .where(eq(scanEvents.clientEventId, clientEventId))
+      .limit(1);
+    if (existing?.passId) {
+      const preview = await previewPassQrToken(raw);
+      if (!preview) {
+        const [pass] = await db
+          .select()
+          .from(passes)
+          .where(eq(passes.id, existing.passId))
+          .limit(1);
+        if (!pass) return null;
+        return {
+          action: existing.type as "CHECK_IN" | "CHECK_OUT",
+          passId: pass.id,
+          reference: pass.reference,
+          status: pass.status,
+          preview: {
+            passId: pass.id,
+            reference: pass.reference,
+            status: pass.status,
+            validOn: pass.validOn,
+            anglerName: "",
+            myKadLast4: null,
+            photoKey: null,
+            pillarName: "",
+            jettyName: "",
+            nextAction:
+              pass.status === "ACTIVE"
+                ? "CHECK_IN"
+                : pass.status === "CHECKED_IN"
+                  ? "CHECK_OUT"
+                  : null,
+          },
+          alreadyApplied: true,
+          conflict: existing.conflictFlag,
+        };
+      }
+      return {
+        action: existing.type as "CHECK_IN" | "CHECK_OUT",
+        passId: preview.passId,
+        reference: preview.reference,
+        status: preview.status,
+        preview,
+        alreadyApplied: true,
+        conflict: existing.conflictFlag,
+      };
+    }
+  }
 
   const [row] = await db
     .select({
@@ -594,9 +661,44 @@ export async function scanPassQrToken(params: {
     throw new Error(`Pass is only valid for check-in on ${row.pass.validOn}.`);
   }
 
-  const now = new Date();
+  const now = params.scannedAt ?? new Date();
   const preview = await previewPassQrToken(raw);
   if (!preview) throw new Error("Pass preview failed.");
+
+  const expected = params.expectedAction ?? null;
+  if (expected) {
+    const canApply =
+      (expected === "CHECK_IN" && row.pass.status === "ACTIVE") ||
+      (expected === "CHECK_OUT" && row.pass.status === "CHECKED_IN");
+    if (!canApply) {
+      if (params.recordConflict && clientEventId) {
+        await db.insert(scanEvents).values({
+          id: id("scn"),
+          passId: row.pass.id,
+          handlerId: params.handlerId ?? null,
+          actorUserId: params.actorUserId,
+          type: expected,
+          scannedAt: now,
+          lat: params.lat,
+          lng: params.lng,
+          note: `Conflict: expected ${expected} but pass is ${row.pass.status}`,
+          conflictFlag: true,
+          clientEventId,
+        });
+        return {
+          action: expected,
+          passId: row.pass.id,
+          reference: row.pass.reference,
+          status: row.pass.status,
+          preview,
+          conflict: true,
+        };
+      }
+      throw new Error(
+        `Pass cannot apply ${expected.replaceAll("_", " ")} in status ${row.pass.status.replaceAll("_", " ")}.`,
+      );
+    }
+  }
 
   if (row.pass.status === "ACTIVE") {
     const next = nextStatusAfterCheckIn(row.pass.status);
@@ -619,6 +721,7 @@ export async function scanPassQrToken(params: {
       lat: params.lat,
       lng: params.lng,
       note: `Pass ${row.pass.reference}`,
+      clientEventId,
     });
     await writeAudit({
       actorId: params.actorUserId,
@@ -658,6 +761,7 @@ export async function scanPassQrToken(params: {
       lat: params.lat,
       lng: params.lng,
       note: `Pass ${row.pass.reference}`,
+      clientEventId,
     });
     await writeAudit({
       actorId: params.actorUserId,

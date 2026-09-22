@@ -11,6 +11,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DownloadReceiptButton } from "@/components/pass/download-receipt-button";
+import { PassWalletCache } from "@/components/pass/pass-wallet-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,17 @@ export default async function PassDetailPage({
               or Checked-In.
             </p>
           )}
+
+          <PassWalletCache
+            passId={pass.id}
+            reference={pass.reference}
+            status={pass.status}
+            validOn={pass.validOn}
+            jettyName={jetty?.name ?? "—"}
+            pillarName={pillar?.name ?? "—"}
+            qrToken={qr?.token ?? null}
+            feeCents={pass.feeCents}
+          />
 
           <dl className="grid gap-0 text-sm">
             <Row label="Jetty" value={jetty?.name ?? "—"} />
