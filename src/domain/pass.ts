@@ -5,13 +5,21 @@
 
 import {
   ASSOCIATION_FEE_CENTS,
+  DEFAULT_MAX_OVERNIGHT_NIGHTS,
   DEFAULT_RESERVATION_MINUTES,
   PILLAR_MAX_PAX,
   ageFromDob,
   normalizeMyKad,
   todayMYT,
+  addCalendarDays,
 } from "@/lib/utils-app";
 import type { LocationStatus, PassStatus } from "@/db/schema";
+
+export {
+  addCalendarDays,
+  defaultExpectedReturnOn,
+  DEFAULT_MAX_OVERNIGHT_NIGHTS,
+} from "@/lib/utils-app";
 
 /** Statuses that hold a pillar slot. */
 export const PASS_OCCUPANCY_STATUSES: PassStatus[] = [
@@ -220,4 +228,91 @@ export function shouldExpireActivePass(
 export function endOfDayMYT(dateStr: string): Date {
   // Approximate: treat as Asia/Kuala_Lumpur end of day via UTC+8 offset
   return new Date(`${dateStr}T23:59:59.999+08:00`);
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function canUpdateOvernightIntention(status: PassStatus): boolean {
+  return status === "ACTIVE" || status === "CHECKED_IN";
+}
+
+export function canSelfCheckOut(status: PassStatus): boolean {
+  return status === "CHECKED_IN";
+}
+
+export function nextStatusAfterSelfCheckOut(
+  current: PassStatus,
+): PassStatus | null {
+  return nextStatusAfterCheckOut(current);
+}
+
+export type OvernightIntentionInput = {
+  intendsOvernight: boolean;
+  expectedReturnOn: string | null | undefined;
+  validOn: string;
+  maxNights?: number;
+};
+
+export type OvernightIntentionResult =
+  | {
+      ok: true;
+      intendsOvernight: boolean;
+      expectedReturnOn: string | null;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Overnight intention is UX/ops only — does not change pass validity or fee.
+ * When intending overnight, expectedReturnOn must be after validOn and within max nights.
+ */
+export function assertCanSetOvernightIntention(
+  input: OvernightIntentionInput,
+): OvernightIntentionResult {
+  if (!DATE_RE.test(input.validOn)) {
+    return { ok: false, error: "Pass valid-on date is invalid." };
+  }
+  const maxNights = input.maxNights ?? DEFAULT_MAX_OVERNIGHT_NIGHTS;
+  if (!input.intendsOvernight) {
+    return { ok: true, intendsOvernight: false, expectedReturnOn: null };
+  }
+  const expected = input.expectedReturnOn?.trim() || "";
+  if (!DATE_RE.test(expected)) {
+    return {
+      ok: false,
+      error: "Select an expected return date for overnight stay.",
+    };
+  }
+  if (expected <= input.validOn) {
+    return {
+      ok: false,
+      error: "Expected return must be after the pass date.",
+    };
+  }
+  const latest = addCalendarDays(input.validOn, maxNights);
+  if (expected > latest) {
+    return {
+      ok: false,
+      error: `Expected return cannot be more than ${maxNights} days after the pass date.`,
+    };
+  }
+  return {
+    ok: true,
+    intendsOvernight: true,
+    expectedReturnOn: expected,
+  };
+}
+
+/** In-app reminder when past expected return (or overdue hours). */
+export function shouldRemindSelfCheckOut(input: {
+  status: PassStatus;
+  expectedReturnOn: string | null | undefined;
+  checkedInAt: Date | null | undefined;
+  overdueHours: number;
+  today?: string;
+  now?: Date;
+}): boolean {
+  if (input.status !== "CHECKED_IN") return false;
+  const today = input.today ?? todayMYT();
+  if (input.expectedReturnOn && input.expectedReturnOn < today) return true;
+  return isOverdue(input.checkedInAt, input.overdueHours, input.now);
 }

@@ -2,16 +2,25 @@ import { eq } from "drizzle-orm";
 import { QRCodeSVG } from "qrcode.react";
 import { requireSession } from "@/lib/session";
 import { db } from "@/db";
-import { jetties, locations, payments, passes } from "@/db/schema";
+import { jetties, locations, payments, passes, settings } from "@/db/schema";
 import { getActiveQrToken } from "@/lib/pass";
+import { shouldRemindSelfCheckOut } from "@/domain/pass";
 import { StatusBadge } from "@/components/status-badge";
-import { formatEnumLabel, formatMYR } from "@/lib/utils-app";
+import {
+  DEFAULT_OVERDUE_HOURS,
+  formatEnumLabel,
+  formatMYR,
+} from "@/lib/utils-app";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DownloadReceiptButton } from "@/components/pass/download-receipt-button";
 import { PassWalletCache } from "@/components/pass/pass-wallet-cache";
+import {
+  OvernightIntentionPanel,
+  SelfCheckoutPanel,
+} from "@/components/pass/self-checkout-panel";
 import { getTranslator } from "@/i18n";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +86,21 @@ export default async function PassDetailPage({
     .where(eq(payments.passId, pass.id))
     .limit(1);
 
+  const [overdueSetting] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, "overdue_hours"))
+    .limit(1);
+  const overdueHours = Number(overdueSetting?.value);
+  const remind = shouldRemindSelfCheckOut({
+    status: pass.status,
+    expectedReturnOn: pass.expectedReturnOn,
+    checkedInAt: pass.checkedInAt,
+    overdueHours: Number.isFinite(overdueHours)
+      ? overdueHours
+      : DEFAULT_OVERDUE_HOURS,
+  });
+
   const qr = await getActiveQrToken(pass.id);
   const paymentLabel = payment
     ? `${formatEnumLabel(payment.status)}${payment.mockRef ? ` · ${payment.mockRef}` : ""}`
@@ -109,9 +133,7 @@ export default async function PassDetailPage({
                 />
               </div>
               <p className="text-center text-xs text-muted-foreground">
-                Show this QR at the jetty for check-in / check-out. Valid for
-                check-in on {pass.validOn}. Checked-in stayovers can check out
-                the next day.
+                {t("pass.qrHint", { date: pass.validOn })}
               </p>
               <code className="max-w-full break-all text-center text-[10px] leading-relaxed text-muted-foreground">
                 {qr.token}
@@ -119,8 +141,7 @@ export default async function PassDetailPage({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              QR is available after successful payment while the pass is Active
-              or Checked-In.
+              {t("pass.qrAfterPay")}
             </p>
           )}
 
@@ -135,15 +156,33 @@ export default async function PassDetailPage({
             feeCents={pass.feeCents}
           />
 
+          <SelfCheckoutPanel
+            passId={pass.id}
+            status={pass.status}
+            expectedReturnOn={pass.expectedReturnOn}
+            remind={remind}
+          />
+
+          <OvernightIntentionPanel
+            passId={pass.id}
+            status={pass.status}
+            validOn={pass.validOn}
+            intendsOvernight={pass.intendsOvernight}
+            expectedReturnOn={pass.expectedReturnOn}
+          />
+
           <dl className="grid gap-0 text-sm">
-            <Row label="Jetty" value={jetty?.name ?? "—"} />
-            <Row label="Pillar" value={pillar?.name ?? "—"} />
-            <Row
-              label="Boat"
-              value="Arrange outside the app with a registered operator"
-            />
-            <Row label="Fee" value={formatMYR(pass.feeCents)} />
-            <Row label="Payment" value={paymentLabel} />
+            <Row label={t("pass.jetty")} value={jetty?.name ?? "—"} />
+            <Row label={t("pass.pillar")} value={pillar?.name ?? "—"} />
+            <Row label={t("pass.boat")} value={t("pass.boatHint")} />
+            <Row label={t("pass.fee")} value={formatMYR(pass.feeCents)} />
+            <Row label={t("pass.payment")} value={paymentLabel} />
+            {pass.intendsOvernight && pass.expectedReturnOn ? (
+              <Row
+                label={t("pass.overnight.returnDate")}
+                value={pass.expectedReturnOn}
+              />
+            ) : null}
           </dl>
 
           {payment?.status === "PAID" ? (
@@ -159,7 +198,7 @@ export default async function PassDetailPage({
           "inline-flex min-h-11 w-full sm:w-auto",
         )}
       >
-        Back to pass purchase
+        {t("pass.backBuy")}
       </Link>
     </div>
   );

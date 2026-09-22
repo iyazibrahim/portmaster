@@ -179,6 +179,8 @@ export async function getDashboardMetrics() {
       durationMin: mins,
       boatId: p.boatId,
       passId: p.id,
+      intendsOvernight: p.intendsOvernight,
+      expectedReturnOn: p.expectedReturnOn,
     });
   }
 

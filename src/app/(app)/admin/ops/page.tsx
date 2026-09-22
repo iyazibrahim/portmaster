@@ -274,13 +274,14 @@ export default async function AdminOpsPage() {
                 <TableRow>
                   <TableHead>{t("common.name")}</TableHead>
                   <TableHead>{t("admin.col.pillar")}</TableHead>
+                  <TableHead>{t("admin.col.expectedReturn")}</TableHead>
                   <TableHead>{t("admin.col.duration")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {m.overdueRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-muted-foreground">
+                    <TableCell colSpan={4} className="text-muted-foreground">
                       {t("admin.ops.noLongStays")}
                     </TableCell>
                   </TableRow>
@@ -289,6 +290,9 @@ export default async function AdminOpsPage() {
                     <TableRow key={r.passId}>
                       <TableCell>{r.name}</TableCell>
                       <TableCell>{r.pillar}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {r.expectedReturnOn ?? "—"}
+                      </TableCell>
                       <TableCell className="font-medium text-amber-800">
                         {formatDuration(r.durationMin)}
                       </TableCell>

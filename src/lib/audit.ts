@@ -31,6 +31,8 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "pass.cancel": "Pass cancelled",
   "pass.check_in": "Pass checked in",
   "pass.check_out": "Pass checked out",
+  "pass.self_check_out": "Pass self checked out (angler)",
+  "pass.overnight_intention": "Overnight stay intention updated",
   "pillar.create": "Pillar created",
   "pillar.update": "Pillar updated",
   "pillar.status": "Pillar status changed",

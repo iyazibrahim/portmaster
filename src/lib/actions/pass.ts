@@ -7,6 +7,8 @@ import {
   createPassPendingPayment,
   mockPayPassFail,
   mockPayPassSuccess,
+  selfCheckOutPass,
+  updateOvernightIntention,
 } from "@/lib/pass";
 
 export type PassActionResult =
@@ -18,6 +20,8 @@ export async function actionCreatePass(input: {
   pillarId: string;
   lat?: string;
   lng?: string;
+  intendsOvernight?: boolean;
+  expectedReturnOn?: string | null;
 }): Promise<PassActionResult> {
   const session = await requireRole(["USER", "ADMIN"]);
   try {
@@ -28,6 +32,8 @@ export async function actionCreatePass(input: {
       lat: input.lat,
       lng: input.lng,
       actorId: session.user.id,
+      intendsOvernight: input.intendsOvernight,
+      expectedReturnOn: input.expectedReturnOn,
     });
     revalidatePath("/pass");
     return {
@@ -90,6 +96,61 @@ export async function actionCancelPass(
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Could not cancel pass.",
+    };
+  }
+}
+
+export async function actionUpdateOvernightIntention(input: {
+  passId: string;
+  intendsOvernight: boolean;
+  expectedReturnOn?: string | null;
+}): Promise<PassActionResult> {
+  const session = await requireSession();
+  try {
+    const result = await updateOvernightIntention({
+      passId: input.passId,
+      userId: session.user.id,
+      intendsOvernight: input.intendsOvernight,
+      expectedReturnOn: input.expectedReturnOn,
+    });
+    revalidatePath(`/pass/${input.passId}`);
+    revalidatePath("/admin/ops");
+    revalidatePath("/llm");
+    return { ok: true, passId: result.passId };
+  } catch (e) {
+    return {
+      ok: false,
+      error:
+        e instanceof Error ? e.message : "Could not update overnight intention.",
+    };
+  }
+}
+
+export async function actionSelfCheckOut(input: {
+  passId: string;
+  lat?: string;
+  lng?: string;
+  shoreDeclarationAccepted: boolean;
+}): Promise<PassActionResult> {
+  const session = await requireSession();
+  try {
+    const result = await selfCheckOutPass({
+      passId: input.passId,
+      userId: session.user.id,
+      lat: input.lat,
+      lng: input.lng,
+      shoreDeclarationAccepted: input.shoreDeclarationAccepted,
+    });
+    revalidatePath(`/pass/${input.passId}`);
+    revalidatePath("/pass");
+    revalidatePath("/admin/ops");
+    revalidatePath("/llm");
+    revalidatePath("/handler");
+    return { ok: true, passId: result.passId };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not self check-out.",
     };
   }
 }

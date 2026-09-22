@@ -14,8 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   ASSOCIATION_FEE_CENTS,
+  addCalendarDays,
+  defaultExpectedReturnOn,
   formatMYR,
   sideLabel,
+  todayMYT,
 } from "@/lib/utils-app";
 import { haversineMeters, parseCoord } from "@/lib/geo";
 import { cn } from "@/lib/utils";
@@ -23,6 +26,7 @@ import {
   PaginationBar,
   useClientPagination,
 } from "@/hooks/use-client-pagination";
+import { useT } from "@/i18n/locale-provider";
 
 type JettyOption = {
   id: string;
@@ -117,6 +121,7 @@ export function PassWizard({
   hasIdentityPhoto?: boolean;
 }) {
   const router = useRouter();
+  const { t } = useT();
   const [step, setStep] = useState<Step>(
     todayPass?.status === "PENDING_PAYMENT" ? "pay" : "jetty",
   );
@@ -135,6 +140,11 @@ export function PassWizard({
   const [locationReady, setLocationReady] = useState(bypassGeofence);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const validOn = todayMYT();
+  const [intendsOvernight, setIntendsOvernight] = useState(false);
+  const [expectedReturnOn, setExpectedReturnOn] = useState(
+    defaultExpectedReturnOn(validOn),
+  );
 
   const rankedJetties = useMemo(() => {
     const device =
@@ -314,6 +324,8 @@ export function PassWizard({
         pillarId,
         lat: coords?.lat ?? jetty?.lat ?? undefined,
         lng: coords?.lng ?? jetty?.lng ?? undefined,
+        intendsOvernight,
+        expectedReturnOn: intendsOvernight ? expectedReturnOn : null,
       });
       if (!created.ok) {
         setError(created.error);
@@ -567,6 +579,46 @@ export function PassWizard({
                   </button>
                 );
               })}
+            </div>
+            <div className="space-y-3 rounded-lg border border-border/80 p-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-4 accent-primary"
+                  checked={intendsOvernight}
+                  onChange={(e) => {
+                    setIntendsOvernight(e.target.checked);
+                    if (e.target.checked) {
+                      setExpectedReturnOn(defaultExpectedReturnOn(validOn));
+                    }
+                  }}
+                />
+                <span>
+                  <span className="font-medium">{t("pass.wizard.overnight")}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {t("pass.wizard.overnightHint")}
+                  </span>
+                </span>
+              </label>
+              {intendsOvernight ? (
+                <div className="space-y-1.5 pl-6">
+                  <label
+                    className="text-xs font-medium text-muted-foreground"
+                    htmlFor="wizard-return-on"
+                  >
+                    {t("pass.wizard.returnDate")}
+                  </label>
+                  <input
+                    id="wizard-return-on"
+                    type="date"
+                    min={addCalendarDays(validOn, 1)}
+                    max={addCalendarDays(validOn, 3)}
+                    value={expectedReturnOn}
+                    onChange={(e) => setExpectedReturnOn(e.target.value)}
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                </div>
+              ) : null}
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_1fr]">
               <Button
