@@ -93,7 +93,7 @@ Password: `password123`
 
 Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because only additive `0004`–`0007` ran. Boot now applies baseline `0000` + jetties `0002` first. Redeploy the new image; restarting the old one will keep failing.
 
-**Demo ops repair (2026-09-22):** Boot runs `ensure-demo-ops.ts` after migrate/seed: resets `admin@` / handler / fisher passwords to `password123`, forces admin role, and creates missing `handlers` rows for every HANDLER user (linked to an active jetty). Fixes “No operator profile” when seed was skipped because users already existed.
+**Admin session insert (2026-09-22):** Live admin login failed at `insert into sessions` after password OK. Login now uses raw SQL + case-insensitive email lookup, replaces prior sessions for that user, and surfaces Postgres `code`/`detail`. Boot `ensure-demo-ops` logs `sessions` columns and probes an admin session insert before starting the app.
 
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile

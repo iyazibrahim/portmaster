@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
-import { db } from "@/db";
+import { db, pg } from "@/db";
 import { sessions, users } from "@/db/schema";
 import { signOut as authSignOut } from "@/lib/auth";
 import {
@@ -22,6 +22,32 @@ import {
 } from "@/lib/utils-app";
 
 const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
+
+function formatDbError(err: unknown): string {
+  const chunks: string[] = [];
+  let cur: unknown = err;
+  for (let depth = 0; depth < 5 && cur; depth += 1) {
+    if (cur instanceof Error) {
+      chunks.push(cur.message);
+      cur = (cur as Error & { cause?: unknown }).cause;
+      continue;
+    }
+    if (typeof cur === "object" && cur) {
+      const row = cur as {
+        code?: string;
+        detail?: string;
+        message?: string;
+        constraint_name?: string;
+      };
+      const bit = [row.code, row.constraint_name, row.detail, row.message]
+        .filter(Boolean)
+        .join(" ");
+      if (bit) chunks.push(bit);
+    }
+    break;
+  }
+  return chunks.join(" | ").replace(/\s+/g, " ").trim().slice(0, 280);
+}
 
 export type LoginResult =
   | { ok: true; redirectTo: string }
@@ -44,33 +70,37 @@ export async function loginWithCredentials(
     }
 
     step = "lookup";
-    const [user] = await db
-      .select({
-        id: users.id,
-        passwordHash: users.passwordHash,
-        role: users.role,
-        accountStatus: users.accountStatus,
-      })
-      .from(users)
-      .where(eq(users.email, normalized))
-      .limit(1);
-
-    if (!user) {
+    // Case-insensitive match — production emails may differ in casing.
+    const found = await pg<
+      {
+        id: string;
+        password_hash: string;
+        role: string;
+        account_status: string;
+      }[]
+    >`
+      select id, password_hash, role::text as role, account_status::text as account_status
+      from users
+      where lower(email) = ${normalized}
+      limit 1
+    `;
+    const row = found[0];
+    if (!row?.id) {
       return { ok: false, error: "Invalid email or password." };
     }
 
-    if (user.accountStatus === "BLACKLISTED") {
+    if (row.account_status === "BLACKLISTED") {
       return { ok: false, error: "This account has been blacklisted." };
     }
 
-    if (!user.passwordHash) {
+    if (!row.password_hash) {
       return { ok: false, error: "Invalid email or password." };
     }
 
     step = "password";
     let valid = false;
     try {
-      valid = await bcrypt.compare(password, user.passwordHash);
+      valid = await bcrypt.compare(password, row.password_hash);
     } catch (hashErr) {
       console.error("[loginWithCredentials] bcrypt", hashErr);
       return {
@@ -86,11 +116,22 @@ export async function loginWithCredentials(
     const sessionToken = randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + SESSION_MAX_AGE_SEC * 1000);
 
-    await db.insert(sessions).values({
-      sessionToken,
-      userId: user.id,
-      expires,
-    });
+    // Raw SQL avoids Drizzle/Date edge cases. One active session per login is enough.
+    await pg`delete from sessions where user_id = ${row.id}`;
+    try {
+      await pg`
+        insert into sessions (session_token, user_id, expires)
+        values (${sessionToken}, ${row.id}, ${expires})
+      `;
+    } catch (sessionErr) {
+      console.error("[loginWithCredentials:session]", {
+        userId: row.id,
+        email: normalized,
+        role: row.role,
+        err: sessionErr,
+      });
+      throw sessionErr;
+    }
 
     step = "cookie";
     const cookieStore = await cookies();
@@ -103,16 +144,12 @@ export async function loginWithCredentials(
       secure,
     });
 
-    // Return a path for the client to navigate — do not call redirect() here.
-    // redirect() throws inside startTransition and surfaces as React #441 + HTTP 500.
-    return { ok: true, redirectTo: safeInternalPath(next, user.role) };
+    return { ok: true, redirectTo: safeInternalPath(next, row.role) };
   } catch (err) {
     console.error(`[loginWithCredentials:${step}]`, err);
-    const detail =
-      err instanceof Error ? err.message.slice(0, 160) : "unknown error";
     return {
       ok: false,
-      error: `Sign in failed (${step}): ${detail}`,
+      error: `Sign in failed (${step}): ${formatDbError(err)}`,
     };
   }
 }

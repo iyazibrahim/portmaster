@@ -10,7 +10,7 @@ const globalForDb = globalThis as unknown as {
   pgClient?: ReturnType<typeof postgres>;
 };
 
-const client =
+export const pg =
   globalForDb.pgClient ??
   postgres(connectionString, {
     max: 10,
@@ -18,7 +18,7 @@ const client =
   });
 
 if (process.env.NODE_ENV !== "production") {
-  globalForDb.pgClient = client;
+  globalForDb.pgClient = pg;
 }
 
-export const db = drizzle(client, { schema });
+export const db = drizzle(pg, { schema });
