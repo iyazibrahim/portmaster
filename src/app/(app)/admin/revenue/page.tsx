@@ -3,9 +3,11 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { handlers, payments } from "@/db/schema";
 import { formatMYR } from "@/lib/utils-app";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminRevenuePage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
 
   const [paid] = await db
     .select({
@@ -25,8 +27,10 @@ export default async function AdminRevenuePage() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Revenue</h1>
-        <p className="text-muted-foreground">Mock payment summary.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.revenueTitle")}
+        </h1>
+        <p className="text-muted-foreground">{t("admin.revenueSub")}</p>
       </div>
       <div className="border-y border-border py-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">

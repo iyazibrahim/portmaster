@@ -3,9 +3,11 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { handlers, jetties, locations } from "@/db/schema";
 import { JettyAdmin } from "@/components/admin/jetty-admin";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminJettiesPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
 
   const jettyRows = await db
     .select()
@@ -46,17 +48,13 @@ export default async function AdminJettiesPage() {
     handlerCount: hdlMap.get(j.id) ?? 0,
   }));
 
-  const activeCount = rows.filter((r) => r.active).length;
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Jetties</h1>
-        <p className="text-muted-foreground">
-          MVP1 is scoped to four boarding jetties around Jambatan Pulau Pinang.
-          Other Penang landings stay listed but inactive. {activeCount} active
-          of {rows.length}.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.jettiesTitle")}
+        </h1>
+        <p className="text-muted-foreground">{t("admin.jettiesSub")}</p>
       </div>
       <JettyAdmin initial={rows} />
     </div>

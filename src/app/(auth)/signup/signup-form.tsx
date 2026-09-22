@@ -70,6 +70,15 @@ export function SignUpForm() {
   const [dob, setDob] = useState("");
   const { t, locale } = useT();
 
+  const policyParts = useMemo(
+    () => t("auth.acceptPolicy").split("{policy}"),
+    [t],
+  );
+  const pdpaParts = useMemo(
+    () => t("auth.acceptPdpa").split("{notice}"),
+    [t],
+  );
+
   const ageCheck = useMemo(() => {
     const fromIc = parseMyKadDob(myKad);
     const effectiveDob = dob.trim() || fromIc || null;
@@ -87,21 +96,17 @@ export function SignUpForm() {
     e.preventDefault();
     setError(null);
     if (!photo) {
-      setError(
-        "Identity photo is required. Take a live photo with your camera.",
-      );
+      setError(t("auth.photoRequired"));
       return;
     }
     if (ageCheck.status === "blocked") {
       setError(
-        `Anglers must be at least ${MIN_AGE} years old. Detected age: ${ageCheck.age}.`,
+        t("auth.blockedAge", { min: MIN_AGE, age: ageCheck.age ?? "?" }),
       );
       return;
     }
     if (ageCheck.status === "unknown") {
-      setError(
-        "Could not determine age. Enter a valid 12-digit MyKad or date of birth.",
-      );
+      setError(t("auth.ageUnknown"));
       return;
     }
 
@@ -182,9 +187,7 @@ export function SignUpForm() {
               </p>
             </div>
             <p className="max-w-md text-base leading-relaxed text-muted-foreground">
-              Register as a Malaysian angler (14+) to buy a same-day Association
-              fishing pass under authorised bridge pillars. Age is checked from
-              MyKad (or DOB).
+              {t("auth.signupHero", { min: MIN_AGE })}
             </p>
             <FishingScene className="max-w-md" />
           </div>
@@ -192,32 +195,31 @@ export function SignUpForm() {
           <div className="w-full rounded-xl border border-border/80 bg-background/90 p-5 shadow-sm backdrop-blur-sm sm:p-7 lg:p-8">
             <div className="mb-6 space-y-1.5">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Angler sign up
+                {t("auth.signupTitle")}
               </h1>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Malaysian citizens aged {MIN_AGE}+ only. Under-{MIN_AGE}{" "}
-                registration is blocked (SRS). MyDigitalID optional later.
+                {t("auth.signupSub", { min: MIN_AGE })}
               </p>
             </div>
 
             <form onSubmit={onSubmit} className="space-y-5">
               <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-                <Field id="name" label="Full name" required />
-                <Field id="email" label="Email" type="email" required />
-                <Field id="phone" label="Mobile" type="tel" required />
+                <Field id="name" label={t("auth.name")} required />
+                <Field id="email" label={t("auth.email")} type="email" required />
+                <Field id="phone" label={t("auth.mobile")} type="tel" required />
                 <Field
                   id="emergencyContactName"
-                  label="Emergency contact name"
+                  label={t("auth.emergencyName")}
                   required
                 />
                 <Field
                   id="emergencyContact"
-                  label="Emergency contact number"
+                  label={t("auth.emergencyPhone")}
                   type="tel"
                   required
                 />
                 <div className="space-y-2">
-                  <Label htmlFor="myKad">MyKad (12 digits)</Label>
+                  <Label htmlFor="myKad">{t("auth.myKad")}</Label>
                   <Input
                     id="myKad"
                     name="myKad"
@@ -228,11 +230,11 @@ export function SignUpForm() {
                     value={myKad}
                     onChange={(e) => setMyKad(e.target.value)}
                     className="min-h-11"
-                    placeholder="YYMMDD######"
+                    placeholder={t("auth.myKadPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="citizenship">Citizenship</Label>
+                  <Label htmlFor="citizenship">{t("auth.citizenship")}</Label>
                   <select
                     id="citizenship"
                     name="citizenship"
@@ -240,16 +242,16 @@ export function SignUpForm() {
                     defaultValue="MY"
                     className="flex min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
-                    <option value="MY">Malaysian</option>
-                    <option value="OTHER">Non-Malaysian (not allowed)</option>
+                    <option value="MY">{t("auth.citizenshipMY")}</option>
+                    <option value="OTHER">{t("auth.citizenshipOther")}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dob">
-                    Date of birth
+                    {t("auth.dob")}
                     <span className="font-normal text-muted-foreground">
                       {" "}
-                      (if MyKad year unclear)
+                      {t("auth.dobHint")}
                     </span>
                   </Label>
                   <Input
@@ -263,7 +265,7 @@ export function SignUpForm() {
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("auth.password")}</Label>
                   <Input
                     id="password"
                     name="password"
@@ -274,11 +276,11 @@ export function SignUpForm() {
                     className="min-h-11"
                   />
                   <p className="text-xs text-muted-foreground">
-                    At least 8 characters.
+                    {t("auth.passwordHint")}
                   </p>
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="address">Address</Label>
+                  <Label htmlFor="address">{t("auth.address")}</Label>
                   <textarea
                     id="address"
                     name="address"
@@ -291,27 +293,32 @@ export function SignUpForm() {
 
               {ageCheck.status === "blocked" ? (
                 <Alert variant="destructive">
-                  <AlertTitle>Under age</AlertTitle>
+                  <AlertTitle>{t("auth.underAgeTitle")}</AlertTitle>
                   <AlertDescription>
-                    Anglers must be at least {MIN_AGE} years old (SRS). Based on{" "}
-                    {dob.trim() ? "date of birth" : "MyKad"}, age is{" "}
-                    {ageCheck.age}. Registration cannot continue.
+                    {t("auth.underAgeBody", {
+                      min: MIN_AGE,
+                      source: dob.trim()
+                        ? t("auth.ageSourceDob")
+                        : t("auth.ageSourceMyKad"),
+                      age: ageCheck.age ?? "?",
+                    })}
                   </AlertDescription>
                 </Alert>
               ) : ageCheck.status === "ok" ? (
                 <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
-                  Age check passed: {ageCheck.age} years old (minimum {MIN_AGE}
-                  ).
+                  {t("auth.ageOk", {
+                    age: ageCheck.age ?? "?",
+                    min: MIN_AGE,
+                  })}
                 </p>
               ) : myKad.trim().length > 0 ? (
                 <p className="text-xs text-amber-800 dark:text-amber-200">
-                  Enter a valid 12-digit MyKad or DOB so we can verify you are{" "}
-                  {MIN_AGE}+.
+                  {t("auth.ageNeed", { min: MIN_AGE })}
                 </p>
               ) : null}
 
               <div className="space-y-3 rounded-lg border border-border/70 p-4">
-                <Label>Identity photo (required)</Label>
+                <Label>{t("auth.photoLabel")}</Label>
                 <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                   <div className="size-24 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
                     {photo ? (
@@ -323,7 +330,7 @@ export function SignUpForm() {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
-                        No photo
+                        {t("auth.noPhoto")}
                       </div>
                     )}
                   </div>
@@ -334,11 +341,10 @@ export function SignUpForm() {
                       className="min-h-11"
                       onClick={() => setCameraOpen(true)}
                     >
-                      {photo ? "Retake photo" : "Open camera"}
+                      {photo ? t("auth.retakePhoto") : t("auth.openCamera")}
                     </Button>
                     <p className="max-w-sm text-xs text-muted-foreground">
-                      Align your face in the oval and snap. File upload is not
-                      allowed.
+                      {t("auth.photoHint")}
                     </p>
                   </div>
                 </div>
@@ -353,15 +359,15 @@ export function SignUpForm() {
                     required
                   />
                   <span>
-                    I agree to the{" "}
+                    {policyParts[0]}
                     <Link
                       href="/policy"
                       className="text-primary underline-offset-4 hover:underline"
                       target="_blank"
                     >
-                      Privacy Policy
+                      {t("auth.privacyPolicy")}
                     </Link>
-                    .
+                    {policyParts[1] ?? ""}
                   </span>
                 </label>
                 <label className="flex items-start gap-3 text-sm leading-snug">
@@ -372,15 +378,15 @@ export function SignUpForm() {
                     required
                   />
                   <span>
-                    I consent to PDPA processing of my identity data (
+                    {pdpaParts[0]}
                     <Link
                       href="/consent"
                       className="text-primary underline-offset-4 hover:underline"
                       target="_blank"
                     >
-                      notice
+                      {t("auth.pdpaNotice")}
                     </Link>
-                    ).
+                    {pdpaParts[1] ?? ""}
                   </span>
                 </label>
                 <label className="flex items-start gap-3 text-sm leading-snug">
@@ -390,16 +396,13 @@ export function SignUpForm() {
                     className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
                     required
                   />
-                  <span>
-                    I consent to location capture to verify I am at the jetty
-                    when buying a pass and during boarding.
-                  </span>
+                  <span>{t("auth.acceptLocation")}</span>
                 </label>
               </div>
 
               {error ? (
                 <Alert variant="destructive">
-                  <AlertTitle>Sign up failed</AlertTitle>
+                  <AlertTitle>{t("auth.signupFailed")}</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               ) : null}
@@ -409,7 +412,7 @@ export function SignUpForm() {
                 className="min-h-11 w-full"
                 disabled={pending || ageCheck.status === "blocked"}
               >
-                {pending ? "Creating…" : "Create account"}
+                {pending ? t("auth.creating") : t("auth.submitSignup")}
               </Button>
             </form>
 
@@ -430,7 +433,7 @@ export function SignUpForm() {
         open={cameraOpen}
         onOpenChange={setCameraOpen}
         onCapture={(result) => setPhoto(result)}
-        title="Take identity photo"
+        title={t("auth.cameraTitle")}
       />
     </main>
   );

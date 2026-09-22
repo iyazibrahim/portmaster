@@ -16,9 +16,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { todayMYT } from "@/lib/utils-app";
+import { getTranslator } from "@/i18n";
 
 export default async function HandlerHomePage() {
   const session = await requireRole(["HANDLER", "ADMIN"]);
+  const { t } = await getTranslator();
   const [handler] = await db
     .select({
       id: handlers.id,
@@ -34,12 +36,8 @@ export default async function HandlerHomePage() {
   if (!handler && session.user.role === "HANDLER") {
     return (
       <Alert variant="destructive">
-        <AlertTitle>No operator profile</AlertTitle>
-        <AlertDescription>
-          This login is not linked to an operator record. Redeploy so boot can
-          repair demo links, or ask Association Admin to link you under Boat
-          Operators.
-        </AlertDescription>
+        <AlertTitle>{t("handler.noProfile")}</AlertTitle>
+        <AlertDescription>{t("handler.noProfileHint")}</AlertDescription>
       </Alert>
     );
   }
@@ -101,37 +99,35 @@ export default async function HandlerHomePage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Today at jetty
+            {t("handler.todayAtJetty")}
           </h1>
           <p className="text-muted-foreground">
             {handler
               ? `${handler.displayName} · ${handler.jettyName} · ${today}`
-              : `Admin view · ${today}`}
+              : t("handler.adminView", { date: today })}
           </p>
         </div>
         <Link href="/handler/scan" className={cn(buttonVariants())}>
-          Open scanner
+          {t("handler.openScanner")}
         </Link>
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium">Currently checked in</h2>
+        <h2 className="mb-2 text-sm font-medium">{t("handler.checkedInNow")}</h2>
         {live.length === 0 ? (
           <Alert>
-            <AlertTitle>None checked in</AlertTitle>
-            <AlertDescription>
-              Scan an Active pass to check an angler in.
-            </AlertDescription>
+            <AlertTitle>{t("handler.noneIn")}</AlertTitle>
+            <AlertDescription>{t("handler.noneInHint")}</AlertDescription>
           </Alert>
         ) : (
           <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Angler</TableHead>
-                  <TableHead>Pillar</TableHead>
-                  <TableHead>Pass</TableHead>
-                  <TableHead>Since</TableHead>
+                  <TableHead>{t("handler.angler")}</TableHead>
+                  <TableHead>{t("admin.col.pillar")}</TableHead>
+                  <TableHead>{t("handler.pass")}</TableHead>
+                  <TableHead>{t("handler.since")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

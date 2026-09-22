@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { toast } from "sonner";
+import { useT } from "@/i18n/locale-provider";
 
 export type OperatorAdminRow = {
   id: string;
@@ -48,6 +49,7 @@ export function OperatorsAdminTable({
   jetties: Option[];
   owners: Option[];
 }) {
+  const { t } = useT();
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
@@ -63,10 +65,10 @@ export function OperatorsAdminTable({
   );
   const ownerOptions = useMemo(
     () => [
-      { value: "", label: "— No owner —" },
+      { value: "", label: t("admin.operators.noOwner") },
       ...owners.map((o) => ({ value: o.id, label: o.name })),
     ],
-    [owners],
+    [owners, t],
   );
 
   const filtered = useMemo(() => {
@@ -97,19 +99,21 @@ export function OperatorsAdminTable({
         items={filtered}
         search={query}
         onSearchChange={setQuery}
-        searchPlaceholder="Search name, email, jetty, licence…"
-        emptyMessage="No operators match."
+        searchPlaceholder={t("admin.operators.searchPh")}
+        emptyMessage={t("admin.operators.empty")}
       >
         {(pageItems) => (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-3">Name</TableHead>
-                <TableHead className="px-3">Email</TableHead>
-                <TableHead className="px-3">Jetty</TableHead>
-                <TableHead className="px-3">Owner</TableHead>
-                <TableHead className="px-3">Licence</TableHead>
-                <TableHead className="w-[6rem] px-3">Actions</TableHead>
+                <TableHead className="px-3">{t("common.name")}</TableHead>
+                <TableHead className="px-3">{t("common.email")}</TableHead>
+                <TableHead className="px-3">{t("common.jetty")}</TableHead>
+                <TableHead className="px-3">{t("common.owner")}</TableHead>
+                <TableHead className="px-3">{t("common.licence")}</TableHead>
+                <TableHead className="w-[6rem] px-3">
+                  {t("common.actions")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -134,7 +138,7 @@ export function OperatorsAdminTable({
                       variant="outline"
                       onClick={() => openEdit(r)}
                     >
-                      Edit
+                      {t("common.edit")}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -147,57 +151,54 @@ export function OperatorsAdminTable({
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-visible sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit operator</DialogTitle>
-            <DialogDescription>
-              Updates the same handler record shown under People. Account role
-              and password stay in People.
-            </DialogDescription>
+            <DialogTitle>{t("admin.operators.edit")}</DialogTitle>
+            <DialogDescription>{t("admin.operators.editDesc")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label>Display name</Label>
+              <Label>{t("admin.people.displayName")}</Label>
               <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Email</Label>
+              <Label>{t("common.email")}</Label>
               <Input value={active?.email ?? ""} disabled />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Jetty</Label>
+              <Label>{t("common.jetty")}</Label>
               <SearchableSelect
                 options={jettyOptions}
                 value={jettyId}
                 onValueChange={setJettyId}
-                searchPlaceholder="Search jetty…"
+                searchPlaceholder={t("common.search")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Boat owner</Label>
+              <Label>{t("admin.operators.boatOwner")}</Label>
               <SearchableSelect
                 options={ownerOptions}
                 value={ownerId}
                 onValueChange={setOwnerId}
-                searchPlaceholder="Search owner…"
+                searchPlaceholder={t("common.search")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Operator licence (optional)</Label>
+              <Label>{t("admin.people.opLicence")}</Label>
               <Input
                 value={licenseNo}
                 onChange={(e) => setLicenseNo(e.target.value)}
-                placeholder="e.g. PNG-H-1001"
+                placeholder={t("admin.people.opLicencePh")}
               />
               <p className="text-xs text-muted-foreground">
-                Skipper/operator ID — boat permit is under Boats.
+                {t("admin.people.opLicenceHint")}
               </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={pending || !active || !displayName.trim() || !jettyId}
@@ -212,7 +213,7 @@ export function OperatorsAdminTable({
                       licenseNo,
                       boatOwnerId: ownerId || null,
                     });
-                    toast.success("Operator updated");
+                    toast.success(t("admin.operators.updated"));
                     setEditOpen(false);
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
@@ -220,7 +221,7 @@ export function OperatorsAdminTable({
                 })
               }
             >
-              Save
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

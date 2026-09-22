@@ -3,9 +3,11 @@ import { db } from "@/db";
 import { boatOwners, handlers, jetties, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { OperatorsAdminTable } from "@/components/admin/operators-admin-table";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminOperatorsPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
   const rows = await db
     .select({
       id: handlers.id,
@@ -36,11 +38,10 @@ export default async function AdminOperatorsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Boat Operators
+          {t("admin.operatorsTitle")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Edit display name, jetty, owner, and optional operator licence. Create
-          login accounts under People (role Operator).
+          {t("admin.operatorsSub")}
         </p>
       </div>
       <OperatorsAdminTable

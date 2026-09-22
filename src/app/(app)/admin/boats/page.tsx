@@ -3,9 +3,11 @@ import { db } from "@/db";
 import { boatOwners, boats, handlers, jetties } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { AdminBoatsPanel } from "@/components/admin/admin-boats-panel";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminBoatsPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
   const rows = await db
     .select({
       id: boats.id,
@@ -51,11 +53,10 @@ export default async function AdminBoatsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Boats</h1>
-        <p className="text-sm text-muted-foreground">
-          Association fleet master data. Only Active boats with valid permits
-          are operational.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.boatsTitle")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("admin.boatsSub")}</p>
       </div>
       <AdminBoatsPanel
         boats={rows.map((r) => ({

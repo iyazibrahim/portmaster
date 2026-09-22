@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import type { AccountStatus, UserRole } from "@/db/schema";
 import { roleLabel } from "@/lib/utils-app";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/locale-provider";
 
 export type PersonRow = {
   id: string;
@@ -53,13 +54,6 @@ export type PersonRow = {
 };
 
 type JettyOption = { id: string; name: string };
-
-const ROLE_OPTIONS = [
-  { value: "USER", label: "Angler" },
-  { value: "HANDLER", label: "Operator" },
-  { value: "ADMIN", label: "Admin" },
-  { value: "LLM_VIEWER", label: "LLM Viewer" },
-];
 
 const emptyForm = (jettyId: string) => ({
   name: "",
@@ -79,6 +73,16 @@ export function PeopleAdmin({
   people: PersonRow[];
   jetties: JettyOption[];
 }) {
+  const { t } = useT();
+  const roleOptions = useMemo(
+    () => [
+      { value: "USER", label: t("common.role.angler") },
+      { value: "HANDLER", label: t("common.role.operator") },
+      { value: "ADMIN", label: t("common.role.admin") },
+      { value: "LLM_VIEWER", label: t("common.role.llm") },
+    ],
+    [t],
+  );
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
@@ -149,9 +153,9 @@ export function PeopleAdmin({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1.5 sm:max-w-sm sm:flex-1">
-          <Label>Search people</Label>
+          <Label>{t("admin.people.search")}</Label>
           <Input
-            placeholder="Name, email, or role"
+            placeholder={t("admin.people.searchPh")}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -159,27 +163,27 @@ export function PeopleAdmin({
             }}
           />
         </div>
-        <Button onClick={openCreate}>Create user</Button>
+        <Button onClick={openCreate}>{t("admin.people.create")}</Button>
       </div>
 
       <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Handler / Jetty</TableHead>
-              <TableHead className="w-[14rem]">Actions</TableHead>
+              <TableHead>{t("common.name")}</TableHead>
+              <TableHead>{t("common.email")}</TableHead>
+              <TableHead>{t("common.role")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead>{t("common.phone")}</TableHead>
+              <TableHead>{t("admin.people.handlerJetty")}</TableHead>
+              <TableHead className="w-[14rem]">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pager.pageItems.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-muted-foreground">
-                  No people match.
+                  {t("admin.people.noMatch")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -216,14 +220,14 @@ export function PeopleAdmin({
                         variant="outline"
                         onClick={() => openEdit(p)}
                       >
-                        Role
+                        {t("common.role")}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => openReset(p)}
                       >
-                        Reset pw
+                        {t("admin.people.resetPw")}
                       </Button>
                       {p.role === "USER" ? (
                         <Button
@@ -231,7 +235,7 @@ export function PeopleAdmin({
                           variant="outline"
                           onClick={() => openBlock(p)}
                         >
-                          Status
+                          {t("common.status")}
                         </Button>
                       ) : null}
                     </div>
@@ -256,25 +260,22 @@ export function PeopleAdmin({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[90vh] overflow-visible sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create user</DialogTitle>
-            <DialogDescription>
-              Create anglers, boatmen, or admins. Boatmen need a jetty
-              assignment.
-            </DialogDescription>
+            <DialogTitle>{t("admin.people.create")}</DialogTitle>
+            <DialogDescription>{t("admin.people.createDesc")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label>Name</Label>
+              <Label>{t("common.name")}</Label>
               <Input
                 value={form.name}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
-                placeholder="Full name"
+                placeholder={t("auth.name")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Email</Label>
+              <Label>{t("common.email")}</Label>
               <Input
                 type="email"
                 value={form.email}
@@ -285,20 +286,20 @@ export function PeopleAdmin({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Password</Label>
+              <Label>{t("auth.password")}</Label>
               <Input
                 type="password"
                 value={form.password}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, password: e.target.value }))
                 }
-                placeholder="Min 8 characters"
+                placeholder={t("auth.passwordHint")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
+              <Label>{t("common.role")}</Label>
               <SearchableSelect
-                options={ROLE_OPTIONS}
+                options={roleOptions}
                 value={form.role}
                 onValueChange={(v) =>
                   setForm((f) => ({ ...f, role: v as UserRole }))
@@ -306,7 +307,9 @@ export function PeopleAdmin({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Phone (optional)</Label>
+              <Label>
+                {t("common.phone")} ({t("common.optional")})
+              </Label>
               <Input
                 value={form.phone}
                 onChange={(e) =>
@@ -317,7 +320,7 @@ export function PeopleAdmin({
             {form.role === "HANDLER" ? (
               <>
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <Label>Handler display name</Label>
+                  <Label>{t("admin.people.handlerDisplay")}</Label>
                   <Input
                     value={form.handlerDisplayName}
                     onChange={(e) =>
@@ -326,31 +329,31 @@ export function PeopleAdmin({
                         handlerDisplayName: e.target.value,
                       }))
                     }
-                    placeholder="Ops display name"
+                    placeholder={t("admin.people.handlerDisplayPh")}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <Label>Jetty</Label>
+                  <Label>{t("common.jetty")}</Label>
                   <SearchableSelect
                     options={jettyOptions}
                     value={form.jettyId}
                     onValueChange={(v) =>
                       setForm((f) => ({ ...f, jettyId: v }))
                     }
-                    searchPlaceholder="Search jetty…"
+                    searchPlaceholder={t("common.search")}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <Label>Operator licence (optional)</Label>
+                  <Label>{t("admin.people.opLicence")}</Label>
                   <Input
                     value={form.licenseNo}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, licenseNo: e.target.value }))
                     }
-                    placeholder="e.g. PNG-H-1001"
+                    placeholder={t("admin.people.opLicencePh")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Skipper/operator ID — not the boat permit (set under Boats).
+                    {t("admin.people.opLicenceHint")}
                   </p>
                 </div>
               </>
@@ -358,7 +361,7 @@ export function PeopleAdmin({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={
@@ -380,7 +383,7 @@ export function PeopleAdmin({
                 })
               }
             >
-              Create user
+              {t("admin.people.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -389,13 +392,15 @@ export function PeopleAdmin({
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-visible sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Update role — {active?.name}</DialogTitle>
+            <DialogTitle>
+              {t("admin.people.updateRole", { name: active?.name ?? "" })}
+            </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
+              <Label>{t("common.role")}</Label>
               <SearchableSelect
-                options={ROLE_OPTIONS}
+                options={roleOptions}
                 value={editRole}
                 onValueChange={(v) => setEditRole(v as UserRole)}
               />
@@ -403,27 +408,27 @@ export function PeopleAdmin({
             {editRole === "HANDLER" ? (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Display name</Label>
+                  <Label>{t("admin.people.displayName")}</Label>
                   <Input
                     value={editDisplayName}
                     onChange={(e) => setEditDisplayName(e.target.value)}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Jetty</Label>
+                  <Label>{t("common.jetty")}</Label>
                   <SearchableSelect
                     options={jettyOptions}
                     value={editJettyId}
                     onValueChange={setEditJettyId}
-                    searchPlaceholder="Search jetty…"
+                    searchPlaceholder={t("common.search")}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Operator licence (optional)</Label>
+                  <Label>{t("admin.people.opLicence")}</Label>
                   <Input
                     value={editLicenseNo}
                     onChange={(e) => setEditLicenseNo(e.target.value)}
-                    placeholder="e.g. PNG-H-1001"
+                    placeholder={t("admin.people.opLicencePh")}
                   />
                 </div>
               </>
@@ -431,7 +436,7 @@ export function PeopleAdmin({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={pending || !active}
@@ -454,7 +459,7 @@ export function PeopleAdmin({
                 })
               }
             >
-              Save
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -476,7 +481,7 @@ export function PeopleAdmin({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={pending || !active || newPassword.length < 8}
@@ -567,7 +572,7 @@ export function PeopleAdmin({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBlockOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={pending || !active || !blockReason.trim()}
@@ -588,7 +593,7 @@ export function PeopleAdmin({
                 })
               }
             >
-              Save
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

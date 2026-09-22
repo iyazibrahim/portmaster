@@ -4,9 +4,11 @@ import {
 } from "@/lib/actions/admin";
 import { requireRole } from "@/lib/session";
 import { SettingsPanel } from "@/components/admin/settings-panel";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminSettingsPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
   const map = await getSettingsMap();
   const itUnlocked = await isItSettingsUnlocked();
 
@@ -51,11 +53,10 @@ export default async function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Pass-ops tiles are open to admins. IT integrations need a separate
-          password and unlock for ~20 minutes.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.settingsTitle")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("admin.settingsSub")}</p>
       </div>
       <SettingsPanel ops={ops} it={it} itUnlocked={itUnlocked} />
     </div>

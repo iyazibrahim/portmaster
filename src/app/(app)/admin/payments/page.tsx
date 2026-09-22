@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { jetties, locations, passes, payments, users } from "@/db/schema";
 import { PaymentsTable } from "@/components/admin/payments-table";
 import { formatMYR, todayMYT } from "@/lib/utils-app";
+import { getTranslator } from "@/i18n";
 
 function methodLabel(provider: string) {
   if (!provider || provider === "mock") return "Mock";
@@ -16,6 +17,7 @@ export default async function AdminPaymentsPage({
   searchParams: Promise<{ jetty?: string }>;
 }) {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
   const { jetty: jettyParam } = await searchParams;
 
   const jettyOptions = await db
@@ -128,10 +130,10 @@ export default async function AdminPaymentsPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Payments</h1>
-        <p className="text-sm text-muted-foreground">
-          Fishing pass collections · today {today} (MYT).
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.paymentsTitle")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("admin.paymentsSub")}</p>
       </div>
 
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">

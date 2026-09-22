@@ -3,9 +3,11 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { handlers, jetties, users } from "@/db/schema";
 import { PeopleAdmin } from "@/components/admin/people-admin";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminUsersPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
 
   const people = await db
     .select({
@@ -33,10 +35,10 @@ export default async function AdminUsersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">People</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage anglers, boatmen, and admins.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.peopleTitle")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("admin.peopleSub")}</p>
       </div>
       <PeopleAdmin people={people} jetties={jettyRows} />
     </div>

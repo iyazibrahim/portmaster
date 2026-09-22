@@ -3,9 +3,11 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, reports } from "@/db/schema";
 import { ReportsPanel } from "@/components/admin/reports-panel";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminReportsPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
   const history = await db
     .select({
       id: reports.id,
@@ -30,11 +32,10 @@ export default async function AdminReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-        <p className="text-sm text-muted-foreground">
-          Weekly and monthly summaries with CSV download and history. Filter by
-          jetty or view all.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.reportsTitle")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("admin.reportsSub")}</p>
       </div>
       <ReportsPanel
         jetties={jettyRows}

@@ -119,18 +119,20 @@ export function PillarBarsCarousel({ bars }: { bars: PillarBarItem[] }) {
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-sm bg-amber-400" /> Occupied
+            <span className="size-2 rounded-sm bg-amber-400" />{" "}
+            {t("common.occupied")}
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-sm bg-emerald-600" /> At capacity
+            <span className="size-2 rounded-sm bg-emerald-600" />{" "}
+            {t("common.atCapacity")}
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-sm bg-muted/80" /> Empty
+            <span className="size-2 rounded-sm bg-muted/80" /> {t("common.empty")}
           </span>
         </div>
         {bars.length > pageSize ? (
           <p className="text-[10px] tabular-nums text-muted-foreground">
-            {from}–{to} of {bars.length}
+            {t("common.ofTotal", { from, to, total: bars.length })}
           </p>
         ) : null}
       </div>

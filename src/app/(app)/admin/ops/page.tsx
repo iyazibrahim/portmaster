@@ -34,60 +34,75 @@ export default async function AdminOpsPage() {
   const m = await getDashboardMetrics();
   const { t } = await getTranslator();
 
+  const lastTime = new Date(m.now).toLocaleTimeString("en-MY", {
+    timeZone: "Asia/Kuala_Lumpur",
+  });
+
   const kpis = [
     {
-      label: "Passes Sold Today",
+      id: "passesSold",
+      label: t("admin.kpi.passesSold"),
       value: String(m.passesSoldToday),
-      sub: "Max today: 50 est.",
+      sub: t("admin.kpi.passesSoldSub"),
       icon: Ticket,
       color: "text-blue-600 bg-blue-50",
     },
     {
-      label: "Current Anglers Under Bridge",
+      id: "currentAnglers",
+      label: t("admin.kpi.currentAnglers"),
       value: String(m.currentCheckedIn),
-      sub: "Checked in",
+      sub: t("admin.kpi.checkedIn"),
       icon: Users,
       color: "text-emerald-600 bg-emerald-50",
     },
     {
-      label: "Anglers Returned",
+      id: "returned",
+      label: t("admin.kpi.returned"),
       value: String(m.anglersReturned),
-      sub: "Checked out today",
+      sub: t("admin.kpi.returnedSub"),
       icon: Undo2,
       color: "text-violet-600 bg-violet-50",
     },
     {
-      label: "Available Pillar Slots",
+      id: "slots",
+      label: t("admin.kpi.slots"),
       value: String(m.availableSlots),
-      sub: `of ${m.totalSlots} total (${m.openPillarCount} open pillars)`,
+      sub: t("admin.kpi.slotsSub", {
+        total: m.totalSlots,
+        open: m.openPillarCount,
+      }),
       icon: MapPinned,
       color: "text-amber-600 bg-amber-50",
     },
     {
-      label: "Active Boats",
+      id: "activeBoats",
+      label: t("admin.kpi.activeBoats"),
       value: String(m.activeBoats),
-      sub: `of ${m.totalBoats} registered`,
+      sub: t("admin.kpi.activeBoatsSub", { total: m.totalBoats }),
       icon: Ship,
       color: "text-teal-600 bg-teal-50",
     },
     {
-      label: "Today's Collection",
+      id: "collection",
+      label: t("admin.kpi.collection"),
       value: formatMYR(m.collectionCents),
-      sub: "RM5 per pass",
+      sub: t("admin.kpi.collectionSub"),
       icon: Coins,
       color: "text-pink-600 bg-pink-50",
     },
     {
-      label: "Still under bridge",
+      id: "stillUnder",
+      label: t("admin.kpi.stillUnder"),
       value: String(m.stillUnderBridgeCount),
-      sub: `Checked in longer than ${m.overdueHours}h`,
+      sub: t("admin.kpi.stillUnderSub", { hours: m.overdueHours }),
       icon: AlertTriangle,
       color: "text-amber-700 bg-amber-50",
     },
     {
-      label: "Active Alerts",
+      id: "activeAlerts",
+      label: t("admin.kpi.activeAlerts"),
       value: String(m.activeAlerts),
-      sub: "requires attention",
+      sub: t("admin.kpi.alertsNeed"),
       icon: Bell,
       color: "text-sky-600 bg-sky-50",
     },
@@ -113,7 +128,7 @@ export default async function AdminOpsPage() {
         {kpis.map((k) => {
           const Icon = k.icon;
           return (
-            <Card key={k.label} className="overflow-hidden">
+            <Card key={k.id} className="overflow-hidden">
               <CardContent className="flex items-start gap-3 p-4">
                 <div className={`rounded-lg p-2 ${k.color}`}>
                   <Icon className="size-4" />
@@ -134,28 +149,32 @@ export default async function AdminOpsPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Current Operations</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin.ops.currentOps")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <OpRow label="Anglers checked in" value={m.currentCheckedIn} />
-            <OpRow label="Active boats" value={m.activeBoats} />
             <OpRow
-              label="Today's RM5 collections"
+              label={t("admin.ops.anglersIn")}
+              value={m.currentCheckedIn}
+            />
+            <OpRow label={t("admin.ops.activeBoats")} value={m.activeBoats} />
+            <OpRow
+              label={t("admin.ops.collections")}
               value={formatMYR(m.collectionCents)}
             />
-            <OpRow label="Active incidents" value={m.activeIncidents} />
+            <OpRow label={t("admin.ops.incidents")} value={m.activeIncidents} />
             <p className="pt-2 text-[11px] text-muted-foreground">
-              Last updated{" "}
-              {new Date(m.now).toLocaleTimeString("en-MY", {
-                timeZone: "Asia/Kuala_Lumpur",
-              })}
+              {t("admin.ops.lastUpdated", { time: lastTime })}
             </p>
           </CardContent>
         </Card>
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Anglers per Pillar</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin.ops.anglersPerPillar")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <PillarBarsCarousel bars={m.pillarBars} />
@@ -165,37 +184,37 @@ export default async function AdminOpsPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <DonutCard
-          title="Pillar Status"
+          title={t("admin.ops.pillarStatus")}
           total={m.pillarStatus.total}
           slices={[
             {
-              label: "Occupied",
+              label: t("admin.ops.occupied"),
               value: m.pillarStatus.occupied,
               color: "bg-amber-400",
             },
             {
-              label: "Available",
+              label: t("admin.ops.available"),
               value: m.pillarStatus.available,
               color: "bg-emerald-500",
             },
             {
-              label: "Closed",
+              label: t("admin.ops.closed"),
               value: m.pillarStatus.closed,
               color: "bg-slate-300",
             },
           ]}
         />
         <DonutCard
-          title="Boats Status"
+          title={t("admin.ops.boatsStatus")}
           total={m.boatStatus.total || 1}
           slices={[
             {
-              label: "Active",
+              label: t("admin.ops.active"),
               value: m.boatStatus.active,
               color: "bg-teal-500",
             },
             {
-              label: "Inactive",
+              label: t("admin.ops.inactive"),
               value: m.boatStatus.inactive,
               color: "bg-slate-300",
             },
@@ -203,7 +222,9 @@ export default async function AdminOpsPage() {
         />
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Today&apos;s Pass Sales</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin.ops.passSales")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex h-32 items-end gap-1">
@@ -226,7 +247,10 @@ export default async function AdminOpsPage() {
               ))}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {m.passesSoldToday} passes · {formatMYR(m.collectionCents)}
+              {t("admin.ops.passSalesFoot", {
+                count: m.passesSoldToday,
+                amount: formatMYR(m.collectionCents),
+              })}
             </p>
           </CardContent>
         </Card>
@@ -235,25 +259,27 @@ export default async function AdminOpsPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-base">Still under bridge</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin.ops.stillUnderTitle")}
+            </CardTitle>
             <p className="text-xs font-normal text-muted-foreground">
-              Long stays (incl. overnight) · over {m.overdueHours}h checked in
+              {t("admin.ops.stillUnderHint", { hours: m.overdueHours })}
             </p>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Pillar</TableHead>
-                  <TableHead>Duration</TableHead>
+                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>{t("admin.col.pillar")}</TableHead>
+                  <TableHead>{t("admin.col.duration")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {m.overdueRows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={3} className="text-muted-foreground">
-                      No long stays
+                      {t("admin.ops.noLongStays")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -274,17 +300,21 @@ export default async function AdminOpsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Current Alerts</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin.ops.currentAlerts")}
+            </CardTitle>
             <Link
               href="/admin/alerts"
               className="text-xs font-medium text-primary hover:underline"
             >
-              View all
+              {t("common.viewAll")}
             </Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {m.alerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No open alerts.</p>
+              <p className="text-sm text-muted-foreground">
+                {t("admin.ops.noAlerts")}
+              </p>
             ) : (
               m.alerts.map((a) => (
                 <div
@@ -308,17 +338,21 @@ export default async function AdminOpsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Active Incidents</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin.ops.activeIncidentsTitle")}
+            </CardTitle>
             <Link
               href="/admin/alerts"
               className="text-xs font-medium text-primary hover:underline"
             >
-              View all
+              {t("common.viewAll")}
             </Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {m.incidents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active incidents.</p>
+              <p className="text-sm text-muted-foreground">
+                {t("admin.ops.noIncidents")}
+              </p>
             ) : (
               m.incidents.map((i) => (
                 <div

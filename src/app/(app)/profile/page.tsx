@@ -12,7 +12,7 @@ import {
   formatEnumLabel,
   roleLabel,
 } from "@/lib/utils-app";
-import { getLocale } from "@/i18n";
+import { getLocale, getTranslator } from "@/i18n";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { ChangePasswordButton } from "@/components/profile/change-password-form";
 import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
@@ -43,6 +43,7 @@ function Field({
 export default async function ProfilePage() {
   const session = await requireSession();
   const locale = await getLocale();
+  const { t } = await getTranslator();
   const [user] = await db
     .select()
     .from(users)
@@ -78,12 +79,10 @@ export default async function ProfilePage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            {isOperator ? "Account" : "Profile"}
+            {isOperator ? t("profile.accountTitle") : t("profile.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {isOperator
-              ? "Operator login and registered jetty."
-              : "Identity and contacts for fishing passes and boarding."}
+            {isOperator ? t("profile.operatorSub") : t("profile.sub")}
           </p>
         </div>
         <LocaleSwitcher locale={locale} />

@@ -13,9 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatEnumLabel } from "@/lib/utils-app";
+import { getTranslator } from "@/i18n";
 
 export default async function HandlerFleetPage() {
   const session = await requireRole(["HANDLER", "ADMIN"]);
+  const { t } = await getTranslator();
   const [handler] = await db
     .select()
     .from(handlers)
@@ -25,8 +27,8 @@ export default async function HandlerFleetPage() {
   if (!handler) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>No operator profile</AlertTitle>
-        <AlertDescription>Link this user to an operator first.</AlertDescription>
+        <AlertTitle>{t("handler.noProfile")}</AlertTitle>
+        <AlertDescription>{t("handler.linkFirst")}</AlertDescription>
       </Alert>
     );
   }
@@ -60,10 +62,10 @@ export default async function HandlerFleetPage() {
   return (
     <div className="flex w-full flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Fleet</h1>
-        <p className="text-muted-foreground">
-          {handler.displayName} · view only (Association Admin maintains boats)
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("handler.fleetTitle")}
+        </h1>
+        <p className="text-muted-foreground">{t("handler.fleetSub")}</p>
       </div>
       {myBoats.length === 0 ? (
         <Alert>

@@ -3,9 +3,11 @@ import { db } from "@/db";
 import { passes, users, locations, jetties } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { PassesAdminTable } from "@/components/admin/passes-admin-table";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminPassesPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
   const rows = await db
     .select({
       id: passes.id,
@@ -28,11 +30,9 @@ export default async function AdminPassesPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Fishing Passes
+          {t("admin.passesTitle")}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Same-day Association passes. Search and browse 15 per page.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("admin.passesSub")}</p>
       </div>
       <PassesAdminTable rows={rows} />
     </div>

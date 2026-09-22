@@ -8,9 +8,11 @@ import {
   formatAuditWhen,
 } from "@/lib/audit";
 import { AuditAdminTable } from "@/components/admin/audit-admin-table";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminAuditPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
   const rows = await db
     .select({
       id: auditLogs.id,
@@ -29,9 +31,11 @@ export default async function AdminAuditPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Audit Trail</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.auditTitle")}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Who did what, and when — for support and compliance.
+          {t("admin.auditSub")}
         </p>
       </div>
       <AuditAdminTable

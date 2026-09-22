@@ -3,9 +3,11 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, locations } from "@/db/schema";
 import { LocationAdmin } from "@/components/admin/location-admin";
+import { getTranslator } from "@/i18n";
 
 export default async function AdminLocationsPage() {
   await requireRole(["ADMIN"]);
+  const { t } = await getTranslator();
 
   const jettyRows = await db
     .select({ id: jetties.id, name: jetties.name })
@@ -37,12 +39,10 @@ export default async function AdminLocationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pillars</h1>
-        <p className="text-muted-foreground">
-          {rows.length} authorised pillars at active jetties. Only{" "}
-          <span className="font-medium text-foreground">Available</span> pillars
-          can be purchased. Max occupancy is per pillar.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("admin.pillarsTitle")}
+        </h1>
+        <p className="text-muted-foreground">{t("admin.pillarsSub")}</p>
       </div>
       <LocationAdmin initial={rows} jetties={jettyRows} />
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useT } from "@/i18n/locale-provider";
 
 const DEFAULT_PAGE_SIZE = 15;
 
@@ -60,11 +61,16 @@ export function PaginationBar({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const { t } = useT();
   if (total === 0) return null;
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground">
-        Page {page + 1} of {pageCount} · {total} row{total === 1 ? "" : "s"}
+        {t("common.pageOf", {
+          page: page + 1,
+          pages: pageCount,
+          total,
+        })}
       </p>
       <div className="flex gap-2">
         <button
@@ -73,7 +79,7 @@ export function PaginationBar({
           disabled={!canPrev}
           onClick={onPrev}
         >
-          Previous
+          {t("common.previous")}
         </button>
         <button
           type="button"
@@ -81,7 +87,7 @@ export function PaginationBar({
           disabled={!canNext}
           onClick={onNext}
         >
-          Next
+          {t("common.next")}
         </button>
       </div>
     </div>
