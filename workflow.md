@@ -97,6 +97,8 @@ Fresh Postgres used to crash on boot (`type "user_role" does not exist`) because
 
 **Login Date TypeError (2026-09-22):** Next.js + postgres.js `prepare: false` interpolated a JS `Date` into session INSERT. The bundled encoder writes params with `utf8Write`, so Date throws `ERR_INVALID_ARG_TYPE`. Login and boot probe now bind ISO `timestamptz` strings (`asSqlTimestamp`). Alpine/musl collation warning (`no actual collation version, but a version was recorded`) is cleared on boot when libc reports no version.
 
+**Account status UI + pass 503 (2026-09-22):** Status dialog used SearchableSelect (search + portaled menu) which overlapped itself inside the transformed dialog. Status is now a stacked Active / Suspended / Blacklisted picker. Service worker was intercepting Next.js RSC/`/_next` fetches and returning `503 Offline`, which broke `/pass/[id]`. SW v4 only precaches the public shell and only handles real navigations when the network is down.
+
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
 sudo mkswap /swapfile && sudo swapon /swapfile

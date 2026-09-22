@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { QRCodeSVG } from "qrcode.react";
 import { requireSession } from "@/lib/session";
@@ -13,6 +12,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DownloadReceiptButton } from "@/components/pass/download-receipt-button";
 
+export const dynamic = "force-dynamic";
+
 export default async function PassDetailPage({
   params,
 }: {
@@ -26,7 +27,37 @@ export default async function PassDetailPage({
     .from(passes)
     .where(eq(passes.id, id))
     .limit(1);
-  if (!pass || pass.userId !== session.user.id) notFound();
+  if (!pass || pass.userId !== session.user.id) {
+    return (
+      <div className="mx-auto w-full max-w-lg space-y-4 lg:max-w-xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Pass not found</h1>
+        <p className="text-sm text-muted-foreground">
+          This pass is missing or belongs to another account. Open My Passes
+          to view tickets on this login.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link
+            href="/trips"
+            className={cn(
+              buttonVariants(),
+              "inline-flex min-h-11 w-full sm:w-auto",
+            )}
+          >
+            My passes
+          </Link>
+          <Link
+            href="/pass"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "inline-flex min-h-11 w-full sm:w-auto",
+            )}
+          >
+            Buy a pass
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const [jetty] = await db
     .select()

@@ -3,14 +3,11 @@
 import {
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type KeyboardEvent,
 } from "react";
-import { createPortal } from "react-dom";
 import { ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -21,21 +18,6 @@ export type SearchableSelectOption = {
   keywords?: string;
 };
 
-type MenuPos = {
-  top: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
-
-function useIsClient() {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-}
-
 export function SearchableSelect({
   options,
   value,
@@ -45,6 +27,7 @@ export function SearchableSelect({
   emptyText = "No matches",
   className,
   disabled,
+  searchable,
 }: {
   options: SearchableSelectOption[];
   value: string;
@@ -54,15 +37,15 @@ export function SearchableSelect({
   emptyText?: string;
   className?: string;
   disabled?: boolean;
+  searchable?: boolean;
 }) {
-  const isClient = useIsClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
-  const [pos, setPos] = useState<MenuPos | null>(null);
+  const [dropUp, setDropUp] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const listId = useId();
+  const showSearch = searchable ?? options.length > 8;
 
   const selected = options.find((o) => o.value === value);
 
@@ -76,55 +59,26 @@ export function SearchableSelect({
   }, [options, query]);
 
   const clampedHighlight =
-    filtered.length === 0
-      ? 0
-      : Math.min(highlight, filtered.length - 1);
-
-  function updatePosition() {
-    const el = rootRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const gap = 4;
-    const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
-    const spaceAbove = rect.top - gap - 8;
-    const placeBottom = spaceBelow >= 140 || spaceBelow >= spaceAbove;
-    const maxHeight = Math.min(256, Math.max(placeBottom ? spaceBelow : spaceAbove, 120));
-    setPos({
-      left: rect.left,
-      width: rect.width,
-      maxHeight,
-      top: placeBottom
-        ? rect.bottom + gap
-        : Math.max(8, rect.top - gap - maxHeight),
-    });
-  }
+    filtered.length === 0 ? 0 : Math.min(highlight, filtered.length - 1);
 
   function closeMenu() {
     setOpen(false);
     setQuery("");
     setHighlight(0);
-    setPos(null);
   }
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    updatePosition();
-    function onReposition() {
-      updatePosition();
-    }
-    window.addEventListener("resize", onReposition);
-    window.addEventListener("scroll", onReposition, true);
-    return () => {
-      window.removeEventListener("resize", onReposition);
-      window.removeEventListener("scroll", onReposition, true);
-    };
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
+    const el = rootRef.current;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setDropUp(spaceBelow < 168 && spaceAbove > spaceBelow);
+    }
     function onDoc(e: MouseEvent) {
       const t = e.target as Node;
-      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      if (rootRef.current?.contains(t)) return;
       closeMenu();
     }
     document.addEventListener("mousedown", onDoc);
@@ -152,9 +106,7 @@ export function SearchableSelect({
     }
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlight((h) =>
-        Math.min(h + 1, Math.max(filtered.length - 1, 0)),
-      );
+      setHighlight((h) => Math.min(h + 1, Math.max(filtered.length - 1, 0)));
       return;
     }
     if (e.key === "ArrowUp") {
@@ -168,73 +120,6 @@ export function SearchableSelect({
       if (opt) pick(opt.value);
     }
   }
-
-  const menu =
-    open && isClient && pos
-      ? createPortal(
-          <div
-            ref={menuRef}
-            style={{
-              position: "fixed",
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              maxHeight: pos.maxHeight,
-              zIndex: 200,
-            }}
-            className="flex flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10"
-          >
-            <div className="shrink-0 border-b border-border p-2">
-              <Input
-                autoFocus
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setHighlight(0);
-                }}
-                onKeyDown={onKeyDown}
-                placeholder={searchPlaceholder}
-                className="min-h-9"
-              />
-            </div>
-            <ul
-              id={listId}
-              role="listbox"
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1"
-              onWheel={(e) => e.stopPropagation()}
-            >
-              {filtered.length === 0 ? (
-                <li className="px-3 py-2 text-sm text-muted-foreground">
-                  {emptyText}
-                </li>
-              ) : (
-                filtered.map((o, i) => (
-                  <li
-                    key={o.value}
-                    role="option"
-                    aria-selected={o.value === value}
-                  >
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex w-full rounded-md px-3 py-2 text-left text-sm",
-                        i === clampedHighlight || o.value === value
-                          ? "bg-accent text-accent-foreground"
-                          : "hover:bg-muted",
-                      )}
-                      onMouseEnter={() => setHighlight(i)}
-                      onClick={() => pick(o.value)}
-                    >
-                      <span className="truncate">{o.label}</span>
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>,
-          document.body,
-        )
-      : null;
 
   return (
     <div ref={rootRef} className={cn("relative w-full", className)}>
@@ -270,7 +155,63 @@ export function SearchableSelect({
           )}
         />
       </button>
-      {menu}
+      {open ? (
+        <div
+          className={cn(
+            "absolute z-[80] flex w-full flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10",
+            dropUp ? "bottom-full mb-1" : "top-full mt-1",
+          )}
+        >
+          {showSearch ? (
+            <div className="shrink-0 border-b border-border p-2">
+              <Input
+                autoFocus
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setHighlight(0);
+                }}
+                onKeyDown={onKeyDown}
+                placeholder={searchPlaceholder}
+                className="min-h-9"
+              />
+            </div>
+          ) : null}
+          <ul
+            id={listId}
+            role="listbox"
+            className="max-h-56 overflow-y-auto overscroll-contain p-1"
+          >
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2.5 text-sm text-muted-foreground">
+                {emptyText}
+              </li>
+            ) : (
+              filtered.map((o, i) => (
+                <li
+                  key={o.value}
+                  role="option"
+                  aria-selected={o.value === value}
+                >
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex min-h-10 w-full items-center rounded-md px-3 py-2 text-left text-sm",
+                      i === clampedHighlight || o.value === value
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-muted",
+                    )}
+                    onMouseEnter={() => setHighlight(i)}
+                    onClick={() => pick(o.value)}
+                  >
+                    <span className="truncate">{o.label}</span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

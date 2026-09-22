@@ -36,6 +36,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { toast } from "sonner";
 import type { AccountStatus, UserRole } from "@/db/schema";
 import { roleLabel } from "@/lib/utils-app";
+import { cn } from "@/lib/utils";
 
 export type PersonRow = {
   id: string;
@@ -248,7 +249,7 @@ export function PeopleAdmin({
       />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-visible sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create user</DialogTitle>
             <DialogDescription>
@@ -368,7 +369,7 @@ export function PeopleAdmin({
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-visible sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Update role — {active?.name}</DialogTitle>
           </DialogHeader>
@@ -475,7 +476,7 @@ export function PeopleAdmin({
       </Dialog>
 
       <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="overflow-visible sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Account status — {active?.name}</DialogTitle>
             <DialogDescription>
@@ -486,15 +487,47 @@ export function PeopleAdmin({
           <div className="grid gap-3">
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <SearchableSelect
-                options={[
-                  { value: "ACTIVE", label: "ACTIVE (reactivate)" },
-                  { value: "SUSPENDED", label: "SUSPENDED" },
-                  { value: "BLACKLISTED", label: "BLACKLISTED" },
-                ]}
-                value={blockStatus}
-                onValueChange={(v) => setBlockStatus(v as AccountStatus)}
-              />
+              <div className="grid gap-2">
+                {(
+                  [
+                    {
+                      value: "ACTIVE",
+                      label: "Active",
+                      hint: "Can log in and buy a pass",
+                    },
+                    {
+                      value: "SUSPENDED",
+                      label: "Suspended",
+                      hint: "Can log in, cannot buy a pass",
+                    },
+                    {
+                      value: "BLACKLISTED",
+                      label: "Blacklisted",
+                      hint: "Cannot log in",
+                    },
+                  ] as const
+                ).map((opt) => {
+                  const selected = blockStatus === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setBlockStatus(opt.value)}
+                      className={cn(
+                        "flex min-h-11 w-full flex-col items-start justify-center rounded-lg border px-3 py-2 text-left transition-colors",
+                        selected
+                          ? "border-primary bg-accent text-accent-foreground"
+                          : "border-input bg-background hover:bg-muted/60",
+                      )}
+                    >
+                      <span className="text-sm font-medium">{opt.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {opt.hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Reason</Label>
