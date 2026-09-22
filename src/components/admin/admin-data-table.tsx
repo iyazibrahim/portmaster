@@ -17,6 +17,8 @@ type AdminDataTableProps<T> = {
   search: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
+  /** Rows per page (default 15). Alerts & incidents use 5. */
+  pageSize?: number;
   filters?: React.ReactNode;
   actions?: React.ReactNode;
   emptyMessage?: string;
@@ -32,13 +34,14 @@ export function AdminDataTable<T>({
   search,
   onSearchChange,
   searchPlaceholder = "Search…",
+  pageSize = ADMIN_PAGE_SIZE,
   filters,
   actions,
   emptyMessage = "No rows match.",
   children,
   className,
 }: AdminDataTableProps<T>) {
-  const pager = useClientPagination(items, ADMIN_PAGE_SIZE);
+  const pager = useClientPagination(items, pageSize);
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>

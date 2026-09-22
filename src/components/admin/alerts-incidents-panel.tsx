@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   actionCreateIncident,
   actionResolveAlert,
@@ -71,6 +72,7 @@ export function AlertsIncidentsPanel({
   alerts: AlertRow[];
   incidents: IncidentRow[];
 }) {
+  const router = useRouter();
   const [alertQuery, setAlertQuery] = useState("");
   const [incidentQuery, setIncidentQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -144,6 +146,7 @@ export function AlertsIncidentsPanel({
           onSearchChange={setAlertQuery}
           searchPlaceholder="Search alerts…"
           emptyMessage="No alerts."
+          pageSize={5}
         >
           {(pageItems) => (
             <Table>
@@ -189,6 +192,7 @@ export function AlertsIncidentsPanel({
                             startTransition(async () => {
                               await actionResolveAlert(a.id);
                               toast.success("Alert resolved");
+                              router.refresh();
                             })
                           }
                         >
@@ -226,6 +230,7 @@ export function AlertsIncidentsPanel({
           onSearchChange={setIncidentQuery}
           searchPlaceholder="Search incidents…"
           emptyMessage="No incidents."
+          pageSize={5}
         >
           {(pageItems) => (
             <Table>
@@ -268,6 +273,7 @@ export function AlertsIncidentsPanel({
                                 toast.success(
                                   `Marked ${formatEnumLabel(next)}`,
                                 );
+                                router.refresh();
                               })
                             }
                           >

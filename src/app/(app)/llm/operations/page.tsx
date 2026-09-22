@@ -44,11 +44,11 @@ export default async function LlmOperationsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Overdue list
+              Still under bridge
             </CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {m.overdueCount}
+            {m.stillUnderBridgeCount}
           </CardContent>
         </Card>
         <Card>

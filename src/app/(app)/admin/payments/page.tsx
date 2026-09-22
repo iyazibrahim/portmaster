@@ -1,9 +1,7 @@
-import { Suspense } from "react";
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, locations, passes, payments, users } from "@/db/schema";
-import { JettyFilter } from "@/components/admin/jetty-filter";
 import { PaymentsTable } from "@/components/admin/payments-table";
 import { formatMYR, todayMYT } from "@/lib/utils-app";
 
@@ -57,6 +55,22 @@ export default async function AdminPaymentsPage({
     .orderBy(desc(payments.createdAt))
     .limit(200);
 
+  const monthStart = `${today.slice(0, 7)}-01`;
+
+  const [monthCollected] = await db
+    .select({
+      cents: sql<number>`coalesce(sum(${payments.amountCents}), 0)`,
+    })
+    .from(payments)
+    .innerJoin(passes, eq(payments.passId, passes.id))
+    .where(
+      and(
+        eq(payments.status, "PAID"),
+        gte(payments.paidAt, new Date(`${monthStart}T00:00:00+08:00`)),
+        jettyClause,
+      ),
+    );
+
   const [todayCollected] = await db
     .select({
       cents: sql<number>`coalesce(sum(${payments.amountCents}), 0)`,
@@ -84,6 +98,11 @@ export default async function AdminPaymentsPage({
     .where(jettyClause);
 
   const widgets = [
+    {
+      label: "Monthly collected",
+      value: formatMYR(Number(monthCollected?.cents ?? 0)),
+      hint: `${monthStart.slice(0, 7)} · MYT month-to-date`,
+    },
     {
       label: "Collected today",
       value: formatMYR(Number(todayCollected?.cents ?? 0)),
@@ -115,7 +134,7 @@ export default async function AdminPaymentsPage({
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {widgets.map((w) => (
           <div
             key={w.label}
@@ -132,25 +151,18 @@ export default async function AdminPaymentsPage({
         ))}
       </div>
 
-      <Suspense fallback={null}>
-        <JettyFilter jetties={jettyOptions} />
-      </Suspense>
-
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No pass payments yet.</p>
-      ) : (
-        <PaymentsTable
-          rows={rows.map((r) => ({
-            id: r.id,
-            createdAt: r.createdAt.toISOString(),
-            angler: r.angler,
-            passRef: r.reference,
-            amountCents: r.amountCents,
-            method: methodLabel(r.provider),
-            status: r.status,
-          }))}
-        />
-      )}
+      <PaymentsTable
+        jetties={jettyOptions}
+        rows={rows.map((r) => ({
+          id: r.id,
+          createdAt: r.createdAt.toISOString(),
+          angler: r.angler,
+          passRef: r.reference,
+          amountCents: r.amountCents,
+          method: methodLabel(r.provider),
+          status: r.status,
+        }))}
+      />
     </div>
   );
 }

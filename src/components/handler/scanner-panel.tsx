@@ -219,8 +219,27 @@ export function ScannerPanel({
   const cameraBoxRef = useRef<HTMLDivElement>(null);
   const verifyRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
+  const cameraGenRef = useRef(0);
 
   const busy = loadingPreview || confirming;
+
+  function isStreamLive() {
+    const stream = streamRef.current;
+    if (!stream) return false;
+    return stream
+      .getVideoTracks()
+      .some((t) => t.readyState === "live" && t.enabled);
+  }
+
+  function bindStreamHandlers(stream: MediaStream) {
+    stream.getVideoTracks().forEach((track) => {
+      track.onended = () => {
+        if (streamRef.current !== stream) return;
+        stopCamera();
+        setError("Camera stopped. Tap Open camera to scan again.");
+      };
+    });
+  }
 
   function clearDetectTimer() {
     if (detectTimer.current) {
@@ -246,6 +265,11 @@ export function ScannerPanel({
   function stopCameraHard() {
     detachVideo();
     cameraHub.releaseHard();
+  }
+
+  function stopCamera() {
+    detachVideo();
+    cameraHub.releaseSoft();
   }
 
   function pauseDecoding(ms = 0) {
@@ -397,36 +421,50 @@ export function ScannerPanel({
     tick();
   }
 
+  function startDecodeLoops() {
+    const Detector = (
+      window as unknown as {
+        BarcodeDetector?: new (opts: {
+          formats: string[];
+        }) => {
+          detect: (
+            source: ImageBitmapSource,
+          ) => Promise<{ rawValue: string }[]>;
+        };
+      }
+    ).BarcodeDetector;
+
+    if (Detector) {
+      startBarcodeDetectorLoop(Detector);
+    } else {
+      void startJsQrLoop();
+    }
+  }
+
   async function startCamera() {
-    if (startingRef.current || streamRef.current) return;
+    if (startingRef.current) return;
+    if (streamRef.current && isStreamLive()) {
+      setCameraOn(true);
+      startDecodeLoops();
+      return;
+    }
+    if (streamRef.current && !isStreamLive()) {
+      stopCamera();
+    }
+    const gen = ++cameraGenRef.current;
     startingRef.current = true;
     setError(null);
     try {
       const stream = await openRearCamera();
-      if (!mountedRef.current) {
+      if (!mountedRef.current || gen !== cameraGenRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
         cameraHub.releaseSoft();
         return;
       }
       streamRef.current = stream;
+      bindStreamHandlers(stream);
       setCameraOn(true);
-
-      const Detector = (
-        window as unknown as {
-          BarcodeDetector?: new (opts: {
-            formats: string[];
-          }) => {
-            detect: (
-              source: ImageBitmapSource,
-            ) => Promise<{ rawValue: string }[]>;
-          };
-        }
-      ).BarcodeDetector;
-
-      if (Detector) {
-        startBarcodeDetectorLoop(Detector);
-      } else {
-        await startJsQrLoop();
-      }
+      startDecodeLoops();
     } catch {
       if (mountedRef.current) {
         setError("Could not open camera. Check permissions or paste the token.");
@@ -437,12 +475,31 @@ export function ScannerPanel({
     }
   }
 
-  function scanAnother() {
+  async function ensureLiveCamera() {
+    if (isStreamLive()) {
+      const video = videoRef.current;
+      if (video && video.srcObject !== streamRef.current) {
+        video.srcObject = streamRef.current;
+      }
+      void videoRef.current?.play().catch(() => {});
+      if (cameraOn) startDecodeLoops();
+      return;
+    }
+    stopCamera();
+    await startCamera();
+  }
+
+  async function readyForNextScan() {
     setPreview(null);
     setToken("");
     setError(null);
-    resumeDecoding(700);
+    resumeDecoding(900);
     scrollTo(cameraBoxRef.current);
+    await ensureLiveCamera();
+  }
+
+  function scanAnother() {
+    void readyForNextScan();
   }
 
   async function confirmScan() {
@@ -467,13 +524,11 @@ export function ScannerPanel({
           res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
         );
       }
-      setPreview(null);
-      setToken("");
-      resumeDecoding(1100);
-      scrollTo(cameraBoxRef.current);
+      await readyForNextScan();
     } catch (err) {
       if (!mountedRef.current) return;
       setError(formatScanError(err));
+      if (preview) resumeDecoding(600);
     } finally {
       if (mountedRef.current) setConfirming(false);
     }
@@ -494,26 +549,37 @@ export function ScannerPanel({
   useEffect(() => {
     mountedRef.current = true;
 
-    // Re-attach a still-live stream after Soft Nav remount (no new permission).
     const existing = cameraHub.liveStream();
     let resumeId: number | undefined;
     if (existing) {
       cameraHub.cancelRelease();
       cameraHub.consumers += 1;
       streamRef.current = existing;
+      bindStreamHandlers(existing);
       resumeId = window.setTimeout(() => {
-        if (mountedRef.current) setCameraOn(true);
+        if (mountedRef.current) void startCamera();
       }, 0);
     }
 
     return () => {
       mountedRef.current = false;
       if (resumeId != null) window.clearTimeout(resumeId);
+      cameraGenRef.current += 1;
       detachVideo();
       cameraHub.releaseSoft();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only hub reattach
   }, []);
+
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState !== "visible" || !cameraOn) return;
+      void ensureLiveCamera();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLiveCamera stable enough
+  }, [cameraOn]);
 
   return (
     <div className="flex flex-col gap-4">

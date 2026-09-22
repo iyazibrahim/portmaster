@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -10,7 +10,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/status-badge";
-import { AdminDataTable } from "@/components/admin/admin-data-table";
+import {
+  ADMIN_CONTROL,
+  AdminDataTable,
+} from "@/components/admin/admin-data-table";
+import {
+  JettyFilter,
+  type JettyFilterOption,
+} from "@/components/admin/jetty-filter";
 import { formatMYR } from "@/lib/utils-app";
 
 export type PaymentRow = {
@@ -23,7 +30,13 @@ export type PaymentRow = {
   status: string;
 };
 
-export function PaymentsTable({ rows }: { rows: PaymentRow[] }) {
+export function PaymentsTable({
+  rows,
+  jetties,
+}: {
+  rows: PaymentRow[];
+  jetties: JettyFilterOption[];
+}) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -44,7 +57,16 @@ export function PaymentsTable({ rows }: { rows: PaymentRow[] }) {
       search={query}
       onSearchChange={setQuery}
       searchPlaceholder="Search angler, pass ref, status…"
-      emptyMessage="No payments match."
+      emptyMessage="No pass payments yet."
+      filters={
+        <Suspense fallback={null}>
+          <JettyFilter
+            jetties={jetties}
+            className="flex min-w-[12rem] flex-1 flex-col gap-1.5 sm:max-w-xs"
+            selectClassName={ADMIN_CONTROL}
+          />
+        </Suspense>
+      }
     >
       {(pageItems) => (
         <Table>

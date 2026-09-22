@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireRole } from "@/lib/session";
 import {
   formatDuration,
@@ -74,11 +75,11 @@ export default async function AdminOpsPage() {
       color: "text-pink-600 bg-pink-50",
     },
     {
-      label: "Overdue Anglers",
-      value: String(m.overdueCount),
-      sub: "not yet returned",
+      label: "Still under bridge",
+      value: String(m.stillUnderBridgeCount),
+      sub: `Checked in longer than ${m.overdueHours}h`,
       icon: AlertTriangle,
-      color: "text-red-600 bg-red-50",
+      color: "text-amber-700 bg-amber-50",
     },
     {
       label: "Active Alerts",
@@ -162,7 +163,7 @@ export default async function AdminOpsPage() {
                     ? "bg-emerald-600"
                     : b.occupied > 0
                       ? "bg-amber-400"
-                      : "bg-muted";
+                      : "bg-muted/80";
                 return (
                   <div
                     key={b.id}
@@ -182,15 +183,15 @@ export default async function AdminOpsPage() {
                 );
               })}
             </div>
-            <div className="mt-2 flex gap-3 text-[10px] text-muted-foreground">
+            <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1">
-                <span className="size-2 rounded-sm bg-emerald-600" /> Occupied
+                <span className="size-2 rounded-sm bg-amber-400" /> Occupied
               </span>
               <span className="flex items-center gap-1">
-                <span className="size-2 rounded-sm bg-amber-400" /> Available
+                <span className="size-2 rounded-sm bg-emerald-600" /> At capacity
               </span>
               <span className="flex items-center gap-1">
-                <span className="size-2 rounded-sm bg-muted" /> Empty
+                <span className="size-2 rounded-sm bg-muted/80" /> Empty
               </span>
             </div>
           </CardContent>
@@ -269,7 +270,10 @@ export default async function AdminOpsPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-base">Overdue Anglers</CardTitle>
+            <CardTitle className="text-base">Still under bridge</CardTitle>
+            <p className="text-xs font-normal text-muted-foreground">
+              Long stays (incl. overnight) · over {m.overdueHours}h checked in
+            </p>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
@@ -284,7 +288,7 @@ export default async function AdminOpsPage() {
                 {m.overdueRows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={3} className="text-muted-foreground">
-                      None overdue
+                      No long stays
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -292,7 +296,7 @@ export default async function AdminOpsPage() {
                     <TableRow key={r.passId}>
                       <TableCell>{r.name}</TableCell>
                       <TableCell>{r.pillar}</TableCell>
-                      <TableCell className="font-medium text-red-600">
+                      <TableCell className="font-medium text-amber-800">
                         {formatDuration(r.durationMin)}
                       </TableCell>
                     </TableRow>
@@ -304,8 +308,14 @@ export default async function AdminOpsPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Current Alerts</CardTitle>
+            <Link
+              href="/admin/alerts"
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              View all
+            </Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {m.alerts.length === 0 ? (
@@ -332,8 +342,14 @@ export default async function AdminOpsPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Active Incidents</CardTitle>
+            <Link
+              href="/admin/alerts"
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              View all
+            </Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {m.incidents.length === 0 ? (

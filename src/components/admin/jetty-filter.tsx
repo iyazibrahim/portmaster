@@ -13,9 +13,13 @@ export type JettyFilterOption = {
 export function JettyFilter({
   jetties,
   paramName = "jetty",
+  className,
+  selectClassName,
 }: {
   jetties: JettyFilterOption[];
   paramName?: string;
+  className?: string;
+  selectClassName?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -39,7 +43,7 @@ export function JettyFilter({
   }
 
   return (
-    <div className="flex max-w-md flex-col gap-1.5">
+    <div className={className ?? "flex max-w-md flex-col gap-1.5"}>
       <Label htmlFor="jetty-filter">Jetty</Label>
       <SearchableSelect
         options={options}
@@ -47,6 +51,7 @@ export function JettyFilter({
         onValueChange={onChange}
         placeholder="Filter by jetty"
         searchPlaceholder="Search jetties…"
+        className={selectClassName}
       />
     </div>
   );

@@ -8,17 +8,28 @@ import {
   locations,
   passes,
   payments,
+  settings,
   users,
 } from "@/db/schema";
-import { isOverdue } from "@/domain/pass";
+import { isOverdue, PASS_OCCUPANCY_STATUSES } from "@/domain/pass";
 import {
   DEFAULT_OVERDUE_HOURS,
   todayMYT,
 } from "@/lib/utils-app";
 
+async function overdueHoursFromSettings() {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, "overdue_hours"))
+    .limit(1);
+  const n = Number(row?.value);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_OVERDUE_HOURS;
+}
+
 export async function getDashboardMetrics() {
   const validOn = todayMYT();
-  const overdueHours = DEFAULT_OVERDUE_HOURS;
+  const overdueHours = await overdueHoursFromSettings();
 
   const todayPasses = await db
     .select()
@@ -74,9 +85,14 @@ export async function getDashboardMetrics() {
     );
   const collectionCents = Number(paid[0]?.amount ?? 0);
 
-  const overdueAnglers = checkedIn
-    .filter((p) => isOverdue(p.checkedInAt, overdueHours))
-    .map((p) => p);
+  const allCheckedIn = await db
+    .select()
+    .from(passes)
+    .where(eq(passes.status, "CHECKED_IN"));
+
+  const stillUnderBridge = allCheckedIn.filter((p) =>
+    isOverdue(p.checkedInAt, overdueHours),
+  );
 
   const openAlerts = await db
     .select()
@@ -93,7 +109,7 @@ export async function getDashboardMetrics() {
   // Occupied first, unique GT/SP labels (not raw P1 from every jetty)
   const pillarOcc = new Map<string, number>();
   for (const p of todayPasses) {
-    if (["ACTIVE", "CHECKED_IN", "PENDING_PAYMENT"].includes(p.status)) {
+    if (PASS_OCCUPANCY_STATUSES.includes(p.status)) {
       pillarOcc.set(p.pillarId, (pillarOcc.get(p.pillarId) ?? 0) + 1);
     }
   }
@@ -138,7 +154,7 @@ export async function getDashboardMetrics() {
   });
 
   const overdueRows = [];
-  for (const p of overdueAnglers) {
+  for (const p of stillUnderBridge) {
     const [u] = await db
       .select({ name: users.name, myKadLast4: users.myKadLast4 })
       .from(users)
@@ -234,7 +250,8 @@ export async function getDashboardMetrics() {
     activeBoats,
     totalBoats: boatRows.length,
     collectionCents,
-    overdueCount: overdueAnglers.length,
+    stillUnderBridgeCount: stillUnderBridge.length,
+    overdueHours,
     activeAlerts: openAlerts.length,
     activeIncidents: activeIncidents.length,
     pillarBars,
@@ -252,8 +269,8 @@ export async function getDashboardMetrics() {
     salesSeries,
     overdueRows,
     checkedInRows,
-    alerts: openAlerts.slice(0, 10),
-    incidents: activeIncidents.slice(0, 10),
+    alerts: openAlerts.slice(0, 5),
+    incidents: activeIncidents.slice(0, 5),
     trend,
   };
 }

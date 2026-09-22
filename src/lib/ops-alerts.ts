@@ -1,20 +1,9 @@
 import { and, eq, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { alerts, boats, passes, payments, settings, users } from "@/db/schema";
-import { isOverdue } from "@/domain/pass";
-import { DEFAULT_OVERDUE_HOURS, id } from "@/lib/utils-app";
+import { alerts, boats, passes, payments, users } from "@/db/schema";
+import { id } from "@/lib/utils-app";
 
 const PERMIT_WARN_DAYS = 30;
-
-async function overdueHoursFromSettings() {
-  const [row] = await db
-    .select({ value: settings.value })
-    .from(settings)
-    .where(eq(settings.key, "overdue_hours"))
-    .limit(1);
-  const n = Number(row?.value);
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_OVERDUE_HOURS;
-}
 
 async function hasOpenAlert(opts: {
   type: string;
@@ -44,34 +33,10 @@ async function hasOpenAlert(opts: {
  * Safe to call on admin alerts page load; skips duplicates while open.
  */
 export async function refreshOpsAlerts() {
-  const overdueHours = await overdueHoursFromSettings();
   const now = new Date();
   let created = 0;
 
-  const checkedIn = await db
-    .select({
-      id: passes.id,
-      reference: passes.reference,
-      checkedInAt: passes.checkedInAt,
-      angler: users.name,
-    })
-    .from(passes)
-    .innerJoin(users, eq(passes.userId, users.id))
-    .where(eq(passes.status, "CHECKED_IN"));
-
-  for (const p of checkedIn) {
-    if (!isOverdue(p.checkedInAt, overdueHours, now)) continue;
-    if (await hasOpenAlert({ type: "OVERDUE_CHECKIN", passId: p.id })) continue;
-    await db.insert(alerts).values({
-      id: id("alt"),
-      type: "OVERDUE_CHECKIN",
-      severity: "WARNING",
-      title: `Overdue check-in · ${p.reference}`,
-      description: `${p.angler} has been checked in longer than ${overdueHours} hours.`,
-      passId: p.id,
-    });
-    created += 1;
-  }
+  // Long stays (including overnight) are shown on the dashboard only — no auto OVERDUE_CHECKIN alerts.
 
   const horizon = new Date(now.getTime() + PERMIT_WARN_DAYS * 86_400_000);
   const expiring = await db
