@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
+import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { useT } from "@/i18n/locale-provider";
 
 const DEMO_LOGINS = [
@@ -26,7 +27,7 @@ export function LoginForm() {
   const [pending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { t } = useT();
+  const { t, locale } = useT();
 
   function fillDemo(demoEmail: string) {
     setEmail(demoEmail);
@@ -53,17 +54,20 @@ export function LoginForm() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden">
       <MarketingBackground />
 
-      <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <BrandLogo size={32} className="h-8 w-8" priority />
+      <header className="relative z-10 flex h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
+        <Link href="/" className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight">
+          <BrandLogo size={32} className="h-8 w-8 shrink-0" priority />
           TiangPass
         </Link>
-        <Link
-          href="/signup"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("auth.signupLink")}
-        </Link>
+        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+          <LocaleSwitcher locale={locale} />
+          <Link
+            href="/signup"
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            {t("auth.signupLink")}
+          </Link>
+        </div>
       </header>
 
       <div className="relative z-10 flex flex-1 items-center px-4 py-8 sm:px-6 lg:px-10">
