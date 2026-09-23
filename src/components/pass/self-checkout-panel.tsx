@@ -13,6 +13,14 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useT } from "@/i18n/locale-provider";
 
 function getPosition(): Promise<GeolocationPosition> {
@@ -29,6 +37,7 @@ function getPosition(): Promise<GeolocationPosition> {
   });
 }
 
+/** Compact trigger + modal — keeps pass detail uncluttered. */
 export function OvernightIntentionPanel({
   passId,
   status,
@@ -44,6 +53,7 @@ export function OvernightIntentionPanel({
 }) {
   const { t } = useT();
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [overnight, setOvernight] = useState(intendsOvernight);
   const [returnOn, setReturnOn] = useState(
@@ -72,69 +82,114 @@ export function OvernightIntentionPanel({
       }
       setSaved(true);
       router.refresh();
+      setOpen(false);
     });
   }
 
+  const summary = intendsOvernight
+    ? t("pass.overnight.summaryOn", {
+        date: expectedReturnOn ?? "—",
+      })
+    : t("pass.overnight.summaryOff");
+
   return (
-    <div className="space-y-3 rounded-xl border border-border/80 bg-muted/20 p-4">
-      <div>
-        <p className="text-sm font-medium">{t("pass.overnight.title")}</p>
-        <p className="text-xs text-muted-foreground">
-          {t("pass.overnight.hint")}
-        </p>
-      </div>
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="mt-1 size-4 accent-primary"
-          checked={overnight}
-          onChange={(e) => {
-            setOvernight(e.target.checked);
-            setSaved(false);
-            if (e.target.checked && !returnOn) {
-              setReturnOn(defaultExpectedReturnOn(validOn));
-            }
-          }}
-        />
-        <span>{t("pass.overnight.checkbox")}</span>
-      </label>
-      {overnight ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`return-${passId}`}>
-            {t("pass.overnight.returnDate")}
-          </Label>
-          <input
-            id={`return-${passId}`}
-            type="date"
-            min={minDate}
-            max={maxDate}
-            value={returnOn}
-            onChange={(e) => {
-              setReturnOn(e.target.value);
-              setSaved(false);
-            }}
-            className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-          />
-        </div>
-      ) : null}
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {saved ? (
-        <p className="text-xs text-emerald-700">{t("pass.overnight.saved")}</p>
-      ) : null}
+    <>
       <Button
         type="button"
         variant="outline"
-        className="h-11 min-h-11 w-full sm:w-auto"
-        disabled={pending}
-        onClick={save}
+        className="min-h-11 w-full justify-between gap-3 px-4 text-left sm:w-auto"
+        onClick={() => {
+          setOvernight(intendsOvernight);
+          setReturnOn(expectedReturnOn ?? defaultExpectedReturnOn(validOn));
+          setError(null);
+          setSaved(false);
+          setOpen(true);
+        }}
       >
-        {pending ? t("pass.overnight.saving") : t("pass.overnight.save")}
+        <span className="min-w-0 truncate font-medium">
+          {t("pass.overnight.open")}
+        </span>
+        <span className="shrink-0 text-xs font-normal text-muted-foreground">
+          {summary}
+        </span>
       </Button>
-    </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("pass.overnight.title")}</DialogTitle>
+            <DialogDescription className="text-left">
+              {t("pass.overnight.hint")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 size-4 accent-primary"
+                checked={overnight}
+                onChange={(e) => {
+                  setOvernight(e.target.checked);
+                  setSaved(false);
+                  if (e.target.checked && !returnOn) {
+                    setReturnOn(defaultExpectedReturnOn(validOn));
+                  }
+                }}
+              />
+              <span>{t("pass.overnight.checkbox")}</span>
+            </label>
+            {overnight ? (
+              <div className="space-y-1.5">
+                <Label htmlFor={`return-${passId}`}>
+                  {t("pass.overnight.returnDate")}
+                </Label>
+                <input
+                  id={`return-${passId}`}
+                  type="date"
+                  min={minDate}
+                  max={maxDate}
+                  value={returnOn}
+                  onChange={(e) => {
+                    setReturnOn(e.target.value);
+                    setSaved(false);
+                  }}
+                  className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+              </div>
+            ) : null}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            {saved ? (
+              <p className="text-xs text-emerald-700">
+                {t("pass.overnight.saved")}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={pending}
+              onClick={() => setOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={pending}
+              onClick={save}
+            >
+              {pending ? t("pass.overnight.saving") : t("pass.overnight.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

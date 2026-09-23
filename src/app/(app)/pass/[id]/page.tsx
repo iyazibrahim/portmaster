@@ -15,13 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { DownloadReceiptButton } from "@/components/pass/download-receipt-button";
 import { PassWalletCache } from "@/components/pass/pass-wallet-cache";
 import {
   OvernightIntentionPanel,
   SelfCheckoutPanel,
 } from "@/components/pass/self-checkout-panel";
-import { CancelPassActions } from "@/components/pass/cancel-pass-actions";
+import { PassDetailActions } from "@/components/pass/cancel-pass-actions";
 import { getTranslator } from "@/i18n";
 
 export const dynamic = "force-dynamic";
@@ -164,14 +163,6 @@ export default async function PassDetailPage({
             remind={remind}
           />
 
-          <OvernightIntentionPanel
-            passId={pass.id}
-            status={pass.status}
-            validOn={pass.validOn}
-            intendsOvernight={pass.intendsOvernight}
-            expectedReturnOn={pass.expectedReturnOn}
-          />
-
           <dl className="grid gap-0 text-sm">
             <Row label={t("pass.jetty")} value={jetty?.name ?? "—"} />
             <Row label={t("pass.pillar")} value={pillar?.name ?? "—"} />
@@ -186,14 +177,19 @@ export default async function PassDetailPage({
             ) : null}
           </dl>
 
-          {payment?.status === "PAID" ? (
-            <DownloadReceiptButton passId={pass.id} />
-          ) : null}
+          <OvernightIntentionPanel
+            passId={pass.id}
+            status={pass.status}
+            validOn={pass.validOn}
+            intendsOvernight={pass.intendsOvernight}
+            expectedReturnOn={pass.expectedReturnOn}
+          />
 
-          <CancelPassActions
+          <PassDetailActions
             passId={pass.id}
             status={pass.status}
             pillarName={pillar?.name}
+            showReceipt={payment?.status === "PAID"}
           />
         </CardContent>
       </Card>
