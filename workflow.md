@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Cancel to change pillar (2026-09-23):** Anglers change pillar by cancelling `ACTIVE`/`PENDING_PAYMENT` (Change pillar / Cancel pass on pass detail, My Passes, buy gate) then buying again — fee non-refundable. Not after check-in. `actionCancelPass` revalidates pass/trips/ops.
+
 **Overnight self-checkout Phase B (2026-09-22):** Implemented jetty-geofenced angler self-checkout + shore/liability declaration; optional `intends_overnight` / `expected_return_on` (not multi-day pass). Migration `0009_overnight_intention`. Phase C remote claimed-ashore still deferred.
 
 **Overnight self-checkout plan (2026-09-22):** Product direction locked — **Phase B now** (jetty-geofenced angler self-checkout + shore/liability declaration + optional expected-return intention; not multi-day purchase), **Phase C later** (remote claimed-ashore + ops confirm). Spec: `docs/superpowers/specs/2026-09-22-overnight-self-checkout-design.md`. Plan: `docs/superpowers/plans/2026-09-22-overnight-self-checkout.md`.

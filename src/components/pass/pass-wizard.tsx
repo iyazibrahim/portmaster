@@ -26,7 +26,10 @@ import {
   PaginationBar,
   useClientPagination,
 } from "@/hooks/use-client-pagination";
+import { CancelPassActions } from "@/components/pass/cancel-pass-actions";
 import { useT } from "@/i18n/locale-provider";
+import { canCancelPass } from "@/domain/pass";
+import type { PassStatus } from "@/db/schema";
 
 type JettyOption = {
   id: string;
@@ -114,14 +117,15 @@ export function PassWizard({
     id: string;
     status: string;
     reference: string;
+    pillarName?: string | null;
     reservedUntil: string | null;
   } | null;
   allowMultipleSameDay?: boolean;
   bypassGeofence?: boolean;
   hasIdentityPhoto?: boolean;
 }) {
-  const router = useRouter();
   const { t } = useT();
+  const router = useRouter();
   const [step, setStep] = useState<Step>(
     todayPass?.status === "PENDING_PAYMENT" ? "pay" : "jetty",
   );
@@ -254,24 +258,45 @@ export function PassWizard({
     todayPass.status !== "CANCELLED" &&
     todayPass.status !== "EXPIRED"
   ) {
+    const canChange = canCancelPass(todayPass.status as PassStatus);
     return (
       <Card className="mx-auto w-full max-w-lg lg:max-w-xl">
         <CardHeader className="px-4 pt-4 sm:px-5 sm:pt-5">
-          <CardTitle className="text-base">Today&apos;s pass</CardTitle>
+          <CardTitle className="text-base">{t("pass.todayTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
           <p className="text-sm text-muted-foreground">
-            You already have a pass for today ({todayPass.reference}).
+            {t("pass.alreadyHave", { ref: todayPass.reference })}
           </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <StatusBadge status={todayPass.status} className="w-fit" />
-            <Button
-              className={actionBtn}
-              onClick={() => router.push(`/pass/${todayPass.id}`)}
-            >
-              View QR / receipt
-            </Button>
-          </div>
+          {todayPass.pillarName ? (
+            <p className="text-sm text-muted-foreground">
+              {t("pass.alreadyHavePillar", { pillar: todayPass.pillarName })}
+            </p>
+          ) : null}
+          <StatusBadge status={todayPass.status} className="w-fit" />
+          {canChange ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {t("pass.changeBeforeBoard")}
+              </p>
+              <CancelPassActions
+                passId={todayPass.id}
+                status={todayPass.status}
+                pillarName={todayPass.pillarName}
+              />
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {t("pass.changeBeforeBoard")}
+            </p>
+          )}
+          <Button
+            className={actionBtn}
+            variant="outline"
+            onClick={() => router.push(`/pass/${todayPass.id}`)}
+          >
+            {t("pass.viewQr")}
+          </Button>
         </CardContent>
       </Card>
     );

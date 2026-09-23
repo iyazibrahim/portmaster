@@ -21,6 +21,7 @@ import {
   OvernightIntentionPanel,
   SelfCheckoutPanel,
 } from "@/components/pass/self-checkout-panel";
+import { CancelPassActions } from "@/components/pass/cancel-pass-actions";
 import { getTranslator } from "@/i18n";
 
 export const dynamic = "force-dynamic";
@@ -117,7 +118,7 @@ export default async function PassDetailPage({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 pt-4 sm:px-5 sm:pt-5">
-          <CardTitle className="text-base">Status</CardTitle>
+          <CardTitle className="text-base">{t("pass.status")}</CardTitle>
           <StatusBadge status={pass.status} />
         </CardHeader>
         <CardContent className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
@@ -188,6 +189,12 @@ export default async function PassDetailPage({
           {payment?.status === "PAID" ? (
             <DownloadReceiptButton passId={pass.id} />
           ) : null}
+
+          <CancelPassActions
+            passId={pass.id}
+            status={pass.status}
+            pillarName={pillar?.name}
+          />
         </CardContent>
       </Card>
 

@@ -9,6 +9,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import { getTranslator } from "@/i18n";
 import { SoftLiveRefresh } from "@/components/soft-live-refresh";
+import { CancelPassActions } from "@/components/pass/cancel-pass-actions";
+import { canCancelPass } from "@/domain/pass";
+import type { PassStatus } from "@/db/schema";
 
 export default async function TripsPage() {
   const session = await requireSession();
@@ -42,24 +45,22 @@ export default async function TripsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             {t("trips.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Same-day Association fishing passes.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("trips.subtitle")}</p>
         </div>
         <Link
           href="/pass"
           className={cn(buttonVariants(), "inline-flex min-h-11 w-full sm:w-auto")}
         >
-          Buy today&apos;s pass
+          {t("trips.buyCta")}
         </Link>
       </div>
 
       {rows.length === 0 ? (
         <Card>
           <CardContent className="px-4 py-8 text-sm text-muted-foreground sm:px-5">
-            No passes yet.{" "}
+            {t("trips.empty")}{" "}
             <Link href="/pass" className="text-primary underline-offset-4 hover:underline">
-              Purchase a pass
+              {t("pass.buy")}
             </Link>
             .
           </CardContent>
@@ -74,22 +75,32 @@ export default async function TripsPage() {
                 </CardTitle>
                 <StatusBadge status={r.status} />
               </CardHeader>
-              <CardContent className="flex flex-col gap-3 px-4 pb-4 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5 sm:pb-5">
+              <CardContent className="flex flex-col gap-3 px-4 pb-4 text-sm sm:px-5 sm:pb-5">
                 <div>
                   <p>{r.jetty}</p>
                   <p className="text-muted-foreground">
                     {r.pillar} · {r.validOn}
                   </p>
                 </div>
-                <Link
-                  href={`/pass/${r.id}`}
-                  className={cn(
-                    buttonVariants({ variant: "outline" }),
-                    "inline-flex min-h-11 w-full sm:w-auto",
-                  )}
-                >
-                  View
-                </Link>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Link
+                    href={`/pass/${r.id}`}
+                    className={cn(
+                      buttonVariants({ variant: "outline" }),
+                      "inline-flex min-h-11 w-full sm:w-auto",
+                    )}
+                  >
+                    {t("trips.view")}
+                  </Link>
+                  {canCancelPass(r.status as PassStatus) ? (
+                    <CancelPassActions
+                      passId={r.id}
+                      status={r.status}
+                      pillarName={r.pillar}
+                      layout="inline"
+                    />
+                  ) : null}
+                </div>
               </CardContent>
             </Card>
           ))}

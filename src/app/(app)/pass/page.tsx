@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
-import { jetties, passes, users } from "@/db/schema";
+import { jetties, locations, passes, users } from "@/db/schema";
 import { canBuyMultiplePassesToday, canBypassPassGeofence, todayMYT } from "@/lib/utils-app";
 import { PASS_BLOCKING_STATUSES } from "@/domain/pass";
 import { getTranslator } from "@/i18n";
@@ -64,8 +64,10 @@ export default async function PassPage() {
           status: passes.status,
           reference: passes.reference,
           reservedUntil: passes.reservedUntil,
+          pillarName: locations.name,
         })
         .from(passes)
+        .leftJoin(locations, eq(passes.pillarId, locations.id))
         .where(
           and(
             eq(passes.userId, session.user.id),
@@ -80,8 +82,10 @@ export default async function PassPage() {
           status: passes.status,
           reference: passes.reference,
           reservedUntil: passes.reservedUntil,
+          pillarName: locations.name,
         })
         .from(passes)
+        .leftJoin(locations, eq(passes.pillarId, locations.id))
         .where(
           and(
             eq(passes.userId, session.user.id),
@@ -121,6 +125,7 @@ export default async function PassPage() {
                 id: todayPass.id,
                 status: todayPass.status,
                 reference: todayPass.reference,
+                pillarName: todayPass.pillarName,
                 reservedUntil: todayPass.reservedUntil
                   ? todayPass.reservedUntil.toISOString()
                   : null,

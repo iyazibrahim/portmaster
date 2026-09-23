@@ -90,7 +90,12 @@ export async function actionCancelPass(
   const session = await requireSession();
   try {
     await cancelActivePass(passId, session.user.id, session.user.id);
+    // No refund — Association fee is non-refundable. Do not touch payment row.
     revalidatePath("/pass");
+    revalidatePath(`/pass/${passId}`);
+    revalidatePath("/trips");
+    revalidatePath("/admin/ops");
+    revalidatePath("/admin/passes");
     return { ok: true, passId };
   } catch (e) {
     return {

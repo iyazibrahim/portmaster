@@ -248,9 +248,40 @@ describe("pass QR check-in / check-out transitions", () => {
 });
 
 describe("cancel / overdue", () => {
-  it("allows cancel of Active", () => {
+  it("allows cancel of Active and Pending Payment", () => {
     expect(canCancelPass("ACTIVE")).toBe(true);
+    expect(canCancelPass("PENDING_PAYMENT")).toBe(true);
     expect(canCancelPass("CHECKED_IN")).toBe(false);
+    expect(canCancelPass("CHECKED_OUT")).toBe(false);
+    expect(canCancelPass("CANCELLED")).toBe(false);
+  });
+
+  it("CANCELLED does not block a new same-day pass", () => {
+    const r = assertCanCreatePass({
+      accountStatus: "ACTIVE",
+      existingSameDayStatuses: ["CANCELLED"],
+      pillarStatus: "AVAILABLE",
+      pillarJettyId: "j1",
+      boardingJettyId: "j1",
+      occupancy: { heldCount: 0 },
+      maxOccupancy: 4,
+      validOn: todayMYT(),
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("ACTIVE still blocks a new same-day pass", () => {
+    const r = assertCanCreatePass({
+      accountStatus: "ACTIVE",
+      existingSameDayStatuses: ["ACTIVE"],
+      pillarStatus: "AVAILABLE",
+      pillarJettyId: "j1",
+      boardingJettyId: "j1",
+      occupancy: { heldCount: 0 },
+      maxOccupancy: 4,
+      validOn: todayMYT(),
+    });
+    expect(r.ok).toBe(false);
   });
 
   it("detects overdue after N hours", () => {

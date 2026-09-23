@@ -30,6 +30,7 @@ Aligned to the 21 Sep PRD pack with product decisions locked in workshop (2026-0
 | Safety | Overdue **list** on dashboards only. No SOS. No time-limit enforcement. |
 | Legacy booking | **UI hidden.** DB tables retained. |
 | Fee | RM5 Association (`association_fee_cents=500`), non-refundable. |
+| Pillar change | **Cancel + rebuy.** Angler may cancel `ACTIVE` / `PENDING_PAYMENT` only (before check-in), then buy another pillar and pay again. No in-place pillar edit; no refund. Not allowed after `CHECKED_IN` / `CHECKED_OUT`. |
 | Reservation | Default **10 minutes**. |
 | Operating hours | Per jetty, default **06:00–18:00** MYT. |
 
