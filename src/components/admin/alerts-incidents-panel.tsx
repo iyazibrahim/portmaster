@@ -367,6 +367,7 @@ export function AlertsIncidentsPanel({
                       passId: "",
                       pillarId: "",
                     });
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }

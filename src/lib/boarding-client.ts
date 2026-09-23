@@ -51,17 +51,27 @@ export function subscribeBoardingUpdated(handler: () => void): () => void {
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
     credentials: "same-origin",
     body: JSON.stringify(body),
   });
+  const raw = await res.text();
   let data: T | null = null;
   try {
-    data = (await res.json()) as T;
+    data = raw ? (JSON.parse(raw) as T) : null;
   } catch {
-    /* non-JSON */
+    throw new Error(
+      res.status === 401 || res.status === 403
+        ? "Session expired. Reload and sign in again."
+        : `Boarding request failed (${res.status}): expected JSON, got non-JSON response.`,
+    );
   }
-  if (!res.ok && data && typeof data === "object" && data !== null && "error" in data) {
+  if (
+    data &&
+    typeof data === "object" &&
+    data !== null &&
+    "ok" in data
+  ) {
     return data;
   }
   if (!res.ok) {

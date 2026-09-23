@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   actionToggleJettyActive,
   actionUpsertJetty,
@@ -76,6 +77,7 @@ function compactGps(lat: string | null, lng: string | null) {
 }
 
 export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -146,6 +148,7 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
         });
         toast.success(isEdit ? "Jetty updated" : "Jetty saved");
         setDialogOpen(false);
+        router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed");
       }
@@ -230,6 +233,7 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
                                 ? "Jetty deactivated"
                                 : "Jetty activated",
                             );
+                            router.refresh();
                           })
                         }
                       >

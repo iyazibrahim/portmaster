@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { actionUpdateHandler } from "@/lib/actions/admin";
 import {
   Table,
@@ -50,6 +51,7 @@ export function OperatorsAdminTable({
   owners: Option[];
 }) {
   const { t } = useT();
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
@@ -215,6 +217,7 @@ export function OperatorsAdminTable({
                     });
                     toast.success(t("admin.operators.updated"));
                     setEditOpen(false);
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }

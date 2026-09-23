@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   actionSetLocationStatus,
   actionUpsertLocation,
@@ -68,6 +69,7 @@ export function LocationAdmin({
   initial: LocationRow[];
   jetties: JettyOption[];
 }) {
+  const router = useRouter();
   const [jettyFilter, setJettyFilter] = useState("ALL");
   const [sideFilter, setSideFilter] = useState("ALL");
   const [query, setQuery] = useState("");
@@ -241,6 +243,7 @@ export function LocationAdmin({
                                 : "AVAILABLE";
                             await actionSetLocationStatus(t.id, next);
                             toast.success("Status updated");
+                            router.refresh();
                           })
                         }
                       >
@@ -347,6 +350,7 @@ export function LocationAdmin({
                     });
                     toast.success("Pillar saved");
                     setCreateOpen(false);
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }

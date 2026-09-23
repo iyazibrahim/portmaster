@@ -142,18 +142,28 @@ export async function actionUpsertLocation(input: {
       .from(locations)
       .where(eq(locations.id, input.id))
       .limit(1);
-    await db
-      .update(locations)
-      .set({
-        jettyId: input.jettyId,
-        number: input.number,
-        side: input.side,
-        name: input.name,
-        status: input.status,
-        maxOccupancy,
-        notes: input.notes ?? null,
-      })
-      .where(eq(locations.id, input.id));
+    try {
+      await db
+        .update(locations)
+        .set({
+          jettyId: input.jettyId,
+          number: input.number,
+          side: input.side,
+          name: input.name,
+          status: input.status,
+          maxOccupancy,
+          notes: input.notes ?? null,
+        })
+        .where(eq(locations.id, input.id));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/unique|duplicate|location_jetty_side_number/i.test(msg)) {
+        throw new Error(
+          `Pillar #${input.number} already exists on this jetty/side. Pick another number.`,
+        );
+      }
+      throw err;
+    }
     const { writeAudit } = await import("@/lib/audit");
     await writeAudit({
       actorId: session.user.id,
@@ -167,16 +177,26 @@ export async function actionUpsertLocation(input: {
     });
   } else {
     const newId = id("loc");
-    await db.insert(locations).values({
-      id: newId,
-      jettyId: input.jettyId,
-      number: input.number,
-      side: input.side,
-      name: input.name,
-      status: input.status,
-      maxOccupancy,
-      notes: input.notes ?? null,
-    });
+    try {
+      await db.insert(locations).values({
+        id: newId,
+        jettyId: input.jettyId,
+        number: input.number,
+        side: input.side,
+        name: input.name,
+        status: input.status,
+        maxOccupancy,
+        notes: input.notes ?? null,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/unique|duplicate|location_jetty_side_number/i.test(msg)) {
+        throw new Error(
+          `Pillar #${input.number} already exists on this jetty/side. Pick another number or edit the existing pillar.`,
+        );
+      }
+      throw err;
+    }
     const { writeAudit } = await import("@/lib/audit");
     await writeAudit({
       actorId: session.user.id,

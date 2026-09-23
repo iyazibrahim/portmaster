@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   actionCreateUser,
   actionResetUserPassword,
@@ -74,6 +75,7 @@ export function PeopleAdmin({
   jetties: JettyOption[];
 }) {
   const { t } = useT();
+  const router = useRouter();
   const roleOptions = useMemo(
     () => [
       { value: "USER", label: t("common.role.angler") },
@@ -377,6 +379,7 @@ export function PeopleAdmin({
                     toast.success("User created");
                     setCreateOpen(false);
                     setForm(emptyForm(jetties[0]?.id ?? ""));
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }
@@ -453,6 +456,7 @@ export function PeopleAdmin({
                     });
                     toast.success("Role updated");
                     setEditOpen(false);
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }
@@ -495,6 +499,7 @@ export function PeopleAdmin({
                     });
                     toast.success("Password reset");
                     setResetOpen(false);
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }
@@ -587,6 +592,7 @@ export function PeopleAdmin({
                     });
                     toast.success("Account status updated");
                     setBlockOpen(false);
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }

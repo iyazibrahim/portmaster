@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   actionUpsertAdminBoat,
   actionUpsertBoatOwner,
@@ -66,6 +67,7 @@ export function AdminBoatsPanel({
   jetties: JettyOpt[];
   handlers: HandlerOpt[];
 }) {
+  const router = useRouter();
   const [boatOpen, setBoatOpen] = useState(false);
   const [ownerOpen, setOwnerOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -344,6 +346,7 @@ export function AdminBoatsPanel({
                     });
                     toast.success("Boat saved");
                     setBoatOpen(false);
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }
@@ -432,6 +435,7 @@ export function AdminBoatsPanel({
                     await actionUpsertBoatOwner(ownerForm);
                     toast.success("Owner registered");
                     setOwnerOpen(false);
+                    router.refresh();
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Failed");
                   }
