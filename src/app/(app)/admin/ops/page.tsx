@@ -111,7 +111,7 @@ export default async function AdminOpsPage() {
 
   return (
     <div className="space-y-6">
-      <SoftLiveRefresh />
+      <SoftLiveRefresh intervalMs={60_000} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**OOM guard soft refresh (2026-09-23):** SoftLiveRefresh default 60s + in-flight lock (was 12s); removed from My Passes. Ops/passes 60s, handler Today 45s — cuts RSC/DB thrash under 512MB heap / 768m container.
+
 **Cancel to change pillar (2026-09-23):** Anglers change pillar by cancelling `ACTIVE`/`PENDING_PAYMENT` (Change pillar / Cancel pass on pass detail, My Passes, buy gate) then buying again — fee non-refundable. Not after check-in. `actionCancelPass` revalidates pass/trips/ops.
 
 **Overnight self-checkout Phase B (2026-09-22):** Implemented jetty-geofenced angler self-checkout + shore/liability declaration; optional `intends_overnight` / `expected_return_on` (not multi-day pass). Migration `0009_overnight_intention`. Phase C remote claimed-ashore still deferred.

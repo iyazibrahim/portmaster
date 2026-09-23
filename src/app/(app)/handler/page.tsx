@@ -97,7 +97,7 @@ export default async function HandlerHomePage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <SoftLiveRefresh />
+      <SoftLiveRefresh intervalMs={45_000} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

@@ -29,7 +29,7 @@ export default async function AdminPassesPage() {
 
   return (
     <div className="space-y-4">
-      <SoftLiveRefresh />
+      <SoftLiveRefresh intervalMs={60_000} />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t("admin.passesTitle")}
