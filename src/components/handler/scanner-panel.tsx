@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  actionPreviewPassToken,
-  actionScanToken,
-} from "@/lib/actions/booking";
-import {
   actionFetchBoardingManifest,
   actionSyncOfflineScans,
 } from "@/lib/actions/offline";
+import {
+  apiPreviewPassToken,
+  apiScanToken,
+  isServerActionMismatch,
+  notifyBoardingUpdated,
+} from "@/lib/boarding-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -136,13 +138,21 @@ function formatScanError(err: unknown): string {
     if (code === 2) return "Could not read GPS. Move to open sky and try again.";
     if (code === 3) return "GPS timed out. Try again.";
   }
+  if (isServerActionMismatch(err)) {
+    return "App was updated. Reload this page, then scan again.";
+  }
   if (err instanceof Error) {
     if (/minified react error/i.test(err.message)) {
       return "Check-in failed. Keep this page open and try Confirm again.";
     }
     return err.message;
   }
-  if (typeof err === "string" && err.trim()) return err;
+  if (typeof err === "string" && err.trim()) {
+    if (isServerActionMismatch(err)) {
+      return "App was updated. Reload this page, then scan again.";
+    }
+    return err;
+  }
   return "Check-in failed.";
 }
 
@@ -575,6 +585,7 @@ export function ScannerPanel({
       } else if (conflicts) {
         toast.message(`${conflicts} conflict(s) for admin review`);
       }
+      if (synced > 0) notifyBoardingUpdated();
       await refreshPendingCount();
     } catch (err) {
       if (!opts?.silent && !isNetworkError(err)) toast.error(formatScanError(err));
@@ -590,7 +601,7 @@ export function ScannerPanel({
     try {
       try {
         const res = await withTimeout(
-          actionPreviewPassToken(raw),
+          apiPreviewPassToken(raw),
           SCAN_REQUEST_TIMEOUT_MS,
         );
         if (!mountedRef.current) return;
@@ -709,7 +720,7 @@ export function ScannerPanel({
 
       try {
         const res = await withTimeout(
-          actionScanToken(token, coords, clientEventId, expectedAction),
+          apiScanToken(token, coords, clientEventId, expectedAction),
           SCAN_REQUEST_TIMEOUT_MS,
         );
         if (!mountedRef.current) return;
@@ -728,6 +739,10 @@ export function ScannerPanel({
                 }
               : p,
           );
+          notifyBoardingUpdated({
+            passId: res.passId,
+            status: res.status,
+          });
           toast.success(
             res.alreadyApplied
               ? t("scan.alreadyRecorded")
@@ -737,6 +752,7 @@ export function ScannerPanel({
           );
           await new Promise((r) => window.setTimeout(r, 450));
         } else {
+          notifyBoardingUpdated();
           toast.success(
             res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
           );

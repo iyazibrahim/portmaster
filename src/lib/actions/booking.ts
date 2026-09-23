@@ -9,7 +9,6 @@ import {
   completeTrip,
   createTripGroupWithAllocations,
   mockPayBooking,
-  scanBoardingToken,
   type LocationAllocation,
 } from "@/lib/booking";
 import { id } from "@/lib/utils-app";
@@ -79,36 +78,9 @@ export async function actionMockPay(bookingId: string) {
   };
 }
 
-export async function actionPreviewPassToken(token: string): Promise<
-  | {
-      ok: true;
-      preview: {
-        passId: string;
-        reference: string;
-        status: string;
-        validOn: string;
-        anglerName: string;
-        myKadLast4: string | null;
-        photoKey: string | null;
-        pillarName: string;
-        jettyName: string;
-        nextAction: "CHECK_IN" | "CHECK_OUT" | null;
-      };
-    }
-  | { ok: false; error: string }
-> {
-  try {
-    await requireRole(["HANDLER", "ADMIN"]);
-    const { previewPassQrToken } = await import("@/lib/pass");
-    const preview = await previewPassQrToken(token);
-    if (!preview) return { ok: false, error: "Pass QR not found." };
-    return { ok: true, preview };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Could not preview pass.",
-    };
-  }
+export async function actionPreviewPassToken(token: string) {
+  const { runBoardingPreview } = await import("@/lib/boarding-scan");
+  return runBoardingPreview(token);
 }
 
 export async function actionScanToken(
@@ -116,87 +88,15 @@ export async function actionScanToken(
   coords?: { lat?: string; lng?: string },
   clientEventId?: string,
   expectedAction?: "CHECK_IN" | "CHECK_OUT",
-): Promise<
-  | {
-      ok: true;
-      kind: "pass";
-      action: "CHECK_IN" | "CHECK_OUT";
-      passId: string;
-      reference: string;
-      status: string;
-      alreadyApplied?: boolean;
-      conflict?: boolean;
-    }
-  | {
-      ok: true;
-      kind: "booking";
-      action: "CHECK_IN" | "CHECK_OUT";
-      bookingId: string;
-      status: string;
-    }
-  | { ok: false; error: string }
-> {
-  try {
-    const session = await requireRole(["HANDLER", "ADMIN"]);
-    const [handler] = await db
-      .select()
-      .from(handlers)
-      .where(eq(handlers.userId, session.user.id))
-      .limit(1);
-
-    if (!handler && session.user.role === "HANDLER") {
-      return { ok: false, error: "Handler profile missing." };
-    }
-
-    const { scanPassQrToken } = await import("@/lib/pass");
-    const passResult = await scanPassQrToken({
-      token,
-      handlerId: handler?.id ?? null,
-      actorUserId: session.user.id,
-      actorRole: session.user.role,
-      lat: coords?.lat,
-      lng: coords?.lng,
-      clientEventId,
-      expectedAction: expectedAction ?? null,
-    });
-    if (passResult) {
-      // Never revalidate /handler/scan — remounts ScannerPanel and kills the camera.
-      revalidatePath("/handler");
-      revalidatePath("/admin/ops");
-      revalidatePath("/admin/passes");
-      revalidatePath("/trips");
-      revalidatePath(`/pass/${passResult.passId}`);
-      revalidatePath("/llm");
-      return {
-        ok: true,
-        kind: "pass",
-        action: passResult.action,
-        passId: passResult.passId,
-        reference: passResult.reference,
-        status: passResult.status,
-        alreadyApplied: passResult.alreadyApplied,
-        conflict: passResult.conflict,
-      };
-    }
-
-    // Legacy booking scan only if handler exists
-    if (!handler) {
-      return { ok: false, error: "Unrecognized pass QR token." };
-    }
-    const result = await scanBoardingToken({ token, handlerId: handler.id });
-    return {
-      ok: true,
-      kind: "booking",
-      action: result.action,
-      bookingId: result.booking.id,
-      status: result.action === "CHECK_IN" ? "CHECKED_IN" : "COMPLETED",
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Check-in failed.",
-    };
-  }
+) {
+  const { runBoardingScan } = await import("@/lib/boarding-scan");
+  return runBoardingScan({
+    token,
+    lat: coords?.lat,
+    lng: coords?.lng,
+    clientEventId,
+    expectedAction,
+  });
 }
 
 export async function actionCompleteTrip(bookingId: string) {

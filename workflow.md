@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Boarding API + live status (2026-09-23):** Scanner preview/confirm use stable `/api/boarding/*` (not hashed Server Action IDs) so redeploys don’t break open scan tabs. SoftLiveRefresh listens for scan events; Active/Checked-In pass detail polls every 20s. Optional `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` for other Server Actions across instances.
+
 **OOM guard soft refresh (2026-09-23):** SoftLiveRefresh default 60s + in-flight lock (was 12s); removed from My Passes. Ops/passes 60s, handler Today 45s — cuts RSC/DB thrash under 512MB heap / 768m container.
 
 **Pass detail UX cleanup (2026-09-23):** Overnight intention is a teal button + dialog (shadcn Calendar) *after* pass info; Self check-out after actions. Action buttons use equal 2×2 grid (`gap-3`) so labels don’t truncate/overlap — Overnight · Download · Change pillar · Cancel (red).

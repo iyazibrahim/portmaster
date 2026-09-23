@@ -21,6 +21,7 @@ import {
   SelfCheckoutPanel,
 } from "@/components/pass/self-checkout-panel";
 import { PassDetailActions } from "@/components/pass/cancel-pass-actions";
+import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 import { getTranslator } from "@/i18n";
 
 export const dynamic = "force-dynamic";
@@ -108,6 +109,9 @@ export default async function PassDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-6 lg:max-w-xl">
+      {pass.status === "ACTIVE" || pass.status === "CHECKED_IN" ? (
+        <SoftLiveRefresh intervalMs={20_000} />
+      ) : null}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t("pass.detailTitle")}
