@@ -21,12 +21,13 @@ import type { PassStatus } from "@/db/schema";
 
 type Mode = "change" | "cancel";
 
+/** Equal cells; wrap text; override button shrink-0 so items never overlap. */
 const actionBtn =
-  "inline-flex min-h-11 w-full flex-1 basis-0 justify-center sm:min-w-0";
+  "h-auto min-h-11 w-full shrink justify-center whitespace-normal px-3 text-center leading-snug";
 
 /**
- * Pass detail action row: optional overnight + receipt + change pillar + cancel.
- * Equal-width buttons; one horizontal line from `sm` up.
+ * Pass detail actions: overnight + receipt + change + cancel.
+ * Stacked on mobile; equal 2×2 grid from `sm` (no cramped single-row overlap).
  */
 export function PassDetailActions({
   passId,
@@ -73,7 +74,7 @@ export function PassDetailActions({
 
   return (
     <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {leading}
         {showReceipt ? (
           <Link
