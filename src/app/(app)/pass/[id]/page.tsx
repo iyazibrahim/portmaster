@@ -156,13 +156,6 @@ export default async function PassDetailPage({
             feeCents={pass.feeCents}
           />
 
-          <SelfCheckoutPanel
-            passId={pass.id}
-            status={pass.status}
-            expectedReturnOn={pass.expectedReturnOn}
-            remind={remind}
-          />
-
           <dl className="grid gap-0 text-sm">
             <Row label={t("pass.jetty")} value={jetty?.name ?? "—"} />
             <Row label={t("pass.pillar")} value={pillar?.name ?? "—"} />
@@ -177,19 +170,27 @@ export default async function PassDetailPage({
             ) : null}
           </dl>
 
-          <OvernightIntentionPanel
-            passId={pass.id}
-            status={pass.status}
-            validOn={pass.validOn}
-            intendsOvernight={pass.intendsOvernight}
-            expectedReturnOn={pass.expectedReturnOn}
-          />
-
           <PassDetailActions
             passId={pass.id}
             status={pass.status}
             pillarName={pillar?.name}
             showReceipt={payment?.status === "PAID"}
+            leading={
+              <OvernightIntentionPanel
+                passId={pass.id}
+                status={pass.status}
+                validOn={pass.validOn}
+                intendsOvernight={pass.intendsOvernight}
+                expectedReturnOn={pass.expectedReturnOn}
+              />
+            }
+          />
+
+          <SelfCheckoutPanel
+            passId={pass.id}
+            status={pass.status}
+            expectedReturnOn={pass.expectedReturnOn}
+            remind={remind}
           />
         </CardContent>
       </Card>

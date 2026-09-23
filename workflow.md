@@ -2,7 +2,7 @@
 
 **OOM guard soft refresh (2026-09-23):** SoftLiveRefresh default 60s + in-flight lock (was 12s); removed from My Passes. Ops/passes 60s, handler Today 45s — cuts RSC/DB thrash under 512MB heap / 768m container.
 
-**Pass detail UX cleanup (2026-09-23):** Overnight intention is a compact button + dialog placed *after* pass info (not before). Desktop actions in one row: Download receipt · Change pillar · Cancel pass (red destructive). Dialog footers use `gap-3` so Cancel vs Cancel-and-buy-again are harder to mis-tap.
+**Pass detail UX cleanup (2026-09-23):** Overnight intention is a teal full-width button + dialog (shadcn Calendar date picker) placed *after* pass info; Self check-out also after pass info/actions. Desktop action row equal-width: Overnight · Download · Change pillar · Cancel (red). Dialog footers use `gap-3` so Cancel vs Cancel-and-buy-again are harder to mis-tap.
 
 **Cancel to change pillar (2026-09-23):** Anglers change pillar by cancelling `ACTIVE`/`PENDING_PAYMENT` (Change pillar / Cancel pass on pass detail, My Passes, buy gate) then buying again — fee non-refundable. Not after check-in. `actionCancelPass` revalidates pass/trips/ops.
 

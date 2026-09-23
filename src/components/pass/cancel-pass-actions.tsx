@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { actionCancelPass } from "@/lib/actions/pass";
@@ -21,20 +21,25 @@ import type { PassStatus } from "@/db/schema";
 
 type Mode = "change" | "cancel";
 
+const actionBtn =
+  "inline-flex min-h-11 w-full flex-1 basis-0 justify-center sm:min-w-0";
+
 /**
- * Pass detail action row: receipt + change pillar + cancel (red).
- * One horizontal line from `sm` up; stacked with clear gaps on mobile.
+ * Pass detail action row: optional overnight + receipt + change pillar + cancel.
+ * Equal-width buttons; one horizontal line from `sm` up.
  */
 export function PassDetailActions({
   passId,
   status,
   pillarName,
   showReceipt,
+  leading,
 }: {
   passId: string;
   status: string;
   pillarName?: string | null;
   showReceipt: boolean;
+  leading?: ReactNode;
 }) {
   const { t } = useT();
   const router = useRouter();
@@ -43,7 +48,7 @@ export function PassDetailActions({
   const [mode, setMode] = useState<Mode>("change");
   const canCancel = canCancelPass(status as PassStatus);
 
-  if (!showReceipt && !canCancel) return null;
+  if (!leading && !showReceipt && !canCancel) return null;
 
   function openDialog(next: Mode) {
     setMode(next);
@@ -68,16 +73,14 @@ export function PassDetailActions({
 
   return (
     <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3">
+        {leading}
         {showReceipt ? (
           <Link
             href={`/pass/${passId}/receipt?print=1`}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "inline-flex min-h-11 w-full flex-1 justify-center sm:w-auto sm:min-w-[9rem]",
-            )}
+            className={cn(buttonVariants({ variant: "outline" }), actionBtn)}
           >
             {t("pass.downloadReceipt")}
           </Link>
@@ -86,7 +89,7 @@ export function PassDetailActions({
           <>
             <Button
               type="button"
-              className="min-h-11 w-full flex-1 sm:w-auto sm:min-w-[9rem]"
+              className={actionBtn}
               disabled={pending}
               onClick={() => openDialog("change")}
             >
@@ -95,7 +98,10 @@ export function PassDetailActions({
             <Button
               type="button"
               variant="outline"
-              className="min-h-11 w-full flex-1 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto sm:min-w-[9rem]"
+              className={cn(
+                actionBtn,
+                "border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive",
+              )}
               disabled={pending}
               onClick={() => openDialog("cancel")}
             >

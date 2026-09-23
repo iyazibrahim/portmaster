@@ -13,6 +13,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useT } from "@/i18n/locale-provider";
+import { cn } from "@/lib/utils";
 
 function getPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -37,6 +39,19 @@ function getPosition(): Promise<GeolocationPosition> {
   });
 }
 
+/** Parse YYYY-MM-DD as a local calendar date (no TZ shift). */
+function parseYmd(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function formatYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /** Compact trigger + modal — keeps pass detail uncluttered. */
 export function OvernightIntentionPanel({
   passId,
@@ -44,12 +59,14 @@ export function OvernightIntentionPanel({
   validOn,
   intendsOvernight,
   expectedReturnOn,
+  className,
 }: {
   passId: string;
   status: string;
   validOn: string;
   intendsOvernight: boolean;
   expectedReturnOn: string | null;
+  className?: string;
 }) {
   const { t } = useT();
   const router = useRouter();
@@ -66,6 +83,7 @@ export function OvernightIntentionPanel({
 
   const maxDate = addCalendarDays(validOn, 3);
   const minDate = addCalendarDays(validOn, 1);
+  const selectedDate = returnOn ? parseYmd(returnOn) : undefined;
 
   function save() {
     setError(null);
@@ -93,11 +111,10 @@ export function OvernightIntentionPanel({
     : t("pass.overnight.summaryOff");
 
   return (
-    <>
+    <div className={cn("w-full min-w-0 flex-1 basis-0", className)}>
       <Button
         type="button"
-        variant="outline"
-        className="min-h-11 w-full justify-between gap-3 px-4 text-left sm:w-auto"
+        className="min-h-11 w-full justify-between gap-2 border-teal-700/20 bg-teal-700 px-3 text-left text-white hover:bg-teal-800 hover:text-white"
         onClick={() => {
           setOvernight(intendsOvernight);
           setReturnOn(expectedReturnOn ?? defaultExpectedReturnOn(validOn));
@@ -109,7 +126,7 @@ export function OvernightIntentionPanel({
         <span className="min-w-0 truncate font-medium">
           {t("pass.overnight.open")}
         </span>
-        <span className="shrink-0 text-xs font-normal text-muted-foreground">
+        <span className="shrink-0 text-xs font-normal text-teal-100">
           {summary}
         </span>
       </Button>
@@ -139,22 +156,28 @@ export function OvernightIntentionPanel({
               <span>{t("pass.overnight.checkbox")}</span>
             </label>
             {overnight ? (
-              <div className="space-y-1.5">
-                <Label htmlFor={`return-${passId}`}>
-                  {t("pass.overnight.returnDate")}
-                </Label>
-                <input
-                  id={`return-${passId}`}
-                  type="date"
-                  min={minDate}
-                  max={maxDate}
-                  value={returnOn}
-                  onChange={(e) => {
-                    setReturnOn(e.target.value);
-                    setSaved(false);
-                  }}
-                  className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
+              <div className="space-y-2">
+                <Label>{t("pass.overnight.returnDate")}</Label>
+                <div className="flex justify-center rounded-xl border bg-background p-2">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    defaultMonth={selectedDate ?? parseYmd(minDate)}
+                    onSelect={(date) => {
+                      if (!date) return;
+                      setReturnOn(formatYmd(date));
+                      setSaved(false);
+                    }}
+                    disabled={{
+                      before: parseYmd(minDate),
+                      after: parseYmd(maxDate),
+                    }}
+                    className="w-full [--cell-size:--spacing(9)]"
+                  />
+                </div>
+                <p className="text-center text-xs text-muted-foreground">
+                  {returnOn}
+                </p>
               </div>
             ) : null}
             {error ? (
@@ -189,7 +212,7 @@ export function OvernightIntentionPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 
