@@ -19,7 +19,7 @@ Aligned to the 21 Sep PRD pack with product decisions locked in workshop (2026-0
 | Capacity | **Per-pillar MAX**, Admin-editable (default 4). |
 | Pillar status | Available, Unavailable, Temporarily Closed, Under Maintenance, Restricted. Only **Available** sells. |
 | Boat status | Active, Inactive, Suspended, Permit Expired, Under Maintenance. Only **Active** + valid licence is operational. |
-| Payment | **Mock UI + `PaymentProvider`** so any gateway can drop in later. |
+| Payment | **HitPay** when `HITPAY_API_KEY` is set (sandbox MYR: GrabPay / ShopeePay / Atome; production later `fpx`/`duitnow`). Mock pay buttons when key unset. |
 | Identity | **Form signup now.** MyDigital ID later. |
 | Blacklist | Admin can suspend / blacklist / reactivate + reason. Blocked cannot buy. |
 | Language | **Full EN / BM UI** via `tiangpass_locale` catalogs + LocaleProvider (nav, scan, admin chrome, statuses). DB entity names untranslated. |
@@ -36,7 +36,7 @@ Aligned to the 21 Sep PRD pack with product decisions locked in workshop (2026-0
 
 ## Still later (do not build yet)
 
-- Real payment gateway (provider TBD)
+- HitPay production cutover (`HITPAY_PAYMENT_METHODS=fpx,duitnow` + live keys)
 - MyDigital ID / e-KYC
 - Receipt email
 - PDF reports

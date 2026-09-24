@@ -8,11 +8,12 @@ import {
   mockPayPassFail,
   mockPayPassSuccess,
   selfCheckOutPass,
+  startHitPayCheckout,
   updateOvernightIntention,
 } from "@/lib/pass";
 
 export type PassActionResult =
-  | { ok: true; passId: string; reference?: string }
+  | { ok: true; passId: string; reference?: string; checkoutUrl?: string }
   | { ok: false; error: string };
 
 export async function actionCreatePass(input: {
@@ -45,6 +46,25 @@ export async function actionCreatePass(input: {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Could not create pass.",
+    };
+  }
+}
+
+export async function actionStartHitPayCheckout(
+  passId: string,
+): Promise<PassActionResult> {
+  const session = await requireSession();
+  try {
+    const result = await startHitPayCheckout(passId, session.user.id);
+    return {
+      ok: true,
+      passId: result.passId,
+      checkoutUrl: result.checkoutUrl,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not start HitPay checkout.",
     };
   }
 }

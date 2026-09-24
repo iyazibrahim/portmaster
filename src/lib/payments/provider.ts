@@ -1,7 +1,9 @@
 /**
- * Payment provider interface — mock only in MVP1.
- * Real FPX/e-wallet gateway to be chosen in a later workshop.
+ * Payment provider — mock locally; HitPay when HITPAY_API_KEY is set.
  */
+
+import { createHitPayPaymentRequest } from "@/lib/payments/hitpay";
+import { isHitPayEnabled } from "@/lib/payments/config";
 
 export type PaymentIntent = {
   id: string;
@@ -9,6 +11,7 @@ export type PaymentIntent = {
   currency: "MYR";
   reference: string;
   status: "PENDING" | "PAID" | "FAILED";
+  checkoutUrl?: string | null;
 };
 
 export interface PaymentProvider {
@@ -16,6 +19,9 @@ export interface PaymentProvider {
   createIntent(input: {
     amountCents: number;
     reference: string;
+    passId: string;
+    email?: string | null;
+    name?: string | null;
   }): Promise<PaymentIntent>;
   confirmMockSuccess(intentId: string): Promise<PaymentIntent>;
   confirmMockFailure(intentId: string): Promise<PaymentIntent>;
@@ -32,6 +38,7 @@ export const mockPaymentProvider: PaymentProvider = {
       currency: "MYR",
       reference,
       status: "PENDING",
+      checkoutUrl: null,
     };
     store.set(intent.id, intent);
     return intent;
@@ -56,6 +63,35 @@ export const mockPaymentProvider: PaymentProvider = {
   },
 };
 
+export const hitpayPaymentProvider: PaymentProvider = {
+  name: "hitpay",
+  async createIntent({ amountCents, reference, passId, email, name }) {
+    const req = await createHitPayPaymentRequest({
+      amountCents,
+      reference,
+      passId,
+      email,
+      name,
+    });
+    return {
+      id: req.id,
+      amountCents,
+      currency: "MYR",
+      reference,
+      status: "PENDING",
+      checkoutUrl: req.url,
+    };
+  },
+  async confirmMockSuccess() {
+    throw new Error("Mock confirm is not available for HitPay.");
+  },
+  async confirmMockFailure() {
+    throw new Error("Mock confirm is not available for HitPay.");
+  },
+};
+
 export function getPaymentProvider(): PaymentProvider {
-  return mockPaymentProvider;
+  return isHitPayEnabled() ? hitpayPaymentProvider : mockPaymentProvider;
 }
+
+export { isHitPayEnabled };

@@ -6,6 +6,7 @@ import { canBuyMultiplePassesToday, canBypassPassGeofence, todayMYT } from "@/li
 import { PASS_BLOCKING_STATUSES } from "@/domain/pass";
 import { getTranslator } from "@/i18n";
 import { listOpenPillarsForJetty, isJettyGeofenceRequired } from "@/lib/pass";
+import { isHitPayEnabled } from "@/lib/payments/provider";
 import { PassWizard } from "@/components/pass/pass-wizard";
 
 export default async function PassPage() {
@@ -15,6 +16,7 @@ export default async function PassPage() {
   const bypassGeofence =
     canBypassPassGeofence(session.user.email) ||
     !(await isJettyGeofenceRequired());
+  const hitPayEnabled = isHitPayEnabled();
 
   const [profile] = await db
     .select({ photoKey: users.photoKey })
@@ -119,6 +121,7 @@ export default async function PassPage() {
         allowMultipleSameDay={allowMultipleSameDay}
         bypassGeofence={bypassGeofence}
         hasIdentityPhoto={hasIdentityPhoto}
+        hitPayEnabled={hitPayEnabled}
         todayPass={
           todayPass
             ? {

@@ -33,7 +33,10 @@ import {
 } from "@/domain/pass";
 import { writeAudit } from "@/lib/audit";
 import { assertWithinGeofence } from "@/lib/geo";
-import { getPaymentProvider } from "@/lib/payments/provider";
+import {
+  getPaymentProvider,
+  isHitPayEnabled,
+} from "@/lib/payments/provider";
 import {
   ASSOCIATION_FEE_CENTS,
   DEFAULT_RESERVATION_MINUTES,
@@ -258,19 +261,14 @@ export async function createPassPendingPayment(input: {
     expectedReturnOn: intention.expectedReturnOn,
   });
 
+  const provider = getPaymentProvider();
   const paymentId = id("pay");
   await db.insert(payments).values({
     id: paymentId,
     passId,
     amountCents: feeCents,
     status: "PENDING",
-    provider: "mock",
-  });
-
-  const provider = getPaymentProvider();
-  const intent = await provider.createIntent({
-    amountCents: feeCents,
-    reference,
+    provider: provider.name,
   });
 
   await writeAudit({
@@ -287,11 +285,116 @@ export async function createPassPendingPayment(input: {
     reference,
     feeCents,
     reservedUntil,
-    intentId: intent.id,
+    provider: provider.name,
   };
 }
 
-export async function mockPayPassSuccess(passId: string, userId: string) {
+/**
+ * Mark pass ACTIVE + issue boarding QR after payment is confirmed.
+ * Idempotent when already paid/active.
+ */
+export async function activatePassAfterPayment(input: {
+  passId: string;
+  actorId?: string | null;
+  providerRef?: string | null;
+}) {
+  await expireStaleReservations();
+
+  const [pass] = await db
+    .select()
+    .from(passes)
+    .where(eq(passes.id, input.passId))
+    .limit(1);
+  if (!pass) throw new Error("Pass not found.");
+
+  if (pass.status === "ACTIVE" || pass.status === "CHECKED_IN") {
+    const [pay] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.passId, pass.id))
+      .limit(1);
+    return {
+      passId: pass.id,
+      reference: pass.reference,
+      alreadyActive: true as const,
+      paymentStatus: pay?.status ?? null,
+    };
+  }
+
+  if (pass.status !== "PENDING_PAYMENT") {
+    throw new Error("Pass is not awaiting payment.");
+  }
+  if (isReservationExpired(pass.reservedUntil)) {
+    await db
+      .update(passes)
+      .set({ status: "CANCELLED", updatedAt: new Date() })
+      .where(eq(passes.id, pass.id));
+    throw new Error("Reservation expired. Please start again.");
+  }
+
+  const next = nextStatusAfterPaymentSuccess(pass.status);
+  if (!next) throw new Error("Invalid payment transition.");
+
+  const now = new Date();
+  await db
+    .update(passes)
+    .set({
+      status: next,
+      activatedAt: now,
+      reservedUntil: null,
+      updatedAt: now,
+    })
+    .where(eq(passes.id, pass.id));
+
+  await db
+    .update(payments)
+    .set({
+      status: "PAID",
+      ...(input.providerRef ? { mockRef: input.providerRef } : {}),
+      paidAt: now,
+    })
+    .where(eq(payments.passId, pass.id));
+
+  const [existingQr] = await db
+    .select({ id: passQrTokens.id })
+    .from(passQrTokens)
+    .where(eq(passQrTokens.passId, pass.id))
+    .limit(1);
+
+  let token: string | undefined;
+  if (!existingQr) {
+    token = opaqueToken();
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 3600_000);
+    await db.insert(passQrTokens).values({
+      id: id("pqr"),
+      passId: pass.id,
+      token,
+      expiresAt,
+    });
+  }
+
+  await writeAudit({
+    actorId: input.actorId ?? pass.userId,
+    action: "pass.pay_success",
+    entityType: "pass",
+    entityId: pass.id,
+    next: { status: next, providerRef: input.providerRef ?? null },
+  });
+
+  return {
+    passId: pass.id,
+    reference: pass.reference,
+    token,
+    alreadyActive: false as const,
+  };
+}
+
+/** Create / refresh HitPay checkout URL for a pending pass. */
+export async function startHitPayCheckout(passId: string, userId: string) {
+  if (!isHitPayEnabled()) {
+    throw new Error("HitPay is not configured.");
+  }
+
   await expireStaleReservations();
 
   const [pass] = await db
@@ -311,54 +414,80 @@ export async function mockPayPassSuccess(passId: string, userId: string) {
     throw new Error("Reservation expired. Please start again.");
   }
 
-  const next = nextStatusAfterPaymentSuccess(pass.status);
-  if (!next) throw new Error("Invalid payment transition.");
+  const [user] = await db
+    .select({ email: users.email, name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
 
   const provider = getPaymentProvider();
-  await provider.confirmMockSuccess(`mock_${pass.reference}`);
+  const intent = await provider.createIntent({
+    amountCents: pass.feeCents,
+    reference: pass.reference,
+    passId: pass.id,
+    email: user?.email,
+    name: user?.name,
+  });
 
-  const now = new Date();
-  await db
-    .update(passes)
-    .set({
-      status: next,
-      activatedAt: now,
-      reservedUntil: null,
-      updatedAt: now,
-    })
-    .where(eq(passes.id, passId));
+  if (!intent.checkoutUrl) {
+    throw new Error("HitPay did not return a checkout URL.");
+  }
 
   await db
     .update(payments)
     .set({
-      status: "PAID",
-      mockRef: `MOCK-${pass.reference}`,
-      paidAt: now,
+      provider: "hitpay",
+      mockRef: intent.id,
+      status: "PENDING",
     })
     .where(eq(payments.passId, passId));
 
-  const token = opaqueToken();
-  // QR usable until checkout; Active expires overnight but Checked-In needs token
-  const expiresAt = new Date(now.getTime() + 7 * 24 * 3600_000);
-  await db.insert(passQrTokens).values({
-    id: id("pqr"),
+  return {
     passId,
-    token,
-    expiresAt,
-  });
+    checkoutUrl: intent.checkoutUrl,
+    paymentRequestId: intent.id,
+  };
+}
 
-  await writeAudit({
+export async function mockPayPassSuccess(passId: string, userId: string) {
+  if (isHitPayEnabled()) {
+    throw new Error("Mock payment is disabled while HitPay is configured.");
+  }
+
+  await expireStaleReservations();
+
+  const [pass] = await db
+    .select()
+    .from(passes)
+    .where(eq(passes.id, passId))
+    .limit(1);
+  if (!pass || pass.userId !== userId) throw new Error("Pass not found.");
+  if (pass.status !== "PENDING_PAYMENT") {
+    throw new Error("Pass is not awaiting payment.");
+  }
+  if (isReservationExpired(pass.reservedUntil)) {
+    await db
+      .update(passes)
+      .set({ status: "CANCELLED", updatedAt: new Date() })
+      .where(eq(passes.id, passId));
+    throw new Error("Reservation expired. Please start again.");
+  }
+
+  const provider = getPaymentProvider();
+  await provider.confirmMockSuccess(`mock_${pass.reference}`);
+
+  return activatePassAfterPayment({
+    passId,
     actorId: userId,
-    action: "pass.pay_success",
-    entityType: "pass",
-    entityId: passId,
-    next: { status: next },
+    providerRef: `MOCK-${pass.reference}`,
   });
-
-  return { passId, token, reference: pass.reference };
 }
 
 export async function mockPayPassFail(passId: string, userId: string) {
+  if (isHitPayEnabled()) {
+    throw new Error("Mock payment is disabled while HitPay is configured.");
+  }
+
   const [pass] = await db
     .select()
     .from(passes)
@@ -387,6 +516,44 @@ export async function mockPayPassFail(passId: string, userId: string) {
     .where(eq(payments.passId, passId));
 
   return { passId };
+}
+
+/** Fulfill from HitPay webhook (idempotent). */
+export async function fulfillHitPayPayment(input: {
+  paymentRequestId: string;
+  referenceNumber?: string | null;
+}) {
+  let passId: string | null = null;
+
+  const [byRef] = await db
+    .select({
+      passId: payments.passId,
+      status: payments.status,
+    })
+    .from(payments)
+    .where(eq(payments.mockRef, input.paymentRequestId))
+    .limit(1);
+
+  if (byRef?.passId) {
+    passId = byRef.passId;
+  } else if (input.referenceNumber) {
+    const [pass] = await db
+      .select({ id: passes.id })
+      .from(passes)
+      .where(eq(passes.reference, input.referenceNumber))
+      .limit(1);
+    passId = pass?.id ?? null;
+  }
+
+  if (!passId) {
+    throw new Error("Payment not found for HitPay request.");
+  }
+
+  return activatePassAfterPayment({
+    passId,
+    actorId: null,
+    providerRef: input.paymentRequestId,
+  });
 }
 
 export async function cancelActivePass(

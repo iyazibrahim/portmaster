@@ -6,6 +6,7 @@ import {
   actionCreatePass,
   actionMockPayFail,
   actionMockPaySuccess,
+  actionStartHitPayCheckout,
 } from "@/lib/actions/pass";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,7 @@ export function PassWizard({
   allowMultipleSameDay = false,
   bypassGeofence = false,
   hasIdentityPhoto = true,
+  hitPayEnabled = false,
 }: {
   jetties: JettyOption[];
   pillarsByJetty: Record<string, PillarOption[]>;
@@ -123,6 +125,7 @@ export function PassWizard({
   allowMultipleSameDay?: boolean;
   bypassGeofence?: boolean;
   hasIdentityPhoto?: boolean;
+  hitPayEnabled?: boolean;
 }) {
   const { t } = useT();
   const router = useRouter();
@@ -374,6 +377,22 @@ export function PassWizard({
     });
   }
 
+  function payWithHitPay() {
+    if (!passId) return;
+    startTransition(async () => {
+      const result = await actionStartHitPayCheckout(passId);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      if (!result.checkoutUrl) {
+        setError(t("pass.pay.hitpayMissingUrl"));
+        return;
+      }
+      window.location.assign(result.checkoutUrl);
+    });
+  }
+
   function payFail() {
     if (!passId) return;
     startTransition(async () => {
@@ -384,7 +403,7 @@ export function PassWizard({
       }
       setPassId(null);
       setStep("pillar");
-      setError("Payment failed. Slot released — try again.");
+      setError(t("pass.pay.failedRetry"));
       router.refresh();
     });
   }
@@ -672,32 +691,51 @@ export function PassWizard({
       {step === "pay" && passId ? (
         <Card>
           <CardHeader>
-            <CardTitle>Pay Association fee</CardTitle>
+            <CardTitle>{t("pass.pay.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Amount: <strong>{formatMYR(ASSOCIATION_FEE_CENTS)}</strong>
+              {t("pass.pay.amount", {
+                amount: formatMYR(ASSOCIATION_FEE_CENTS),
+              })}
               {reservedUntil
-                ? ` · Slot reserved until ${new Date(reservedUntil).toLocaleTimeString()}`
+                ? ` · ${t("pass.pay.reservedUntil", {
+                    time: new Date(reservedUntil).toLocaleTimeString(),
+                  })}`
                 : null}
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                className={actionBtn}
-                onClick={paySuccess}
-                disabled={pending}
-              >
-                {pending ? "Processing…" : "Pay successfully"}
-              </Button>
-              <Button
-                variant="outline"
-                className={actionBtn}
-                onClick={payFail}
-                disabled={pending}
-              >
-                Payment failed
-              </Button>
-            </div>
+            {hitPayEnabled ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {t("pass.pay.hitpayHint")}
+                </p>
+                <Button
+                  className={actionBtn}
+                  onClick={payWithHitPay}
+                  disabled={pending}
+                >
+                  {pending ? t("pass.pay.redirecting") : t("pass.pay.hitpayCta")}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  className={actionBtn}
+                  onClick={paySuccess}
+                  disabled={pending}
+                >
+                  {pending ? t("pass.pay.processing") : t("pass.pay.mockSuccess")}
+                </Button>
+                <Button
+                  variant="outline"
+                  className={actionBtn}
+                  onClick={payFail}
+                  disabled={pending}
+                >
+                  {t("pass.pay.mockFail")}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : null}
