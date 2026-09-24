@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**CI Docker build (2026-09-24):** `.github/workflows/docker-build.yml` builds the app image on GitHub Actions and pushes to `ghcr.io/<owner>/portmaster` (`latest` + short SHA). VPS should **pull** only (`APP_IMAGE=... docker compose pull app && up -d`) via `scripts/vps-pull-deploy.sh` — avoids `next build` OOM on ~4GB hosts. Optional SSH deploy job is commented in the workflow.
+
 **Storage optimization (2026-09-24):** e-KYC capture prefers WebP @480px (JPEG fallback); server re-encodes with `sharp` and overwrites one file per user (`{userId}.webp`). Account delete removes photos. Cleanup job purges expired sessions, stale QR/boarding/verification tokens (14d graveyard for used/revoked), and audit rows older than **1 year**. Run `npm run db:cleanup` or `POST /api/cron/cleanup` with `CRON_SECRET`; Admin Ops also triggers at most once/day. Audit `metaJson` sanitized + capped at 2KB.
 
 **Admin list refresh + boarding JSON (2026-09-23):** F3 pillar “not saved” was stale SSR after create (DB OK). Admin People/Pillars/Jetties/Boats/Operators call `router.refresh()` after save. Pillar unique (jetty+side+number) returns a clear error. F2: `/api/boarding/preview|scan` always return JSON `{ok,error}` on 400 (never HTML).

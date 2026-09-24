@@ -68,8 +68,27 @@ Password for all: **`password123`**
 | `npm run lint` | ESLint |
 | `npm run test` | Vitest (domain / AC unit tests) |
 | `npm run db:setup` | `drizzle-kit push` + seed |
-| `npm run db:cleanup` | Purge expired sessions/tokens + audit older than 1 year |
 | `npm run db:seed` | Re-seed (**clears** demo tables) |
+| `npm run db:cleanup` | Purge expired sessions/tokens + audit older than 1 year |
+| GitHub Actions `Docker build & push` | Build image on CI → GHCR (VPS only pulls) |
+
+### Deploy without OOM (recommended)
+
+Build happens on GitHub, not on the VPS:
+
+1. Push to `main` (or run **Actions → Docker build & push → Run workflow**).
+2. On the VPS:
+
+```bash
+# once (if the GHCR package is private): create a PAT with read:packages
+echo YOUR_PAT | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
+
+export APP_IMAGE=ghcr.io/iyazibrahim/portmaster:latest
+./scripts/vps-pull-deploy.sh
+# or: docker compose pull app && docker compose up -d app
+```
+
+Do **not** run `docker compose build` on a 4GB VPS if you can avoid it.
 
 ---
 

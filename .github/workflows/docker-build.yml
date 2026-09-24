@@ -1,0 +1,129 @@
+# Build the TiangPass Docker image on GitHub (not on the VPS), then push to GHCR.
+# VPS only pulls + restarts — avoids next build OOM on ~4GB hosts.
+#
+# Setup (once):
+# 1. Repo → Settings → Actions → General → Workflow permissions: Read and write
+# 2. Packages: after first push, make ghcr.io/<owner>/tiangpass public OR
+#    on the VPS: echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
+# 3. Point compose at the image (see docker-compose.yml APP_IMAGE) and deploy with:
+#      docker compose pull app && docker compose up -d app
+#
+# Optional SSH deploy: add secrets VPS_HOST, VPS_USER, VPS_SSH_KEY, VPS_APP_DIR
+# and uncomment the "deploy" job below.
+
+name: Docker build & push
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "prd/**"
+  workflow_dispatch:
+
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  # GHCR requires lowercase image names
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata (tags)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
+            type=ref,event=branch
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # CI has more RAM than the VPS — safer / faster Next build
+          build-args: |
+            NODE_MAX_OLD_SPACE_SIZE=4096
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Match typical VPS / Dokploy linux/amd64 hosts
+          platforms: linux/amd64
+
+      - name: Summary
+        run: |
+          {
+            echo "## Image pushed"
+            echo ""
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo ""
+            echo "On the VPS (no local build):"
+            echo ""
+            echo '```bash'
+            echo "export APP_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            echo "docker compose pull app"
+            echo "docker compose up -d app"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # --- Optional: auto-pull on VPS after a successful push ---
+  # Uncomment and add secrets: VPS_HOST, VPS_USER, VPS_SSH_KEY, VPS_APP_DIR
+  #
+  # deploy:
+  #   name: Pull on VPS
+  #   needs: build-and-push
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - name: Deploy over SSH
+  #       uses: appleboy/ssh-action@v1.2.0
+  #       with:
+  #         host: ${{ secrets.VPS_HOST }}
+  #         username: ${{ secrets.VPS_USER }}
+  #         key: ${{ secrets.VPS_SSH_KEY }}
+  #         script: |
+  #           set -euo pipefail
+  #           cd "${{ secrets.VPS_APP_DIR }}"
+  #           export APP_IMAGE=ghcr.io/${{ github.repository }}:latest
+  #           # lowercase for GHCR
+  #           APP_IMAGE=$(echo "$APP_IMAGE" | tr '[:upper:]' '[:lower:]')
+  #           docker compose pull app
+  #           docker compose up -d app
+  #           docker image prune -f
