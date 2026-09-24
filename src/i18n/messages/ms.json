@@ -146,6 +146,7 @@
   "pass.pay.processing": "Memproses…",
   "pass.pay.mockSuccess": "Bayar berjaya",
   "pass.pay.mockFail": "Bayaran gagal",
+  "pass.pay.mockHint": "Bayaran mock (HITPAY_API_KEY belum ditetapkan). Tambah kunci HitPay dalam .env dan mulakan semula untuk guna Bayar dengan HitPay.",
   "pass.pay.failedRetry": "Bayaran gagal. Slot dilepaskan — cuba lagi.",
   "pass.paid.title": "Kembali dari bayaran",
   "pass.paid.ref": "Pas {reference}",

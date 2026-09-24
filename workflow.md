@@ -1,6 +1,6 @@
 # TiangPass workflow
 
-**HitPay sandbox payments (2026-09-24):** Pass purchase can redirect to HitPay when `HITPAY_API_KEY` is set. Sandbox MYR methods default `grabpay_direct,shopee_pay,atome`; production later uses `fpx,duitnow` via env. Pass activates only on HMAC-verified webhook `POST /api/webhooks/hitpay`. Without API key, mock Pay success/fail remains. See `.env.example`.
+**HitPay sandbox payments (2026-09-24):** Pass purchase can redirect to HitPay when `HITPAY_API_KEY` is set. Sandbox MYR methods default `grabpay_direct,shopee_pay,atome`; production later uses `fpx,duitnow` via env. Pass activates only on HMAC-verified webhook `POST /api/webhooks/hitpay`. Without API key, mock Pay success/fail remains. See `.env.example`. Mock confirm no longer requires a prior in-memory intent (fixes “Payment intent not found” after reserve).
 
 **Operator Today glance + Account locale (2026-09-24):** Removed duplicate EN/BM on Account (shell top bar / sidebar only). Operator Today replaces two wide tables with glance tiles (checked in now + this operator’s distinct check-ins today from `scan_events`, MYT day) plus On water / All today chips and phone-width pass cards.
 

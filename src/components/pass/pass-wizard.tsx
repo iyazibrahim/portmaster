@@ -719,6 +719,9 @@ export function PassWizard({
               </div>
             ) : (
               <div className="flex flex-col gap-2 sm:flex-row">
+                <p className="w-full text-xs text-muted-foreground sm:col-span-2">
+                  {t("pass.pay.mockHint")}
+                </p>
                 <Button
                   className={actionBtn}
                   onClick={paySuccess}

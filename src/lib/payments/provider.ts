@@ -44,19 +44,27 @@ export const mockPaymentProvider: PaymentProvider = {
     return intent;
   },
   async confirmMockSuccess(intentId) {
-    const existing = store.get(intentId);
-    if (!existing) {
-      throw new Error("Payment intent not found.");
-    }
+    const existing = store.get(intentId) ?? {
+      id: intentId,
+      amountCents: 0,
+      currency: "MYR" as const,
+      reference: intentId.replace(/^mock_/, ""),
+      status: "PENDING" as const,
+      checkoutUrl: null,
+    };
     const updated: PaymentIntent = { ...existing, status: "PAID" };
     store.set(intentId, updated);
     return updated;
   },
   async confirmMockFailure(intentId) {
-    const existing = store.get(intentId);
-    if (!existing) {
-      throw new Error("Payment intent not found.");
-    }
+    const existing = store.get(intentId) ?? {
+      id: intentId,
+      amountCents: 0,
+      currency: "MYR" as const,
+      reference: intentId.replace(/^mock_/, ""),
+      status: "PENDING" as const,
+      checkoutUrl: null,
+    };
     const updated: PaymentIntent = { ...existing, status: "FAILED" };
     store.set(intentId, updated);
     return updated;

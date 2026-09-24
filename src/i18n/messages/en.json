@@ -146,6 +146,7 @@
   "pass.pay.processing": "Processing…",
   "pass.pay.mockSuccess": "Pay successfully",
   "pass.pay.mockFail": "Payment failed",
+  "pass.pay.mockHint": "Mock payment (HITPAY_API_KEY not set). Add HitPay keys to .env and restart to use Pay with HitPay.",
   "pass.pay.failedRetry": "Payment failed. Slot released — try again.",
   "pass.paid.title": "Payment return",
   "pass.paid.ref": "Pass {reference}",

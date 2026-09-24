@@ -474,6 +474,11 @@ export async function mockPayPassSuccess(passId: string, userId: string) {
   }
 
   const provider = getPaymentProvider();
+  await provider.createIntent({
+    amountCents: pass.feeCents,
+    reference: pass.reference,
+    passId: pass.id,
+  });
   await provider.confirmMockSuccess(`mock_${pass.reference}`);
 
   return activatePassAfterPayment({
