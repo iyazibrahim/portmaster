@@ -99,6 +99,8 @@ Password for all: **`password123`**
 Push to `main` (or **Actions → Docker build & Dokploy deploy → Run workflow**).  
 CI builds → pushes GHCR → calls Dokploy `compose.deploy` / `application.deploy`. Done.
 
+**App env (Dokploy compose environment, not GitHub Actions):** set at least `AUTH_SECRET`, `APP_URL` (public HTTPS URL). For HitPay: `HITPAY_API_KEY`, `HITPAY_WEBHOOK_SALT`, optional `HITPAY_API_URL` / `HITPAY_CURRENCY` / `HITPAY_PAYMENT_METHODS`. These are wired in `docker-compose.yml` `app.environment` — vars only in the Dokploy UI that are **not** listed there never reach the container. Redeploy after changing env.
+
 Local laptop build (optional):  
 `docker compose -f docker-compose.yml -f docker-compose.build.yml build`
 

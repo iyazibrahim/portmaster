@@ -70,6 +70,14 @@ services:
       AUTH_TRUST_HOST: "true"
       NODE_OPTIONS: --max-old-space-size=512
       UV_THREADPOOL_SIZE: "2"
+      # Runtime secrets from Dokploy env (not GitHub Actions). Empty = mock pay.
+      HITPAY_API_KEY: ${HITPAY_API_KEY:-}
+      HITPAY_API_URL: ${HITPAY_API_URL:-https://api.sandbox.hit-pay.com}
+      HITPAY_WEBHOOK_SALT: ${HITPAY_WEBHOOK_SALT:-}
+      HITPAY_CURRENCY: ${HITPAY_CURRENCY:-MYR}
+      HITPAY_PAYMENT_METHODS: ${HITPAY_PAYMENT_METHODS:-grabpay_direct,shopee_pay,atome}
+      CRON_SECRET: ${CRON_SECRET:-}
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
