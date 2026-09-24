@@ -1,6 +1,6 @@
 # TiangPass workflow
 
-**CI Docker build (2026-09-24):** `.github/workflows/docker-build.yml` builds the app image on GitHub Actions and pushes to `ghcr.io/<owner>/portmaster` (`latest` + short SHA). VPS should **pull** only (`APP_IMAGE=... docker compose pull app && up -d`) via `scripts/vps-pull-deploy.sh` — avoids `next build` OOM on ~4GB hosts. Optional SSH deploy job is commented in the workflow.
+**Dokploy + GHCR CI (2026-09-24):** GitHub Actions builds the app image and pushes `ghcr.io/iyazibrahim/portmaster`, then calls Dokploy `compose.deploy` / `application.deploy` (secrets `DOKPLOY_*`). No manual VPS script. Dokploy compose command must **not** use `--build` (pull + up only) or the 4GB host OOMs again. Local builds: `docker-compose.build.yml` overlay.
 
 **Storage optimization (2026-09-24):** e-KYC capture prefers WebP @480px (JPEG fallback); server re-encodes with `sharp` and overwrites one file per user (`{userId}.webp`). Account delete removes photos. Cleanup job purges expired sessions, stale QR/boarding/verification tokens (14d graveyard for used/revoked), and audit rows older than **1 year**. Run `npm run db:cleanup` or `POST /api/cron/cleanup` with `CRON_SECRET`; Admin Ops also triggers at most once/day. Audit `metaJson` sanitized + capped at 2KB.
 
@@ -143,7 +143,8 @@ sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-If build still OOMs, build the image elsewhere and push to a registry, or temporarily stop other containers during deploy.
+If build still OOMs, use GitHub Actions + Dokploy pull-only deploy (no `--build` in Dokploy compose command).
+
 
 Validated: empty Postgres 16 → apply (users/jetties/passes) → apply again (idempotent) → seed.
 

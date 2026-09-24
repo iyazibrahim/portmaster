@@ -70,25 +70,37 @@ Password for all: **`password123`**
 | `npm run db:setup` | `drizzle-kit push` + seed |
 | `npm run db:seed` | Re-seed (**clears** demo tables) |
 | `npm run db:cleanup` | Purge expired sessions/tokens + audit older than 1 year |
-| GitHub Actions `Docker build & push` | Build image on CI → GHCR (VPS only pulls) |
+| GitHub Actions | Build image → GHCR → trigger **Dokploy** deploy |
 
-### Deploy without OOM (recommended)
+### Dokploy deploy (no VPS build / no manual script)
 
-Build happens on GitHub, not on the VPS:
+**Goal:** `next build` runs on GitHub. Dokploy only **pulls** the image and restarts containers.
 
-1. Push to `main` (or run **Actions → Docker build & push → Run workflow**).
-2. On the VPS:
+#### One-time Dokploy UI
 
-```bash
-# once (if the GHCR package is private): create a PAT with read:packages
-echo YOUR_PAT | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
+1. **Registry** → add `ghcr.io` (GitHub username + PAT with `read:packages`).
+2. Your **Compose** service uses this repo’s `docker-compose.yml` (app image = `ghcr.io/iyazibrahim/portmaster:latest`).
+3. **Critical:** Compose → custom **Command** must **not** include `--build`.  
+   Prefer pull then up (copy Dokploy’s default command from the UI, remove `--build`, ensure `pull` runs).  
+   If Dokploy keeps `--build`, the VPS will OOM again.
+4. Generate an API key: Dokploy profile → **API/CLI**.
 
-export APP_IMAGE=ghcr.io/iyazibrahim/portmaster:latest
-./scripts/vps-pull-deploy.sh
-# or: docker compose pull app && docker compose up -d app
-```
+#### GitHub Actions secrets
 
-Do **not** run `docker compose build` on a 4GB VPS if you can avoid it.
+| Secret | Value |
+|--------|--------|
+| `DOKPLOY_URL` | `https://your-dokploy-host` (no trailing slash needed) |
+| `DOKPLOY_API_KEY` | API token from Dokploy |
+| `DOKPLOY_COMPOSE_ID` | Compose stack id (this project) |
+| *or* `DOKPLOY_APPLICATION_ID` | Only if you use a single Docker Application instead |
+
+#### Day-to-day
+
+Push to `main` (or **Actions → Docker build & Dokploy deploy → Run workflow**).  
+CI builds → pushes GHCR → calls Dokploy `compose.deploy` / `application.deploy`. Done.
+
+Local laptop build (optional):  
+`docker compose -f docker-compose.yml -f docker-compose.build.yml build`
 
 ---
 

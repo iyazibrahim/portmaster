@@ -1,0 +1,10 @@
+# Local / laptop builds only (not used by Dokploy).
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_MAX_OLD_SPACE_SIZE: "2048"
+    image: ${APP_IMAGE:-ghcr.io/iyazibrahim/portmaster:latest}

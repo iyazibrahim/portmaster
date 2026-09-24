@@ -1,6 +1,6 @@
-# Small VPS (~4GB RAM). Prefer building on GitHub Actions (see .github/workflows/docker-build.yml)
-# then: APP_IMAGE=ghcr.io/<owner>/portmaster:latest docker compose pull app && docker compose up -d app
-# Host should still have 1–2GB swap. Avoid `docker compose build` on this box if possible.
+# Small VPS (~4GB RAM) + Dokploy.
+# Build on GitHub Actions → GHCR; Dokploy only pulls (never `docker compose build` / --build on this host).
+# See .github/workflows/docker-build.yml and README "Dokploy deploy".
 
 name: tiangpass
 
@@ -56,15 +56,8 @@ services:
       start_period: 20s
 
   app:
-    # Prebuilt image from GHCR (CI). Override with APP_IMAGE=... on the VPS.
-    # Local: omit APP_IMAGE and `docker compose build app` still works (tags as image name).
+    # Prebuilt by GitHub Actions. Dokploy must pull this — do not enable --build in Dokploy command.
     image: ${APP_IMAGE:-ghcr.io/iyazibrahim/portmaster:latest}
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # Lower = safer if you ever build on a 4GB VPS; CI uses 4096 via the workflow.
-        NODE_MAX_OLD_SPACE_SIZE: "1280"
     restart: unless-stopped
     ports:
       - "${PORT:-43127}:43127"
