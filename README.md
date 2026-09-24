@@ -68,6 +68,7 @@ Password for all: **`password123`**
 | `npm run lint` | ESLint |
 | `npm run test` | Vitest (domain / AC unit tests) |
 | `npm run db:setup` | `drizzle-kit push` + seed |
+| `npm run db:cleanup` | Purge expired sessions/tokens + audit older than 1 year |
 | `npm run db:seed` | Re-seed (**clears** demo tables) |
 
 ---

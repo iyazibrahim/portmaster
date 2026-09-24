@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Storage optimization (2026-09-24):** e-KYC capture prefers WebP @480px (JPEG fallback); server re-encodes with `sharp` and overwrites one file per user (`{userId}.webp`). Account delete removes photos. Cleanup job purges expired sessions, stale QR/boarding/verification tokens (14d graveyard for used/revoked), and audit rows older than **1 year**. Run `npm run db:cleanup` or `POST /api/cron/cleanup` with `CRON_SECRET`; Admin Ops also triggers at most once/day. Audit `metaJson` sanitized + capped at 2KB.
+
 **Admin list refresh + boarding JSON (2026-09-23):** F3 pillar “not saved” was stale SSR after create (DB OK). Admin People/Pillars/Jetties/Boats/Operators call `router.refresh()` after save. Pillar unique (jetty+side+number) returns a clear error. F2: `/api/boarding/preview|scan` always return JSON `{ok,error}` on 400 (never HTML).
 
 **Boarding API + live status (2026-09-23):** Scanner preview/confirm use stable `/api/boarding/*` (not hashed Server Action IDs) so redeploys don’t break open scan tabs. SoftLiveRefresh listens for scan events; Active/Checked-In pass detail polls every 20s. Optional `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` for other Server Actions across instances.

@@ -93,7 +93,7 @@ export function EkycCameraCapture({
     };
   }, [open, stopTracks]);
 
-  function snap() {
+  async function snap() {
     const video = videoRef.current;
     if (!video || !ready) return;
     const size = Math.min(video.videoWidth, video.videoHeight) || 480;
@@ -105,15 +105,18 @@ export function EkycCameraCapture({
     const sx = Math.max(0, (video.videoWidth - size) / 2);
     const sy = Math.max(0, (video.videoHeight - size) / 2);
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
-    const mimeType = "image/jpeg";
-    const dataUrl = canvas.toDataURL(mimeType, 0.9);
-    const base64 = dataUrl.split(",")[1] ?? "";
-    if (!base64) {
-      setError("Could not capture photo. Try again.");
-      return;
+    try {
+      const { compressEkycCanvas } = await import("@/lib/ekyc-compress");
+      const compressed = await compressEkycCanvas(canvas);
+      onCapture({
+        base64: compressed.base64,
+        mimeType: compressed.mimeType,
+        previewUrl: compressed.previewUrl,
+      });
+      onOpenChange(false);
+    } catch {
+      setError("Could not compress photo. Try again.");
     }
-    onCapture({ base64, mimeType, previewUrl: dataUrl });
-    onOpenChange(false);
   }
 
   function retry() {

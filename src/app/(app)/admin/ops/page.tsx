@@ -32,6 +32,8 @@ import { getTranslator } from "@/i18n";
 
 export default async function AdminOpsPage() {
   await requireRole(["ADMIN"]);
+  // At most once / day: purge expired sessions, stale QR tokens, audit > 1y
+  void import("@/lib/storage-cleanup").then((m) => m.maybeRunStorageCleanup()).catch(() => {});
   const m = await getDashboardMetrics();
   const { t } = await getTranslator();
 

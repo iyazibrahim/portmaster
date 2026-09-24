@@ -562,8 +562,9 @@ export async function selfCheckOutPass(input: {
     next: {
       status: next,
       method: "SELF",
-      distanceM: geo.distanceM,
-      shoreDeclarationAccepted: true,
+      // Round metres — avoid float noise in long-lived audit rows
+      distanceM:
+        geo.distanceM == null ? null : Math.round(geo.distanceM),
     },
   });
 

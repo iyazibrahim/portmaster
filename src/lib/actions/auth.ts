@@ -261,8 +261,8 @@ export async function signUpAngler(input: {
 
   const userId = id("usr");
   const bytes = Buffer.from(input.photoBase64, "base64");
-  if (bytes.length > 2_500_000) {
-    return { ok: false, error: "Photo must be under 2.5 MB." };
+  if (bytes.length > 1_000_000) {
+    return { ok: false, error: "Photo must be under 1 MB." };
   }
   const { saveProfilePhoto } = await import("@/lib/photos");
   const photoKey = await saveProfilePhoto({
@@ -367,8 +367,8 @@ export async function updateProfilePhotoAction(input: {
   }
 
   const bytes = Buffer.from(input.photoBase64, "base64");
-  if (bytes.length > 2_500_000) {
-    return { ok: false, error: "Photo must be under 2.5 MB." };
+  if (bytes.length > 1_000_000) {
+    return { ok: false, error: "Photo must be under 1 MB." };
   }
 
   const { saveProfilePhoto } = await import("@/lib/photos");
@@ -476,6 +476,9 @@ export async function deleteAccountAction(input: {
 
   const scrubbedEmail = `deleted.${user.id}@deleted.local`;
   const scrubHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
+
+  const { deleteUserPhotos } = await import("@/lib/photos");
+  await deleteUserPhotos(user.id);
 
   await db
     .update(users)
