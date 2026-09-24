@@ -107,9 +107,14 @@ export default async function PassReceiptPage({
     !!qr &&
     (pass.status === "ACTIVE" || pass.status === "CHECKED_IN");
 
-  const paymentRef = payment.mockRef
-    ? `${formatEnumLabel(payment.status)} · ${payment.mockRef}`
-    : formatEnumLabel(payment.status);
+  const paymentRef = [
+    formatEnumLabel(payment.status),
+    payment.provider && payment.provider !== "mock"
+      ? formatEnumLabel(payment.provider)
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const printedAt = new Date().toLocaleString("en-MY", {
     timeZone: "Asia/Kuala_Lumpur",

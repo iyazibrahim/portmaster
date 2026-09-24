@@ -37,6 +37,8 @@ import {
   getPaymentProvider,
   mockPaymentProvider,
 } from "@/lib/payments/provider";
+import { hasStripeKeys } from "@/lib/payments/config";
+import { retrieveStripeCheckoutSession } from "@/lib/payments/stripe";
 import {
   ASSOCIATION_FEE_CENTS,
   DEFAULT_RESERVATION_MINUTES,
@@ -292,15 +294,20 @@ export async function createPassPendingPayment(input: {
 /**
  * Mark pass ACTIVE + issue boarding QR after payment is confirmed.
  * Idempotent when already paid/active.
+ * Gateway providerRefs (Stripe/HitPay) activate even if the 10‑minute hold expired.
  */
 export async function activatePassAfterPayment(input: {
   passId: string;
   actorId?: string | null;
   providerRef?: string | null;
 }) {
+  const isGatewayPaid =
+    Boolean(input.providerRef) &&
+    !String(input.providerRef).startsWith("MOCK-");
+
   await expireStaleReservations();
 
-  const [pass] = await db
+  let [pass] = await db
     .select()
     .from(passes)
     .where(eq(passes.id, input.passId))
@@ -321,10 +328,33 @@ export async function activatePassAfterPayment(input: {
     };
   }
 
+  // Hold may have expired while customer was on Stripe Checkout — still honor paid money.
+  if (pass.status === "CANCELLED" && isGatewayPaid) {
+    const now = new Date();
+    await db
+      .update(passes)
+      .set({
+        status: "PENDING_PAYMENT",
+        reservedUntil: new Date(now.getTime() + 5 * 60_000),
+        updatedAt: now,
+      })
+      .where(eq(passes.id, pass.id));
+    await db
+      .update(payments)
+      .set({ status: "PENDING" })
+      .where(and(eq(payments.passId, pass.id), eq(payments.status, "FAILED")));
+    const [reopened] = await db
+      .select()
+      .from(passes)
+      .where(eq(passes.id, input.passId))
+      .limit(1);
+    if (reopened) pass = reopened;
+  }
+
   if (pass.status !== "PENDING_PAYMENT") {
     throw new Error("Pass is not awaiting payment.");
   }
-  if (isReservationExpired(pass.reservedUntil)) {
+  if (!isGatewayPaid && isReservationExpired(pass.reservedUntil)) {
     await db
       .update(passes)
       .set({ status: "CANCELLED", updatedAt: new Date() })
@@ -525,6 +555,72 @@ export async function mockPayPassFail(passId: string, userId: string) {
     .where(eq(payments.passId, passId));
 
   return { passId };
+}
+
+/**
+ * Confirm Stripe Checkout after redirect (session_id on success_url).
+ * Verifies payment with Stripe API — does not trust the browser alone.
+ * Idempotent if webhook already activated the pass.
+ */
+export async function confirmStripeCheckoutReturn(input: {
+  sessionId: string;
+  passId: string;
+  userId: string;
+}) {
+  if (!hasStripeKeys()) {
+    throw new Error("Stripe is not configured.");
+  }
+
+  const [pass] = await db
+    .select()
+    .from(passes)
+    .where(eq(passes.id, input.passId))
+    .limit(1);
+  if (!pass || pass.userId !== input.userId) {
+    throw new Error("Pass not found.");
+  }
+  if (pass.status === "ACTIVE" || pass.status === "CHECKED_IN") {
+    return {
+      passId: pass.id,
+      reference: pass.reference,
+      alreadyActive: true as const,
+    };
+  }
+  if (pass.status !== "PENDING_PAYMENT") {
+    throw new Error("Pass is not awaiting payment.");
+  }
+
+  const session = await retrieveStripeCheckoutSession(input.sessionId);
+  const sessionPassId =
+    session.client_reference_id || session.metadata?.passId || null;
+  if (sessionPassId && sessionPassId !== input.passId) {
+    throw new Error("Checkout session does not match this pass.");
+  }
+
+  if (session.payment_status !== "paid") {
+    return {
+      passId: pass.id,
+      reference: pass.reference,
+      alreadyActive: false as const,
+      paymentStatus: session.payment_status,
+    };
+  }
+
+  // Ensure payment row points at this session before fulfill lookup.
+  await db
+    .update(payments)
+    .set({
+      provider: "stripe",
+      mockRef: session.id,
+      status: "PENDING",
+    })
+    .where(eq(payments.passId, input.passId));
+
+  return fulfillPassPayment({
+    providerRef: session.id,
+    passId: input.passId,
+    referenceNumber: session.metadata?.reference ?? pass.reference,
+  });
 }
 
 /** Fulfill from HitPay or Stripe webhook (idempotent). */

@@ -23,6 +23,8 @@ import {
 import { PassDetailActions } from "@/components/pass/cancel-pass-actions";
 import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 import { getTranslator } from "@/i18n";
+import { confirmStripeCheckoutReturn } from "@/lib/pass";
+import { hasStripeKeys } from "@/lib/payments/config";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,7 @@ export default async function PassDetailPage({
   const { t } = await getTranslator();
   const { id } = await params;
 
-  const [pass] = await db
+  let [pass] = await db
     .select()
     .from(passes)
     .where(eq(passes.id, id))
@@ -81,11 +83,40 @@ export default async function PassDetailPage({
     .from(locations)
     .where(eq(locations.id, pass.pillarId))
     .limit(1);
-  const [payment] = await db
+  let [payment] = await db
     .select()
     .from(payments)
     .where(eq(payments.passId, pass.id))
     .limit(1);
+
+  // Recover stuck PENDING passes after Stripe paid but webhook missed/wrong event.
+  if (
+    pass.status === "PENDING_PAYMENT" &&
+    hasStripeKeys() &&
+    payment?.mockRef?.startsWith("cs_")
+  ) {
+    try {
+      await confirmStripeCheckoutReturn({
+        sessionId: payment.mockRef,
+        passId: pass.id,
+        userId: session.user.id,
+      });
+      const [refreshedPass] = await db
+        .select()
+        .from(passes)
+        .where(eq(passes.id, id))
+        .limit(1);
+      if (refreshedPass) pass = refreshedPass;
+      const [refreshedPay] = await db
+        .select()
+        .from(payments)
+        .where(eq(payments.passId, pass.id))
+        .limit(1);
+      if (refreshedPay) payment = refreshedPay;
+    } catch (e) {
+      console.error("[pass detail stripe recover]", e);
+    }
+  }
 
   const [overdueSetting] = await db
     .select({ value: settings.value })
@@ -103,8 +134,16 @@ export default async function PassDetailPage({
   });
 
   const qr = await getActiveQrToken(pass.id);
+  // Never dump raw Stripe/HitPay ids into the angler UI (breaks layout).
   const paymentLabel = payment
-    ? `${formatEnumLabel(payment.status)}${payment.mockRef ? ` · ${payment.mockRef}` : ""}`
+    ? [
+        formatEnumLabel(payment.status),
+        payment.provider && payment.provider !== "mock"
+          ? formatEnumLabel(payment.provider)
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
     : "—";
 
   return (
@@ -216,7 +255,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4 border-b border-border/60 py-2.5 last:border-0">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{value}</dd>
+      <dd className="min-w-0 break-words text-right font-medium">{value}</dd>
     </div>
   );
 }

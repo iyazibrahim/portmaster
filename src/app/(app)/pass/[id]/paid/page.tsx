@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { getTranslator } from "@/i18n";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { isReservationExpired } from "@/domain/pass";
+import { confirmStripeCheckoutReturn } from "@/lib/pass";
+import { hasStripeKeys } from "@/lib/payments/config";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +20,18 @@ export default async function PassPaidPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ status?: string; reference?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    reference?: string;
+    session_id?: string;
+  }>;
 }) {
   const session = await requireSession();
   const { t } = await getTranslator();
   const { id } = await params;
   const qs = await searchParams;
 
-  const [pass] = await db
+  let [pass] = await db
     .select()
     .from(passes)
     .where(eq(passes.id, id))
@@ -45,18 +51,41 @@ export default async function PassPaidPage({
     );
   }
 
+  // Stripe success_url includes session_id — confirm via API if webhook lagged/missing.
+  if (
+    qs.session_id &&
+    hasStripeKeys() &&
+    pass.status === "PENDING_PAYMENT"
+  ) {
+    try {
+      await confirmStripeCheckoutReturn({
+        sessionId: qs.session_id,
+        passId: pass.id,
+        userId: session.user.id,
+      });
+      const [refreshed] = await db
+        .select()
+        .from(passes)
+        .where(eq(passes.id, id))
+        .limit(1);
+      if (refreshed) pass = refreshed;
+    } catch (e) {
+      console.error("[stripe return confirm]", e);
+    }
+  }
+
   if (pass.status === "ACTIVE" || pass.status === "CHECKED_IN") {
     redirect(`/pass/${pass.id}`);
   }
 
-  const hitpayStatus = (qs.status ?? "").toLowerCase();
+  const returnStatus = (qs.status ?? "").toLowerCase();
   const expired = isReservationExpired(pass.reservedUntil);
+  const cancelled =
+    returnStatus === "failed" ||
+    returnStatus === "canceled" ||
+    returnStatus === "cancelled";
   const pending =
-    pass.status === "PENDING_PAYMENT" &&
-    !expired &&
-    (hitpayStatus === "completed" ||
-      hitpayStatus === "pending" ||
-      !hitpayStatus);
+    pass.status === "PENDING_PAYMENT" && !expired && !cancelled;
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
@@ -76,9 +105,7 @@ export default async function PassPaidPage({
           <AlertTitle>{t("pass.paid.expiredTitle")}</AlertTitle>
           <AlertDescription>{t("pass.paid.expiredBody")}</AlertDescription>
         </Alert>
-      ) : hitpayStatus === "failed" ||
-        hitpayStatus === "canceled" ||
-        hitpayStatus === "cancelled" ? (
+      ) : cancelled ? (
         <Alert variant="destructive">
           <AlertTitle>{t("pass.paid.failedTitle")}</AlertTitle>
           <AlertDescription>{t("pass.paid.failedBody")}</AlertDescription>

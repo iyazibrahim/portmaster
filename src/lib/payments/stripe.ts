@@ -59,3 +59,9 @@ export async function createStripeCheckoutSession(input: {
 
   return { id: session.id, url: session.url };
 }
+
+/** Server-side verify Checkout Session (return URL / webhook backup). */
+export async function retrieveStripeCheckoutSession(sessionId: string) {
+  const stripe = getStripeClient();
+  return stripe.checkout.sessions.retrieve(sessionId);
+}
