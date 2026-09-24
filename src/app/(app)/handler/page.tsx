@@ -1,23 +1,26 @@
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
-import { handlers, jetties, locations, passes, users } from "@/db/schema";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { StatusBadge } from "@/components/status-badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { todayMYT } from "@/lib/utils-app";
+  handlers,
+  jetties,
+  locations,
+  passes,
+  scanEvents,
+  users,
+} from "@/db/schema";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { addCalendarDays, todayMYT } from "@/lib/utils-app";
 import { getTranslator } from "@/i18n";
 import { SoftLiveRefresh } from "@/components/soft-live-refresh";
+import { HandlerTodayPanel } from "@/components/handler/handler-today-panel";
+
+/** MYT calendar day as UTC Date bounds (Malaysia is UTC+8, no DST). */
+function mytDayBounds(dateStr: string) {
+  const start = new Date(`${dateStr}T00:00:00+08:00`);
+  const end = new Date(`${addCalendarDays(dateStr, 1)}T00:00:00+08:00`);
+  return { start, end };
+}
 
 export default async function HandlerHomePage() {
   const session = await requireRole(["HANDLER", "ADMIN"]);
@@ -57,6 +60,7 @@ export default async function HandlerHomePage() {
 
   const jettyId = handler?.jettyId;
   const today = todayMYT();
+  const { start: dayStart, end: dayEnd } = mytDayBounds(today);
 
   const rows = jettyId
     ? await db
@@ -93,101 +97,63 @@ export default async function HandlerHomePage() {
         .limit(50)
     : [];
 
-  const live = rows.filter((r) => r.status === "CHECKED_IN");
+  const checkedInCount = rows.filter((r) => r.status === "CHECKED_IN").length;
+
+  let scannedInCount = 0;
+  let scannedOutCount = 0;
+  if (handler?.id) {
+    const [inRow] = await db
+      .select({
+        count: sql<number>`count(distinct ${scanEvents.passId})::int`,
+      })
+      .from(scanEvents)
+      .where(
+        and(
+          eq(scanEvents.handlerId, handler.id),
+          eq(scanEvents.type, "CHECK_IN"),
+          gte(scanEvents.scannedAt, dayStart),
+          lt(scanEvents.scannedAt, dayEnd),
+        ),
+      );
+    const [outRow] = await db
+      .select({
+        count: sql<number>`count(distinct ${scanEvents.passId})::int`,
+      })
+      .from(scanEvents)
+      .where(
+        and(
+          eq(scanEvents.handlerId, handler.id),
+          eq(scanEvents.type, "CHECK_OUT"),
+          gte(scanEvents.scannedAt, dayStart),
+          lt(scanEvents.scannedAt, dayEnd),
+        ),
+      );
+    scannedInCount = Number(inRow?.count ?? 0);
+    scannedOutCount = Number(outRow?.count ?? 0);
+  }
+
+  const subtitle = handler
+    ? `${handler.displayName} · ${handler.jettyName} · ${today}`
+    : t("handler.adminView", { date: today });
 
   return (
     <div className="flex w-full flex-col gap-6">
       <SoftLiveRefresh intervalMs={45_000} />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t("handler.todayAtJetty")}
-          </h1>
-          <p className="text-muted-foreground">
-            {handler
-              ? `${handler.displayName} · ${handler.jettyName} · ${today}`
-              : t("handler.adminView", { date: today })}
-          </p>
-        </div>
-        <Link href="/handler/scan" className={cn(buttonVariants())}>
-          {t("handler.openScanner")}
-        </Link>
-      </div>
-
-      <div>
-        <h2 className="mb-2 text-sm font-medium">{t("handler.checkedInNow")}</h2>
-        {live.length === 0 ? (
-          <Alert>
-            <AlertTitle>{t("handler.noneIn")}</AlertTitle>
-            <AlertDescription>{t("handler.noneInHint")}</AlertDescription>
-          </Alert>
-        ) : (
-          <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("handler.angler")}</TableHead>
-                  <TableHead>{t("admin.col.pillar")}</TableHead>
-                  <TableHead>{t("handler.pass")}</TableHead>
-                  <TableHead>{t("handler.since")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {live.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.anglerName}</TableCell>
-                    <TableCell>{r.pillarName}</TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {r.reference}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {r.checkedInAt?.toLocaleString() ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h2 className="mb-2 text-sm font-medium">Passes (today + stayovers)</h2>
-        <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Angler</TableHead>
-                <TableHead>Pillar</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Pass</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-muted-foreground">
-                    No passes for this jetty yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.anglerName}</TableCell>
-                    <TableCell>{r.pillarName}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={r.status} />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {r.reference}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <HandlerTodayPanel
+        subtitle={subtitle}
+        checkedInCount={checkedInCount}
+        scannedInCount={scannedInCount}
+        scannedOutCount={scannedOutCount}
+        rows={rows.map((r) => ({
+          id: r.id,
+          reference: r.reference,
+          status: r.status,
+          validOn: r.validOn,
+          anglerName: r.anglerName,
+          pillarName: r.pillarName,
+          checkedInAt: r.checkedInAt?.toISOString() ?? null,
+        }))}
+      />
     </div>
   );
 }

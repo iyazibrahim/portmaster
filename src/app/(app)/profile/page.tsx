@@ -12,8 +12,7 @@ import {
   formatEnumLabel,
   roleLabel,
 } from "@/lib/utils-app";
-import { getLocale, getTranslator } from "@/i18n";
-import { LocaleSwitcher } from "@/components/layout/locale-switcher";
+import { getTranslator } from "@/i18n";
 import { ChangePasswordButton } from "@/components/profile/change-password-form";
 import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
 import {
@@ -42,7 +41,6 @@ function Field({
 
 export default async function ProfilePage() {
   const session = await requireSession();
-  const locale = await getLocale();
   const { t } = await getTranslator();
   const [user] = await db
     .select()
@@ -76,16 +74,13 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5 lg:max-w-xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {isOperator ? t("profile.accountTitle") : t("profile.title")}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isOperator ? t("profile.operatorSub") : t("profile.sub")}
-          </p>
-        </div>
-        <LocaleSwitcher locale={locale} />
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {isOperator ? t("profile.accountTitle") : t("profile.title")}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isOperator ? t("profile.operatorSub") : t("profile.sub")}
+        </p>
       </div>
 
       <Card className="overflow-hidden border-border/80 shadow-sm">

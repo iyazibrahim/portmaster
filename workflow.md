@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Operator Today glance + Account locale (2026-09-24):** Removed duplicate EN/BM on Account (shell top bar / sidebar only). Operator Today replaces two wide tables with glance tiles (checked in now + this operator’s distinct check-ins today from `scan_events`, MYT day) plus On water / All today chips and phone-width pass cards.
+
 **Dokploy + GHCR CI (2026-09-24):** GitHub Actions builds the app image and pushes `ghcr.io/iyazibrahim/portmaster`, then calls Dokploy `compose.deploy` / `application.deploy` (secrets `DOKPLOY_*`). No manual VPS script. Dokploy compose command must **not** use `--build` (pull + up only) or the 4GB host OOMs again. Local builds: `docker-compose.build.yml` overlay.
 
 **Storage optimization (2026-09-24):** e-KYC capture prefers WebP @480px (JPEG fallback); server re-encodes with `sharp` and overwrites one file per user (`{userId}.webp`). Account delete removes photos. Cleanup job purges expired sessions, stale QR/boarding/verification tokens (14d graveyard for used/revoked), and audit rows older than **1 year**. Run `npm run db:cleanup` or `POST /api/cron/cleanup` with `CRON_SECRET`; Admin Ops also triggers at most once/day. Audit `metaJson` sanitized + capped at 2KB.
