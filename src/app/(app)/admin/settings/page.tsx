@@ -5,12 +5,14 @@ import {
 import { requireRole } from "@/lib/session";
 import { SettingsPanel } from "@/components/admin/settings-panel";
 import { getTranslator } from "@/i18n";
+import { getGatewayKeyStatus } from "@/lib/payments/provider";
 
 export default async function AdminSettingsPage() {
   await requireRole(["ADMIN"]);
   const { t } = await getTranslator();
   const map = await getSettingsMap();
   const itUnlocked = await isItSettingsUnlocked();
+  const gatewayKeys = getGatewayKeyStatus();
 
   const ops = {
     association_fee_cents: map.association_fee_cents ?? "500",
@@ -22,6 +24,7 @@ export default async function AdminSettingsPage() {
     maintenance_banner_on: map.maintenance_banner_on ?? "false",
     maintenance_banner_text: map.maintenance_banner_text ?? "",
     require_jetty_geofence: map.require_jetty_geofence ?? "true",
+    payment_gateway: map.payment_gateway ?? "stripe",
     booking_window_copy: map.booking_window_copy ?? "",
     platform_commission_pct: map.platform_commission_pct ?? "20",
     location_side_labels: map.location_side_labels ?? "",
@@ -58,7 +61,12 @@ export default async function AdminSettingsPage() {
         </h1>
         <p className="text-sm text-muted-foreground">{t("admin.settingsSub")}</p>
       </div>
-      <SettingsPanel ops={ops} it={it} itUnlocked={itUnlocked} />
+      <SettingsPanel
+        ops={ops}
+        it={it}
+        itUnlocked={itUnlocked}
+        gatewayKeys={gatewayKeys}
+      />
     </div>
   );
 }

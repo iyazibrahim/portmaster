@@ -28,10 +28,12 @@ export function SettingsPanel({
   ops: initialOps,
   it: initialIt,
   itUnlocked: initialUnlocked,
+  gatewayKeys = { stripeConfigured: false, hitpayConfigured: false },
 }: {
   ops: Record<string, string>;
   it: Record<string, string>;
   itUnlocked: boolean;
+  gatewayKeys?: { stripeConfigured: boolean; hitpayConfigured: boolean };
 }) {
   const [ops, setOps] = useState(initialOps);
   const [it, setIt] = useState(initialIt);
@@ -98,6 +100,47 @@ export function SettingsPanel({
             value={ops.default_geofence_radius_m}
             onChange={(v) => setOp("default_geofence_radius_m", v)}
           />
+        </BentoTile>
+
+        <BentoTile
+          title="Payment gateway"
+          description="Primary checkout for Association fee. Mock Pay buttons stay as fallback when Stripe or HitPay is selected."
+        >
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["stripe", "Stripe"],
+                ["hitpay", "HitPay"],
+                ["mock", "Mock only"],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={ops.payment_gateway === value ? "default" : "outline"}
+                className="rounded-full"
+                onClick={() => setOp("payment_gateway", value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Stripe keys:{" "}
+            <span className="font-medium text-foreground">
+              {gatewayKeys.stripeConfigured ? "configured" : "missing"}
+            </span>
+            {" · "}
+            HitPay keys:{" "}
+            <span className="font-medium text-foreground">
+              {gatewayKeys.hitpayConfigured ? "configured" : "missing"}
+            </span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Default is Stripe (HitPay off). Missing keys fall back to mock
+            automatically.
+          </p>
         </BentoTile>
 
         <BentoTile

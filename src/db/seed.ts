@@ -802,6 +802,7 @@ async function seed() {
     { key: "overdue_hours", value: "8" },
     { key: "default_geofence_radius_m", value: "100" },
     { key: "require_jetty_geofence", value: "true" },
+    { key: "payment_gateway", value: "stripe" },
     { key: "it_settings_password_hash", value: itPasswordHash },
     { key: "qr_token_ttl_hours", value: "24" },
     { key: "maintenance_banner_on", value: "false" },

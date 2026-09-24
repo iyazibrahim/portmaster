@@ -2,7 +2,7 @@
 
 Association operations platform for **same-day recreational fishing** under authorised bridge pillars.
 
-Anglers buy an **RM5 Association fee** pass (mock payment in MVP1), optionally request a **boat owner** at a boarding jetty, pick one pillar (max 4 anglers), and show a QR for operator check-in. Boat fare is negotiated outside the app. Association Admin runs ops; **LLM Viewer** is view-only monitoring.
+Anglers buy an **RM5 Association fee** pass (Stripe Checkout by default, HitPay optional, mock fallback), optionally request a **boat owner** at a boarding jetty, pick one pillar (max 4 anglers), and show a QR for operator check-in. Boat fare is negotiated outside the app. Association Admin runs ops; **LLM Viewer** is view-only monitoring.
 
 **Actors**
 
@@ -17,11 +17,11 @@ Anglers buy an **RM5 Association fee** pass (mock payment in MVP1), optionally r
 
 ## MVP1 features
 
-- Same-day pass: jetty → already-have-boat **or** pick boat owner → one pillar → mock RM5 → QR
+- Same-day pass: jetty → already-have-boat **or** pick boat owner → one pillar → pay RM5 → QR
 - Max **4** per pillar; **10-minute** slot reservation during payment
 - Identity: MyKad (unique), age ≥ 14, Malaysian, PDPA/location consents (no MyDigitalID yet)
 - Association dashboard + LLM view-only dashboard (wireframe IA)
-- Mock payment only — real gateway deferred (see [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md))
+- Payments: Admin Ops selects primary gateway (**Stripe** default, HitPay, or mock). Stripe Checkout + webhook; mock Pay buttons always available as Demo / fallback
 
 ---
 
@@ -99,7 +99,7 @@ Password for all: **`password123`**
 Push to `main` (or **Actions → Docker build & Dokploy deploy → Run workflow**).  
 CI builds → pushes GHCR → calls Dokploy `compose.deploy` / `application.deploy`. Done.
 
-**App env (Dokploy compose environment, not GitHub Actions):** set at least `AUTH_SECRET`, `APP_URL` (public HTTPS URL). For HitPay: `HITPAY_API_KEY`, `HITPAY_WEBHOOK_SALT`, optional `HITPAY_API_URL` / `HITPAY_CURRENCY` / `HITPAY_PAYMENT_METHODS`. These are wired in `docker-compose.yml` `app.environment` — vars only in the Dokploy UI that are **not** listed there never reach the container. Redeploy after changing env.
+**App env (Dokploy compose environment, not GitHub Actions):** set at least `AUTH_SECRET`, `APP_URL` (public HTTPS URL). For Stripe (primary): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` — webhook URL `{APP_URL}/api/webhooks/stripe`. For HitPay (optional): `HITPAY_API_KEY`, `HITPAY_WEBHOOK_SALT`, optional `HITPAY_API_URL` / `HITPAY_CURRENCY` / `HITPAY_PAYMENT_METHODS`. These are wired in `docker-compose.yml` `app.environment` — vars only in the Dokploy UI that are **not** listed there never reach the container. Admin Ops → Payment gateway picks primary; missing keys fall back to mock. Redeploy after changing env.
 
 Local laptop build (optional):  
 `docker compose -f docker-compose.yml -f docker-compose.build.yml build`
@@ -113,7 +113,7 @@ src/app/           # Routes (angler pass, operator, admin, llm, auth)
 src/components/    # UI + pass wizard, dashboards
 src/db/            # Drizzle schema + seed
 src/domain/        # Pass occupancy & status invariants
-src/lib/           # Auth, payments mock, actions
+src/lib/           # Auth, payments (stripe/hitpay/mock), actions
 drizzle/           # SQL migrations
 ```
 

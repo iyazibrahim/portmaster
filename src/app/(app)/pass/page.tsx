@@ -6,7 +6,8 @@ import { canBuyMultiplePassesToday, canBypassPassGeofence, todayMYT } from "@/li
 import { PASS_BLOCKING_STATUSES } from "@/domain/pass";
 import { getTranslator } from "@/i18n";
 import { listOpenPillarsForJetty, isJettyGeofenceRequired } from "@/lib/pass";
-import { isHitPayEnabled } from "@/lib/payments/provider";
+import { getActiveGateway, getConfiguredGatewaySetting } from "@/lib/payments/provider";
+import { normalizeGatewaySetting } from "@/lib/payments/config";
 import { PassWizard } from "@/components/pass/pass-wizard";
 
 export default async function PassPage() {
@@ -16,7 +17,11 @@ export default async function PassPage() {
   const bypassGeofence =
     canBypassPassGeofence(session.user.email) ||
     !(await isJettyGeofenceRequired());
-  const hitPayEnabled = isHitPayEnabled();
+  const [activeGateway, gatewaySetting] = await Promise.all([
+    getActiveGateway(),
+    getConfiguredGatewaySetting(),
+  ]);
+  const preferredGateway = normalizeGatewaySetting(gatewaySetting);
 
   const [profile] = await db
     .select({ photoKey: users.photoKey })
@@ -121,7 +126,8 @@ export default async function PassPage() {
         allowMultipleSameDay={allowMultipleSameDay}
         bypassGeofence={bypassGeofence}
         hasIdentityPhoto={hasIdentityPhoto}
-        hitPayEnabled={hitPayEnabled}
+        activeGateway={activeGateway}
+        preferredGateway={preferredGateway}
         todayPass={
           todayPass
             ? {

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
-import { hitPayWebhookSalt, isHitPayEnabled } from "@/lib/payments/config";
+import { hasHitPayKeys, hitPayWebhookSalt } from "@/lib/payments/config";
 import { fulfillHitPayPayment } from "@/lib/pass";
 
 export const runtime = "nodejs";
@@ -23,11 +23,10 @@ type HitPayWebhookBody = {
   id?: string;
   status?: string;
   reference_number?: string | null;
-  payments?: Array<{ status?: string }>;
 };
 
 export async function POST(request: Request) {
-  if (!isHitPayEnabled()) {
+  if (!hasHitPayKeys()) {
     return NextResponse.json({ ok: false, error: "HitPay disabled" }, { status: 503 });
   }
 
@@ -50,7 +49,6 @@ export async function POST(request: Request) {
     request.headers.get("hitpay-event-type") ?? ""
   ).toLowerCase();
 
-  // Only fulfill completed payment requests.
   if (!payload.id || (status !== "completed" && eventType !== "completed")) {
     return NextResponse.json({ ok: true, ignored: true });
   }

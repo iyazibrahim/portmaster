@@ -6,8 +6,9 @@ import {
   actionCreatePass,
   actionMockPayFail,
   actionMockPaySuccess,
-  actionStartHitPayCheckout,
+  actionStartGatewayCheckout,
 } from "@/lib/actions/pass";
+import type { GatewayId } from "@/lib/payments/provider";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,7 +112,8 @@ export function PassWizard({
   allowMultipleSameDay = false,
   bypassGeofence = false,
   hasIdentityPhoto = true,
-  hitPayEnabled = false,
+  activeGateway = "mock",
+  preferredGateway = "stripe",
 }: {
   jetties: JettyOption[];
   pillarsByJetty: Record<string, PillarOption[]>;
@@ -125,7 +127,10 @@ export function PassWizard({
   allowMultipleSameDay?: boolean;
   bypassGeofence?: boolean;
   hasIdentityPhoto?: boolean;
-  hitPayEnabled?: boolean;
+  /** Resolved primary gateway (keys + Admin setting). */
+  activeGateway?: GatewayId;
+  /** Admin setting before key fallback (for “keys missing” note). */
+  preferredGateway?: GatewayId;
 }) {
   const { t } = useT();
   const router = useRouter();
@@ -377,16 +382,16 @@ export function PassWizard({
     });
   }
 
-  function payWithHitPay() {
+  function payWithGateway() {
     if (!passId) return;
     startTransition(async () => {
-      const result = await actionStartHitPayCheckout(passId);
+      const result = await actionStartGatewayCheckout(passId);
       if (!result.ok) {
         setError(result.error);
         return;
       }
       if (!result.checkoutUrl) {
-        setError(t("pass.pay.hitpayMissingUrl"));
+        setError(t("pass.pay.checkoutMissingUrl"));
         return;
       }
       window.location.assign(result.checkoutUrl);
@@ -704,30 +709,56 @@ export function PassWizard({
                   })}`
                 : null}
             </p>
-            {hitPayEnabled ? (
+            {activeGateway === "stripe" || activeGateway === "hitpay" ? (
               <div className="flex flex-col gap-2">
                 <p className="text-xs text-muted-foreground">
-                  {t("pass.pay.hitpayHint")}
+                  {activeGateway === "stripe"
+                    ? t("pass.pay.stripeHint")
+                    : t("pass.pay.hitpayHint")}
                 </p>
                 <Button
-                  className={actionBtn}
-                  onClick={payWithHitPay}
+                  className={cn(actionBtn, "w-full sm:w-full")}
+                  onClick={payWithGateway}
                   disabled={pending}
                 >
-                  {pending ? t("pass.pay.redirecting") : t("pass.pay.hitpayCta")}
+                  {pending
+                    ? t("pass.pay.redirecting")
+                    : activeGateway === "stripe"
+                      ? t("pass.pay.stripeCta")
+                      : t("pass.pay.hitpayCta")}
                 </Button>
               </div>
+            ) : preferredGateway !== "mock" ? (
+              <p className="text-xs text-muted-foreground">
+                {t("pass.pay.keysMissing")}
+              </p>
             ) : (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <p className="w-full text-xs text-muted-foreground sm:col-span-2">
-                  {t("pass.pay.mockHint")}
+              <p className="text-xs text-muted-foreground">
+                {t("pass.pay.mockHint")}
+              </p>
+            )}
+
+            <div
+              className={cn(
+                "space-y-2",
+                activeGateway !== "mock" && "border-t border-border pt-4",
+              )}
+            >
+              {activeGateway !== "mock" ? (
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t("pass.pay.demoFallback")}
                 </p>
+              ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   className={actionBtn}
                   onClick={paySuccess}
                   disabled={pending}
+                  variant={activeGateway === "mock" ? "default" : "outline"}
                 >
-                  {pending ? t("pass.pay.processing") : t("pass.pay.mockSuccess")}
+                  {pending
+                    ? t("pass.pay.processing")
+                    : t("pass.pay.mockSuccess")}
                 </Button>
                 <Button
                   variant="outline"
@@ -738,7 +769,7 @@ export function PassWizard({
                   {t("pass.pay.mockFail")}
                 </Button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       ) : null}

@@ -35,7 +35,7 @@ import { writeAudit } from "@/lib/audit";
 import { assertWithinGeofence } from "@/lib/geo";
 import {
   getPaymentProvider,
-  isHitPayEnabled,
+  mockPaymentProvider,
 } from "@/lib/payments/provider";
 import {
   ASSOCIATION_FEE_CENTS,
@@ -261,7 +261,7 @@ export async function createPassPendingPayment(input: {
     expectedReturnOn: intention.expectedReturnOn,
   });
 
-  const provider = getPaymentProvider();
+  const provider = await getPaymentProvider();
   const paymentId = id("pay");
   await db.insert(payments).values({
     id: paymentId,
@@ -389,12 +389,8 @@ export async function activatePassAfterPayment(input: {
   };
 }
 
-/** Create / refresh HitPay checkout URL for a pending pass. */
-export async function startHitPayCheckout(passId: string, userId: string) {
-  if (!isHitPayEnabled()) {
-    throw new Error("HitPay is not configured.");
-  }
-
+/** Create / refresh checkout URL for Stripe or HitPay. */
+export async function startGatewayCheckout(passId: string, userId: string) {
   await expireStaleReservations();
 
   const [pass] = await db
@@ -414,13 +410,19 @@ export async function startHitPayCheckout(passId: string, userId: string) {
     throw new Error("Reservation expired. Please start again.");
   }
 
+  const provider = await getPaymentProvider();
+  if (provider.name === "mock") {
+    throw new Error(
+      "No live payment gateway configured. Use mock Pay buttons, or set Stripe/HitPay keys and Admin gateway.",
+    );
+  }
+
   const [user] = await db
     .select({ email: users.email, name: users.name })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
 
-  const provider = getPaymentProvider();
   const intent = await provider.createIntent({
     amountCents: pass.feeCents,
     reference: pass.reference,
@@ -430,13 +432,13 @@ export async function startHitPayCheckout(passId: string, userId: string) {
   });
 
   if (!intent.checkoutUrl) {
-    throw new Error("HitPay did not return a checkout URL.");
+    throw new Error(`${provider.name} did not return a checkout URL.`);
   }
 
   await db
     .update(payments)
     .set({
-      provider: "hitpay",
+      provider: provider.name,
       mockRef: intent.id,
       status: "PENDING",
     })
@@ -446,14 +448,16 @@ export async function startHitPayCheckout(passId: string, userId: string) {
     passId,
     checkoutUrl: intent.checkoutUrl,
     paymentRequestId: intent.id,
+    provider: provider.name,
   };
 }
 
-export async function mockPayPassSuccess(passId: string, userId: string) {
-  if (isHitPayEnabled()) {
-    throw new Error("Mock payment is disabled while HitPay is configured.");
-  }
+/** @deprecated Use startGatewayCheckout */
+export async function startHitPayCheckout(passId: string, userId: string) {
+  return startGatewayCheckout(passId, userId);
+}
 
+export async function mockPayPassSuccess(passId: string, userId: string) {
   await expireStaleReservations();
 
   const [pass] = await db
@@ -473,13 +477,18 @@ export async function mockPayPassSuccess(passId: string, userId: string) {
     throw new Error("Reservation expired. Please start again.");
   }
 
-  const provider = getPaymentProvider();
-  await provider.createIntent({
+  // Always use mock provider for fallback demo buttons.
+  await mockPaymentProvider.createIntent({
     amountCents: pass.feeCents,
     reference: pass.reference,
     passId: pass.id,
   });
-  await provider.confirmMockSuccess(`mock_${pass.reference}`);
+  await mockPaymentProvider.confirmMockSuccess(`mock_${pass.reference}`);
+
+  await db
+    .update(payments)
+    .set({ provider: "mock" })
+    .where(eq(payments.passId, passId));
 
   return activatePassAfterPayment({
     passId,
@@ -489,10 +498,6 @@ export async function mockPayPassSuccess(passId: string, userId: string) {
 }
 
 export async function mockPayPassFail(passId: string, userId: string) {
-  if (isHitPayEnabled()) {
-    throw new Error("Mock payment is disabled while HitPay is configured.");
-  }
-
   const [pass] = await db
     .select()
     .from(passes)
@@ -503,9 +508,8 @@ export async function mockPayPassFail(passId: string, userId: string) {
   const next = nextStatusAfterPaymentFail(pass.status);
   if (!next) throw new Error("Pass is not awaiting payment.");
 
-  const provider = getPaymentProvider();
   try {
-    await provider.confirmMockFailure(`mock_${pass.reference}`);
+    await mockPaymentProvider.confirmMockFailure(`mock_${pass.reference}`);
   } catch {
     // intent may already be gone
   }
@@ -517,47 +521,61 @@ export async function mockPayPassFail(passId: string, userId: string) {
     .where(eq(passes.id, passId));
   await db
     .update(payments)
-    .set({ status: "FAILED" })
+    .set({ status: "FAILED", provider: "mock" })
     .where(eq(payments.passId, passId));
 
   return { passId };
 }
 
-/** Fulfill from HitPay webhook (idempotent). */
-export async function fulfillHitPayPayment(input: {
-  paymentRequestId: string;
+/** Fulfill from HitPay or Stripe webhook (idempotent). */
+export async function fulfillPassPayment(input: {
+  providerRef: string;
   referenceNumber?: string | null;
+  passId?: string | null;
 }) {
-  let passId: string | null = null;
+  let passId: string | null = input.passId ?? null;
 
-  const [byRef] = await db
-    .select({
-      passId: payments.passId,
-      status: payments.status,
-    })
-    .from(payments)
-    .where(eq(payments.mockRef, input.paymentRequestId))
-    .limit(1);
-
-  if (byRef?.passId) {
-    passId = byRef.passId;
-  } else if (input.referenceNumber) {
-    const [pass] = await db
-      .select({ id: passes.id })
-      .from(passes)
-      .where(eq(passes.reference, input.referenceNumber))
+  if (!passId) {
+    const [byRef] = await db
+      .select({
+        passId: payments.passId,
+        status: payments.status,
+      })
+      .from(payments)
+      .where(eq(payments.mockRef, input.providerRef))
       .limit(1);
-    passId = pass?.id ?? null;
+
+    if (byRef?.passId) {
+      passId = byRef.passId;
+    } else if (input.referenceNumber) {
+      const [pass] = await db
+        .select({ id: passes.id })
+        .from(passes)
+        .where(eq(passes.reference, input.referenceNumber))
+        .limit(1);
+      passId = pass?.id ?? null;
+    }
   }
 
   if (!passId) {
-    throw new Error("Payment not found for HitPay request.");
+    throw new Error("Payment not found for provider reference.");
   }
 
   return activatePassAfterPayment({
     passId,
     actorId: null,
+    providerRef: input.providerRef,
+  });
+}
+
+/** @deprecated Use fulfillPassPayment */
+export async function fulfillHitPayPayment(input: {
+  paymentRequestId: string;
+  referenceNumber?: string | null;
+}) {
+  return fulfillPassPayment({
     providerRef: input.paymentRequestId,
+    referenceNumber: input.referenceNumber,
   });
 }
 

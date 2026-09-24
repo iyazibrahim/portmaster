@@ -8,7 +8,7 @@ import {
   mockPayPassFail,
   mockPayPassSuccess,
   selfCheckOutPass,
-  startHitPayCheckout,
+  startGatewayCheckout,
   updateOvernightIntention,
 } from "@/lib/pass";
 
@@ -50,12 +50,12 @@ export async function actionCreatePass(input: {
   }
 }
 
-export async function actionStartHitPayCheckout(
+export async function actionStartGatewayCheckout(
   passId: string,
 ): Promise<PassActionResult> {
   const session = await requireSession();
   try {
-    const result = await startHitPayCheckout(passId, session.user.id);
+    const result = await startGatewayCheckout(passId, session.user.id);
     return {
       ok: true,
       passId: result.passId,
@@ -64,9 +64,15 @@ export async function actionStartHitPayCheckout(
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Could not start HitPay checkout.",
+      error:
+        e instanceof Error ? e.message : "Could not start payment checkout.",
     };
   }
+}
+
+/** @deprecated Use actionStartGatewayCheckout */
+export async function actionStartHitPayCheckout(passId: string) {
+  return actionStartGatewayCheckout(passId);
 }
 
 export async function actionMockPaySuccess(

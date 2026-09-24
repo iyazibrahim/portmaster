@@ -70,7 +70,9 @@ services:
       AUTH_TRUST_HOST: "true"
       NODE_OPTIONS: --max-old-space-size=512
       UV_THREADPOOL_SIZE: "2"
-      # Runtime secrets from Dokploy env (not GitHub Actions). Empty = mock pay.
+      # Runtime secrets from Dokploy env (not GitHub Actions). Admin payment_gateway picks primary.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       HITPAY_API_KEY: ${HITPAY_API_KEY:-}
       HITPAY_API_URL: ${HITPAY_API_URL:-https://api.sandbox.hit-pay.com}
       HITPAY_WEBHOOK_SALT: ${HITPAY_WEBHOOK_SALT:-}

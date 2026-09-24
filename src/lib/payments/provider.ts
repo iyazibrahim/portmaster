@@ -1,9 +1,19 @@
 /**
- * Payment provider — mock locally; HitPay when HITPAY_API_KEY is set.
+ * Payment providers: mock | stripe | hitpay.
+ * Primary gateway comes from Admin `payment_gateway` + env keys.
  */
 
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { settings } from "@/db/schema";
 import { createHitPayPaymentRequest } from "@/lib/payments/hitpay";
-import { isHitPayEnabled } from "@/lib/payments/config";
+import { createStripeCheckoutSession } from "@/lib/payments/stripe";
+import {
+  type GatewayId,
+  hasHitPayKeys,
+  hasStripeKeys,
+  resolvePrimaryGateway,
+} from "@/lib/payments/config";
 
 export type PaymentIntent = {
   id: string;
@@ -15,7 +25,7 @@ export type PaymentIntent = {
 };
 
 export interface PaymentProvider {
-  readonly name: string;
+  readonly name: GatewayId;
   createIntent(input: {
     amountCents: number;
     reference: string;
@@ -98,8 +108,60 @@ export const hitpayPaymentProvider: PaymentProvider = {
   },
 };
 
-export function getPaymentProvider(): PaymentProvider {
-  return isHitPayEnabled() ? hitpayPaymentProvider : mockPaymentProvider;
+export const stripePaymentProvider: PaymentProvider = {
+  name: "stripe",
+  async createIntent({ amountCents, reference, passId, email, name }) {
+    const session = await createStripeCheckoutSession({
+      amountCents,
+      reference,
+      passId,
+      email,
+      name,
+    });
+    return {
+      id: session.id,
+      amountCents,
+      currency: "MYR",
+      reference,
+      status: "PENDING",
+      checkoutUrl: session.url,
+    };
+  },
+  async confirmMockSuccess() {
+    throw new Error("Mock confirm is not available for Stripe.");
+  },
+  async confirmMockFailure() {
+    throw new Error("Mock confirm is not available for Stripe.");
+  },
+};
+
+export async function getConfiguredGatewaySetting(): Promise<string> {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, "payment_gateway"))
+    .limit(1);
+  return row?.value ?? "stripe";
 }
 
-export { isHitPayEnabled };
+export async function getActiveGateway(): Promise<GatewayId> {
+  const setting = await getConfiguredGatewaySetting();
+  return resolvePrimaryGateway(setting);
+}
+
+export async function getPaymentProvider(): Promise<PaymentProvider> {
+  const gateway = await getActiveGateway();
+  if (gateway === "stripe") return stripePaymentProvider;
+  if (gateway === "hitpay") return hitpayPaymentProvider;
+  return mockPaymentProvider;
+}
+
+/** Sync snapshot for Admin UI (keys present?). */
+export function getGatewayKeyStatus() {
+  return {
+    stripeConfigured: hasStripeKeys(),
+    hitpayConfigured: hasHitPayKeys(),
+  };
+}
+
+export { hasHitPayKeys, hasStripeKeys, type GatewayId };
