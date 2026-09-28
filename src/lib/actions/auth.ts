@@ -2,11 +2,11 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { db, pg } from "@/db";
-import { sessions, users } from "@/db/schema";
+import { sessions, users, verificationTokens } from "@/db/schema";
 import { signOut as authSignOut } from "@/lib/auth";
 import {
   authSessionCookieName,
@@ -21,6 +21,18 @@ import {
   parseMyKadDob,
 } from "@/lib/utils-app";
 import { asSqlTimestamp } from "@/lib/sql-value";
+import {
+  generateResetToken,
+  getAppBaseUrl,
+  getSupportEmail,
+  hashResetToken,
+  PASSWORD_RESET_COOLDOWN_MS,
+  PASSWORD_RESET_TTL_MINUTES,
+  PASSWORD_RESET_TTL_MS,
+  safeEqualHex,
+  sendMail,
+} from "@/lib/mail";
+import { buildPasswordResetEmail } from "@/lib/emails/password-reset";
 
 const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
 
@@ -348,6 +360,171 @@ export async function changePasswordAction(input: {
     .update(users)
     .set({ passwordHash })
     .where(eq(users.id, user.id));
+
+  return { ok: true };
+}
+
+const RESET_IDENTIFIER_PREFIX = "password-reset:";
+
+export type ForgotPasswordResult = { ok: true };
+
+export async function requestPasswordResetAction(
+  emailRaw: string,
+): Promise<ForgotPasswordResult> {
+  const email = emailRaw.toLowerCase().trim();
+  // Always succeed to the client (avoid account enumeration).
+  if (!email || !email.includes("@")) {
+    return { ok: true };
+  }
+
+  try {
+    const [user] = await db
+      .select({ id: users.id, email: users.email, name: users.name })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (!user) {
+      return { ok: true };
+    }
+
+    const identifier = `${RESET_IDENTIFIER_PREFIX}${email}`;
+    const [existing] = await db
+      .select()
+      .from(verificationTokens)
+      .where(eq(verificationTokens.identifier, identifier))
+      .limit(1);
+
+    if (existing) {
+      const createdAt =
+        existing.expires.getTime() - PASSWORD_RESET_TTL_MS;
+      if (Date.now() - createdAt < PASSWORD_RESET_COOLDOWN_MS) {
+        // Cooldown: do not rotate token or re-send (still generic OK).
+        return { ok: true };
+      }
+      await db
+        .delete(verificationTokens)
+        .where(eq(verificationTokens.identifier, identifier));
+    }
+
+    const rawToken = generateResetToken();
+    const tokenHash = hashResetToken(rawToken);
+    const expires = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+    await db.insert(verificationTokens).values({
+      identifier,
+      token: tokenHash,
+      expires,
+    });
+
+    const base = await getAppBaseUrl();
+    // Token-only URL — do not put email in the query string.
+    const resetUrl = `${base}/reset-password?token=${encodeURIComponent(rawToken)}`;
+    const supportEmail = await getSupportEmail();
+    const mail = buildPasswordResetEmail({
+      recipientName: user.name || "there",
+      resetUrl,
+      expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
+      supportEmail,
+    });
+
+    const sent = await sendMail({
+      to: email,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
+
+    if (!sent.ok) {
+      console.error("[password-reset] email failed", sent.error);
+      // Still return ok to the client; ops can check logs / SMTP settings.
+    }
+  } catch (e) {
+    console.error("[password-reset] request failed", e);
+  }
+
+  return { ok: true };
+}
+
+export type ResetPasswordResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function resetPasswordWithTokenAction(input: {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<ResetPasswordResult> {
+  const token = input.token.trim();
+  const next = input.newPassword ?? "";
+  const confirm = input.confirmPassword ?? "";
+
+  if (!token) {
+    return { ok: false, error: "Reset link is invalid or incomplete." };
+  }
+  if (!next || !confirm) {
+    return { ok: false, error: "All password fields are required." };
+  }
+  if (next.length < 8) {
+    return { ok: false, error: "New password must be at least 8 characters." };
+  }
+  if (next !== confirm) {
+    return { ok: false, error: "New password and confirmation do not match." };
+  }
+
+  const tokenHash = hashResetToken(token);
+  const now = new Date();
+
+  const [row] = await db
+    .select()
+    .from(verificationTokens)
+    .where(
+      and(
+        eq(verificationTokens.token, tokenHash),
+        gt(verificationTokens.expires, now),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !row ||
+    !row.identifier.startsWith(RESET_IDENTIFIER_PREFIX) ||
+    !safeEqualHex(row.token, tokenHash)
+  ) {
+    return {
+      ok: false,
+      error: "This reset link is invalid or has expired. Request a new one.",
+    };
+  }
+
+  const email = row.identifier.slice(RESET_IDENTIFIER_PREFIX.length);
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  if (!user) {
+    await db
+      .delete(verificationTokens)
+      .where(eq(verificationTokens.identifier, row.identifier));
+    return {
+      ok: false,
+      error: "This reset link is invalid or has expired. Request a new one.",
+    };
+  }
+
+  const passwordHash = await bcrypt.hash(next, 12);
+
+  // Consume token first (single-use), then update password + kill sessions.
+  await db
+    .delete(verificationTokens)
+    .where(eq(verificationTokens.identifier, row.identifier));
+
+  await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.id, user.id));
+
+  await db.delete(sessions).where(eq(sessions.userId, user.id));
 
   return { ok: true };
 }

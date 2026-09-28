@@ -1,20 +1,12 @@
 import { eq } from "drizzle-orm";
-import { Ship } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
-import { boats, boatOwners, handlers } from "@/db/schema";
+import { boats, boatOwners, handlers, jetties } from "@/db/schema";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { EmptyState } from "@/components/ux/empty-state";
-import { formatEnumLabel } from "@/lib/utils-app";
+  HandlerFleetPanel,
+  type HandlerFleetBoat,
+} from "@/components/handler/handler-fleet-panel";
 import { getTranslator } from "@/i18n";
 
 export default async function HandlerFleetPage() {
@@ -35,105 +27,45 @@ export default async function HandlerFleetPage() {
     );
   }
 
-  const myBoats = handler.boatOwnerId
+  const selectFields = {
+    id: boats.id,
+    name: boats.name,
+    registration: boats.registration,
+    capacity: boats.capacity,
+    status: boats.status,
+    owner: boatOwners.name,
+    jettyName: jetties.name,
+    permitExpiresAt: boats.permitExpiresAt,
+    licenceInfo: boats.licenceInfo,
+    pricePerPersonCents: boats.pricePerPersonCents,
+  };
+
+  const rows = handler.boatOwnerId
     ? await db
-        .select({
-          id: boats.id,
-          name: boats.name,
-          registration: boats.registration,
-          capacity: boats.capacity,
-          status: boats.status,
-          owner: boatOwners.name,
-        })
+        .select(selectFields)
         .from(boats)
         .leftJoin(boatOwners, eq(boats.ownerId, boatOwners.id))
+        .leftJoin(jetties, eq(boats.jettyId, jetties.id))
         .where(eq(boats.ownerId, handler.boatOwnerId))
     : await db
-        .select({
-          id: boats.id,
-          name: boats.name,
-          registration: boats.registration,
-          capacity: boats.capacity,
-          status: boats.status,
-          owner: boatOwners.name,
-        })
+        .select(selectFields)
         .from(boats)
         .leftJoin(boatOwners, eq(boats.ownerId, boatOwners.id))
+        .leftJoin(jetties, eq(boats.jettyId, jetties.id))
         .where(eq(boats.handlerId, handler.id));
 
-  return (
-    <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">
-          {t("handler.fleetTitle")}
-        </h1>
-        <p className="text-sm leading-normal text-muted-foreground">
-          {t("handler.fleetSub")}
-        </p>
-      </div>
-      {myBoats.length === 0 ? (
-        <EmptyState
-          icon={Ship}
-          title={t("handler.fleetEmptyTitle")}
-          description={t("handler.fleetEmptyBody")}
-        />
-      ) : (
-        <>
-          <ul className="animate-list-in divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-card md:hidden">
-            {myBoats.map((b) => (
-              <li
-                key={b.id}
-                className="flex items-start justify-between gap-4 px-4 py-4"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium tracking-tight">
-                    {b.name}
-                  </p>
-                  <p className="truncate text-xs leading-normal text-muted-foreground">
-                    <span className="font-mono">{b.registration ?? "—"}</span>
-                    <span className="mx-1 text-border">·</span>
-                    {b.owner ?? "—"}
-                    <span className="mx-1 text-border">·</span>
-                    {b.capacity} seats
-                  </p>
-                </div>
-                <Badge variant="secondary" className="shrink-0">
-                  {formatEnumLabel(b.status)}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+  const fleetBoats: HandlerFleetBoat[] = rows.map((b) => ({
+    id: b.id,
+    name: b.name,
+    registration: b.registration,
+    capacity: b.capacity,
+    status: b.status,
+    owner: b.owner,
+    jettyName: b.jettyName,
+    permitExpiresAt: b.permitExpiresAt?.toISOString() ?? null,
+    licenceInfo: b.licenceInfo,
+    pricePerPersonCents: b.pricePerPersonCents,
+  }));
 
-          <div className="hidden overflow-hidden rounded-lg ring-1 ring-foreground/10 md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Reg</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Capacity</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {myBoats.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell>{b.name}</TableCell>
-                    <TableCell>{b.registration ?? "—"}</TableCell>
-                    <TableCell>{b.owner ?? "—"}</TableCell>
-                    <TableCell>{b.capacity}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {formatEnumLabel(b.status)}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      )}
-    </div>
-  );
+  return <HandlerFleetPanel boats={fleetBoats} />;
 }

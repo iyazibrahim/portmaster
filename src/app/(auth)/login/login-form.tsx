@@ -25,6 +25,7 @@ const DEMO_LOGINS = [
 export function LoginForm() {
   const search = useSearchParams();
   const next = search.get("next") ?? "";
+  const resetOk = search.get("reset") === "1";
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
@@ -140,6 +141,15 @@ export function LoginForm() {
                 />
               </div>
 
+              {resetOk ? (
+                <Alert>
+                  <AlertTitle>{t("auth.resetSuccessTitle")}</AlertTitle>
+                  <AlertDescription>
+                    {t("auth.resetSuccessBody")}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               {error ? (
                 <Alert variant="destructive">
                   <AlertTitle>{t("auth.loginFailed")}</AlertTitle>
@@ -153,7 +163,16 @@ export function LoginForm() {
             </KeyboardSafeForm>
 
             <p className="mt-4 text-sm leading-normal text-muted-foreground">
-              New angler?{" "}
+              <Link
+                href="/forgot-password"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                {t("auth.forgotLink")}
+              </Link>
+            </p>
+
+            <p className="mt-2 text-sm leading-normal text-muted-foreground">
+              {t("auth.noAccount")}{" "}
               <Link
                 href="/signup"
                 className="text-primary underline-offset-4 hover:underline"

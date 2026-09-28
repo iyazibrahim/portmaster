@@ -852,6 +852,68 @@ export async function selfCheckOutPass(input: {
   return { passId: pass.id, status: next as PassStatus };
 }
 
+/**
+ * Admin-only force check-out for long stays / stuck CHECKED_IN passes.
+ * No geofence. Requires a reason; writes scan event + audit.
+ */
+export async function adminForceCheckOutPass(input: {
+  passId: string;
+  adminUserId: string;
+  reason: string;
+}) {
+  const reason = input.reason.trim();
+  if (reason.length < 3) {
+    throw new Error("Enter a short reason (at least 3 characters).");
+  }
+  if (reason.length > 280) {
+    throw new Error("Reason must be under 280 characters.");
+  }
+
+  const [pass] = await db
+    .select()
+    .from(passes)
+    .where(eq(passes.id, input.passId))
+    .limit(1);
+  if (!pass) throw new Error("Pass not found.");
+  if (pass.status !== "CHECKED_IN") {
+    throw new Error("Only Checked-In passes can be force checked out.");
+  }
+
+  const next = nextStatusAfterCheckOut(pass.status);
+  if (!next) throw new Error("Invalid check-out transition.");
+
+  const now = new Date();
+  await db
+    .update(passes)
+    .set({
+      status: next,
+      checkedOutAt: now,
+      updatedAt: now,
+    })
+    .where(eq(passes.id, pass.id));
+
+  await db.insert(scanEvents).values({
+    id: id("scn"),
+    passId: pass.id,
+    handlerId: null,
+    actorUserId: input.adminUserId,
+    type: "CHECK_OUT",
+    scannedAt: now,
+    note: `Pass ${pass.reference} · method ADMIN_FORCE · ${reason}`,
+  });
+
+  await writeAudit({
+    actorId: input.adminUserId,
+    action: "pass.admin_force_check_out",
+    entityType: "pass",
+    entityId: pass.id,
+    prev: { status: "CHECKED_IN" },
+    next: { status: next, method: "ADMIN_FORCE", reason },
+  });
+
+  return { passId: pass.id, status: next as PassStatus, reference: pass.reference };
+}
+
 export async function listOpenPillarsForJetty(jettyId: string) {
   const validOn = todayMYT();
   await expireStaleReservations();

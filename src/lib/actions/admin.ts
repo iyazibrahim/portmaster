@@ -74,8 +74,12 @@ const IT_KEYS = [
   "payment_gateway_api_url",
   "payment_gateway_key",
   "smtp_host",
+  "smtp_port",
   "smtp_user",
   "smtp_pass",
+  "smtp_from_email",
+  "smtp_from_name",
+  "smtp_secure",
   "webhook_secret",
   "app_url_override",
 ] as const;
@@ -222,6 +226,25 @@ export async function actionSaveItSettings(values: Record<string, string>) {
   }
   revalidatePath("/admin/settings");
   return { ok: true as const };
+}
+
+export async function actionSendSmtpTestEmail(to: string): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  await requireRole(["ADMIN"]);
+  if (!(await isItSettingsUnlocked())) {
+    return { ok: false, error: "IT settings locked. Unlock first." };
+  }
+  const email = to.toLowerCase().trim();
+  if (!email || !email.includes("@")) {
+    return { ok: false, error: "Enter a valid test recipient email." };
+  }
+  const { sendMail } = await import("@/lib/mail");
+  return sendMail({
+    to: email,
+    subject: "TiangPass SMTP test",
+    text: "This is a TiangPass SMTP test message. Your mail settings work.",
+  });
 }
 
 export type ReportSummary = {
@@ -997,3 +1020,32 @@ export async function actionUpdateIncidentStatus(
   return { ok: true as const };
 }
 
+
+export async function actionAdminForceCheckOut(input: {
+  passId: string;
+  reason: string;
+}): Promise<
+  { ok: true; reference: string } | { ok: false; error: string }
+> {
+  const session = await requireRole(["ADMIN"]);
+  try {
+    const { adminForceCheckOutPass } = await import("@/lib/pass");
+    const result = await adminForceCheckOutPass({
+      passId: input.passId,
+      adminUserId: session.user.id,
+      reason: input.reason,
+    });
+    revalidatePath("/admin/ops");
+    revalidatePath("/admin/passes");
+    revalidatePath("/handler");
+    revalidatePath("/handler/pillars");
+    revalidatePath(`/pass/${result.passId}`);
+    revalidatePath("/trips");
+    return { ok: true, reference: result.reference };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Force check-out failed.",
+    };
+  }
+}

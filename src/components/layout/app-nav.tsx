@@ -78,6 +78,7 @@ function navForRole(role: UserRole): NavItem[] {
   if (role === "HANDLER") {
     return [
       { href: "/handler", labelKey: "nav.today", icon: LayoutDashboard },
+      { href: "/handler/pillars", labelKey: "nav.pillarsTab", icon: MapPinned },
       { href: "/handler/boat", labelKey: "nav.fleet", icon: Ship },
       { href: "/handler/scan", labelKey: "nav.scan", icon: QrCode },
       { href: "/profile", labelKey: "common.account", icon: Users },
@@ -314,8 +315,12 @@ export function MobileBottomNav({
   ) : role === "HANDLER" ? (
     <nav className="relative flex shrink-0 items-end border-t border-border bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div className="flex min-h-14 flex-1 items-center justify-evenly">
-        {(() => {
-          const item = items.find((i) => i.href === "/handler")!;
+        {(
+          [
+            items.find((i) => i.href === "/handler"),
+            items.find((i) => i.href === "/handler/pillars"),
+          ] as NavItem[]
+        ).map((item) => {
           const active = navItemActive(pathname, item.href);
           const Icon = item.icon;
           return (
@@ -335,7 +340,7 @@ export function MobileBottomNav({
               </span>
             </Link>
           );
-        })()}
+        })}
       </div>
 
       {/* Equal left/right halves so Scan stays on the true center line */}

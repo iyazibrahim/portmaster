@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/session";
-import {
-  formatDuration,
-  getDashboardMetrics,
-} from "@/lib/dashboard";
+import { getDashboardMetrics } from "@/lib/dashboard";
 import { formatEnumLabel, formatMYR } from "@/lib/utils-app";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +24,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { PillarBarsCarousel } from "@/components/admin/pillar-bars-carousel";
+import { StillUnderBridgeTable } from "@/components/admin/still-under-bridge-table";
 import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 import { getTranslator } from "@/i18n";
 
@@ -262,47 +260,17 @@ export default async function AdminOpsPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t("admin.ops.stillUnderTitle")}
-            </CardTitle>
-            <p className="text-xs font-normal text-muted-foreground">
-              {t("admin.ops.stillUnderHint", { hours: m.overdueHours })}
-            </p>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("common.name")}</TableHead>
-                  <TableHead>{t("admin.col.pillar")}</TableHead>
-                  <TableHead>{t("admin.col.expectedReturn")}</TableHead>
-                  <TableHead>{t("admin.col.duration")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {m.overdueRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-muted-foreground">
-                      {t("admin.ops.noLongStays")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  m.overdueRows.map((r) => (
-                    <TableRow key={r.passId}>
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell>{r.pillar}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {r.expectedReturnOn ?? "—"}
-                      </TableCell>
-                      <TableCell className="font-medium text-amber-800">
-                        {formatDuration(r.durationMin)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          <CardContent className="pt-6">
+            <StillUnderBridgeTable
+              overdueHours={m.overdueHours}
+              rows={m.overdueRows.map((r) => ({
+                passId: r.passId,
+                name: r.name,
+                pillar: r.pillar,
+                expectedReturnOn: r.expectedReturnOn,
+                durationMin: r.durationMin,
+              }))}
+            />
           </CardContent>
         </Card>
 

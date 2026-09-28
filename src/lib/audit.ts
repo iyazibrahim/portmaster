@@ -107,6 +107,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "pass.check_in": "Pass checked in",
   "pass.check_out": "Pass checked out",
   "pass.self_check_out": "Pass self checked out (angler)",
+  "pass.admin_force_check_out": "Pass force checked out (admin)",
   "pass.overnight_intention": "Overnight stay intention updated",
   "pass.sync_conflict_resolve": "Offline scan conflict resolved",
   "pillar.create": "Pillar created",

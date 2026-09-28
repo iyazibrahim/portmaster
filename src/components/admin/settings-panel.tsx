@@ -6,6 +6,7 @@ import {
   actionLockItSettings,
   actionSaveItSettings,
   actionSaveOpsSettings,
+  actionSendSmtpTestEmail,
   actionUnlockItSettings,
   actionUploadReceiptLogo,
 } from "@/lib/actions/admin";
@@ -42,6 +43,7 @@ export function SettingsPanel({
   const [newItPassword, setNewItPassword] = useState("");
   const [unlocked, setUnlocked] = useState(initialUnlocked);
   const [pending, startTransition] = useTransition();
+  const [smtpTestTo, setSmtpTestTo] = useState("");
 
   function setOp(key: string, value: string) {
     setOps((o) => ({ ...o, [key]: value }));
@@ -458,6 +460,11 @@ export function SettingsPanel({
                   onChange={(v) => setItField("smtp_host", v)}
                 />
                 <Field
+                  label="SMTP port"
+                  value={it.smtp_port}
+                  onChange={(v) => setItField("smtp_port", v)}
+                />
+                <Field
                   label="SMTP user"
                   value={it.smtp_user}
                   onChange={(v) => setItField("smtp_user", v)}
@@ -468,6 +475,76 @@ export function SettingsPanel({
                   onChange={(v) => setItField("smtp_pass", v)}
                   type="password"
                 />
+                <Field
+                  label="SMTP from email"
+                  value={it.smtp_from_email}
+                  onChange={(v) => setItField("smtp_from_email", v)}
+                />
+                <Field
+                  label="SMTP from name"
+                  value={it.smtp_from_name}
+                  onChange={(v) => setItField("smtp_from_name", v)}
+                />
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label>SMTP TLS (port 465)</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={
+                        it.smtp_secure === "true" ? "default" : "outline"
+                      }
+                      className="min-h-11"
+                      onClick={() => setItField("smtp_secure", "true")}
+                    >
+                      Secure (SSL)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        it.smtp_secure !== "true" ? "default" : "outline"
+                      }
+                      className="min-h-11"
+                      onClick={() => setItField("smtp_secure", "false")}
+                    >
+                      STARTTLS (587)
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Save IT settings before sending a test. Password reset emails
+                    use these credentials.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label>Send test email to</Label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                      type="email"
+                      className="min-h-11 max-w-md"
+                      value={smtpTestTo}
+                      onChange={(e) => setSmtpTestTo(e.target.value)}
+                      placeholder="you@example.com"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 shrink-0"
+                      disabled={pending}
+                      onClick={() =>
+                        startTransition(async () => {
+                          const result =
+                            await actionSendSmtpTestEmail(smtpTestTo);
+                          if (!result.ok) {
+                            toast.error(result.error);
+                            return;
+                          }
+                          toast.success("Test email sent");
+                        })
+                      }
+                    >
+                      Send test
+                    </Button>
+                  </div>
+                </div>
                 <Field
                   label="Webhook secret"
                   value={it.webhook_secret}

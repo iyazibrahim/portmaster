@@ -1,5 +1,15 @@
 # TiangPass workflow
 
+**Admin force check-out (2026-09-28):** Ops “Still under bridge” table — Admin-only Check out with required reason, scan event + audit (`pass.admin_force_check_out`). No geofence.
+
+**Password reset + SMTP (2026-09-28):** Forgot/reset via email. Branded HTML + plain-text template; link expires in **1 hour**, single-use, SHA-256 hashed token (`randomBytes` 32), token-only URL (no email in query), 60s resend cooldown, sessions revoked on reset, bcrypt cost 12. Admin IT: SMTP + Send test.
+
+**Operator fleet detail modal (2026-09-28):** Fleet mobile rows (and desktop table) open a modal with registration, owner, jetty, capacity, permit expiry, licence, and price/person.
+
+**Operator Pillars bento (2026-09-28):** Pillars tab is a 2/3-col bento grid; tap a tile to open a modal of checked-in anglers (name, ref, since). Occupied/full tiles tint sky/amber.
+
+**Operator Pillars tab (2026-09-28):** Bottom nav left of Scan: Today + Pillars. `/handler/pillars` lists all jetty pillars with checked-in anglers (name, pass ref, since), capacity, SoftLiveRefresh 45s. Occupied pillars sort first. EN/MS: `nav.pillarsTab`, `handler.pillars*`.
+
 **Mobile PWA UX foundations (2026-09-28):** Applied checklist 1A+2B on landing/auth/angler/operator/offline: spacing 4/8/16/24/32 + type 12/14/16/20/28, 44px defaults, safe-area top, no maxScale lock, Empty/Error/Skeleton/OfflineBanner, route error/loading/not-found, keyboard-safe auth forms, list fade-in. Local only — push when ordered.
 
 **Fleet mobile cards (2026-09-28):** Handler Fleet (`/handler/boat`) no longer uses a horizontally scrolling table on phone widths. Mobile shows a stacked list (name, reg, owner, capacity, status); `md+` keeps the table.

@@ -47,8 +47,12 @@ export default async function AdminSettingsPage() {
     payment_gateway_api_url: map.payment_gateway_api_url ?? "",
     payment_gateway_key: map.payment_gateway_key ?? "",
     smtp_host: map.smtp_host ?? "",
+    smtp_port: map.smtp_port ?? "587",
     smtp_user: map.smtp_user ?? "",
     smtp_pass: map.smtp_pass ?? "",
+    smtp_from_email: map.smtp_from_email ?? "",
+    smtp_from_name: map.smtp_from_name ?? "TiangPass",
+    smtp_secure: map.smtp_secure ?? "false",
     webhook_secret: map.webhook_secret ?? "",
     app_url_override: map.app_url_override ?? "",
   };
