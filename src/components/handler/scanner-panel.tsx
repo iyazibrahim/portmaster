@@ -311,6 +311,7 @@ export function ScannerPanel({
   const [scanning, setScanning] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [scanFlash, setScanFlash] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [pullingManifest, setPullingManifest] = useState(false);
@@ -697,6 +698,7 @@ export function ScannerPanel({
     toast.success(
       result.action === "CHECK_IN" ? t("scan.queuedIn") : t("scan.queuedOut"),
     );
+    setScanFlash(true);
     await new Promise((r) => window.setTimeout(r, 450));
     await readyForNextScan();
   }
@@ -750,12 +752,14 @@ export function ScannerPanel({
                 ? t("scan.checkedIn")
                 : t("scan.checkedOut"),
           );
+          setScanFlash(true);
           await new Promise((r) => window.setTimeout(r, 450));
         } else {
           notifyBoardingUpdated();
           toast.success(
             res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
           );
+          setScanFlash(true);
         }
         await readyForNextScan();
       } catch (err) {
@@ -1092,7 +1096,11 @@ export function ScannerPanel({
         <CardContent className="space-y-3 px-4 sm:px-5">
           <div
             ref={cameraBoxRef}
-            className="relative overflow-hidden rounded-lg bg-black"
+            className={cn(
+              "relative overflow-hidden rounded-lg bg-black",
+              scanFlash && "animate-scan-flash",
+            )}
+            onAnimationEnd={() => setScanFlash(false)}
           >
             <video
               ref={videoRef}

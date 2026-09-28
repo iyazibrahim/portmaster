@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { runBoardingPreview } from "@/lib/boarding-scan";
+import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
+import { boardingPreviewSchema } from "@/lib/validation/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -22,27 +24,41 @@ function boardingJson(
  */
 export async function POST(req: Request) {
   try {
-    let body: { token?: string };
+    const ip = await clientIpFromHeaders();
+    const limited = rateLimit({
+      key: `boarding-preview:${ip}`,
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (!limited.ok) {
+      return boardingJson(
+        {
+          ok: false,
+          error: `Too many previews. Try again in ${limited.retryAfterSec}s.`,
+        },
+        429,
+      );
+    }
+
+    let raw: unknown;
     try {
-      body = (await req.json()) as { token?: string };
+      raw = await req.json();
     } catch {
       return boardingJson(
-        { ok: false, error: "Invalid JSON body. Send { \"token\": \"…\" }." },
+        { ok: false, error: 'Invalid JSON body. Send { "token": "…" }.' },
         400,
       );
     }
 
-    const token = typeof body.token === "string" ? body.token.trim() : "";
-    if (!token) {
+    const parsed = boardingPreviewSchema.safeParse(raw);
+    if (!parsed.success) {
       return boardingJson(
         { ok: false, error: "Pass QR token required." },
         400,
       );
     }
 
-    const result = await runBoardingPreview(token);
-    // App-level failures (not found / auth) stay JSON; use 400 so clients
-    // and ops load checks can assert on status + body together.
+    const result = await runBoardingPreview(parsed.data.token);
     return boardingJson(result, result.ok ? 200 : 400);
   } catch (err) {
     return boardingJson(

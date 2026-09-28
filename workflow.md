@@ -1,5 +1,9 @@
 # TiangPass workflow
 
+**Signup password UX (2026-09-28):** Password field has live strength bar, per-rule checklist (length/upper/lower/number/symbol), show/hide toggle, and confirm-password with mismatch error. Shared `PasswordWithStrengthFields` + client-safe `password-policy.ts`; also on reset-password. Client + server still enforce strong policy.
+
+**Security hardening (2026-09-28):** In-memory rate limits (login 5/min, signup 3/min, forgot 3/min, boarding 30/min). bcrypt cost **12** via `hashPassword`. Signup/reset password policy: 8+ with upper, lower, number, symbol. Zod on login/reset/boarding. Generic login errors. HitPay requires webhook salt. `prefers-reduced-motion` + scan-flash on QR confirm.
+
 **Admin force check-out (2026-09-28):** Ops “Still under bridge” table — Admin-only Check out with required reason, scan event + audit (`pass.admin_force_check_out`). No geofence.
 
 **Password reset + SMTP (2026-09-28):** Forgot/reset via email. Branded HTML + plain-text template; link expires in **1 hour**, single-use, SHA-256 hashed token (`randomBytes` 32), token-only URL (no email in query), 60s resend cooldown, sessions revoked on reset, bcrypt cost 12. Admin IT: SMTP + Send test.

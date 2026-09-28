@@ -3,7 +3,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt } from "drizzle-orm";
-import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { db, pg } from "@/db";
 import { sessions, users, verificationTokens } from "@/db/schema";
@@ -33,34 +32,20 @@ import {
   sendMail,
 } from "@/lib/mail";
 import { buildPasswordResetEmail } from "@/lib/emails/password-reset";
+import {
+  hashPassword,
+  validateStrongPassword,
+  verifyPassword,
+} from "@/lib/password";
+import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
+import {
+  forgotPasswordSchema,
+  loginBodySchema,
+  resetPasswordSchema,
+} from "@/lib/validation/auth";
 
 const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
-
-function formatDbError(err: unknown): string {
-  const chunks: string[] = [];
-  let cur: unknown = err;
-  for (let depth = 0; depth < 5 && cur; depth += 1) {
-    if (cur instanceof Error) {
-      chunks.push(cur.message);
-      cur = (cur as Error & { cause?: unknown }).cause;
-      continue;
-    }
-    if (typeof cur === "object" && cur) {
-      const row = cur as {
-        code?: string;
-        detail?: string;
-        message?: string;
-        constraint_name?: string;
-      };
-      const bit = [row.code, row.constraint_name, row.detail, row.message]
-        .filter(Boolean)
-        .join(" ");
-      if (bit) chunks.push(bit);
-    }
-    break;
-  }
-  return chunks.join(" | ").replace(/\s+/g, " ").trim().slice(0, 280);
-}
+const RATE_WINDOW_MS = 60_000;
 
 export type LoginResult =
   | { ok: true; redirectTo: string }
@@ -77,9 +62,24 @@ export async function loginWithCredentials(
 ): Promise<LoginResult> {
   let step = "start";
   try {
-    const normalized = email.toLowerCase().trim();
-    if (!normalized || !password) {
+    const parsed = loginBodySchema.safeParse({ email, password, next });
+    if (!parsed.success) {
       return { ok: false, error: "Email and password are required." };
+    }
+    const normalized = parsed.data.email.toLowerCase().trim();
+    const pwd = parsed.data.password;
+
+    const ip = await clientIpFromHeaders();
+    const limited = rateLimit({
+      key: `login:${ip}:${normalized}`,
+      limit: 5,
+      windowMs: RATE_WINDOW_MS,
+    });
+    if (!limited.ok) {
+      return {
+        ok: false,
+        error: `Too many sign-in attempts. Try again in ${limited.retryAfterSec}s.`,
+      };
     }
 
     step = "lookup";
@@ -125,7 +125,7 @@ export async function loginWithCredentials(
     step = "password";
     let valid = false;
     try {
-      valid = await bcrypt.compare(password, row.password_hash);
+      valid = await verifyPassword(pwd, row.password_hash);
     } catch (hashErr) {
       console.error("[loginWithCredentials] bcrypt", hashErr);
       return {
@@ -171,12 +171,16 @@ export async function loginWithCredentials(
       secure,
     });
 
-    return { ok: true, redirectTo: safeInternalPath(next, row.role) };
+    return {
+      ok: true,
+      redirectTo: safeInternalPath(parsed.data.next, row.role),
+    };
   } catch (err) {
     console.error(`[loginWithCredentials:${step}]`, err);
+    // Do not leak DB / internal details to the client.
     return {
       ok: false,
-      error: `Sign in failed (${step}): ${formatDbError(err)}`,
+      error: "Sign in failed. Please try again.",
     };
   }
 }
@@ -198,6 +202,19 @@ export async function signUpAngler(input: {
   photoBase64?: string;
   photoMimeType?: string;
 }): Promise<SignUpResult> {
+  const ip = await clientIpFromHeaders();
+  const limited = rateLimit({
+    key: `signup:${ip}`,
+    limit: 3,
+    windowMs: RATE_WINDOW_MS,
+  });
+  if (!limited.ok) {
+    return {
+      ok: false,
+      error: `Too many sign-up attempts. Try again in ${limited.retryAfterSec}s.`,
+    };
+  }
+
   const name = input.name.trim();
   const email = input.email.toLowerCase().trim();
   const phone = input.phone.trim();
@@ -223,8 +240,9 @@ export async function signUpAngler(input: {
   if (!["image/jpeg", "image/png", "image/webp"].includes(input.photoMimeType)) {
     return { ok: false, error: "Photo must be JPEG, PNG, or WebP." };
   }
-  if (input.password.length < 8) {
-    return { ok: false, error: "Password must be at least 8 characters." };
+  const pwdCheck = validateStrongPassword(input.password);
+  if (!pwdCheck.ok) {
+    return { ok: false, error: pwdCheck.error };
   }
   if (!input.acceptPolicy || !input.acceptPdpa || !input.acceptLocation) {
     return {
@@ -283,7 +301,7 @@ export async function signUpAngler(input: {
     mimeType: input.photoMimeType,
   });
 
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  const passwordHash = await hashPassword(input.password);
   const now = new Date();
   await db.insert(users).values({
     id: userId,
@@ -328,8 +346,9 @@ export async function changePasswordAction(input: {
   if (!current || !next || !confirm) {
     return { ok: false, error: "All password fields are required." };
   }
-  if (next.length < 8) {
-    return { ok: false, error: "New password must be at least 8 characters." };
+  const strong = validateStrongPassword(next);
+  if (!strong.ok) {
+    return { ok: false, error: strong.error };
   }
   if (next !== confirm) {
     return { ok: false, error: "New password and confirmation do not match." };
@@ -350,12 +369,12 @@ export async function changePasswordAction(input: {
     return { ok: false, error: "Account not found." };
   }
 
-  const valid = await bcrypt.compare(current, user.passwordHash);
+  const valid = await verifyPassword(current, user.passwordHash);
   if (!valid) {
     return { ok: false, error: "Current password is incorrect." };
   }
 
-  const passwordHash = await bcrypt.hash(next, 10);
+  const passwordHash = await hashPassword(next);
   await db
     .update(users)
     .set({ passwordHash })
@@ -371,9 +390,22 @@ export type ForgotPasswordResult = { ok: true };
 export async function requestPasswordResetAction(
   emailRaw: string,
 ): Promise<ForgotPasswordResult> {
-  const email = emailRaw.toLowerCase().trim();
+  const parsed = forgotPasswordSchema.safeParse({ email: emailRaw });
+  const email = parsed.success
+    ? parsed.data.email.toLowerCase().trim()
+    : "";
   // Always succeed to the client (avoid account enumeration).
-  if (!email || !email.includes("@")) {
+  if (!email) {
+    return { ok: true };
+  }
+
+  const ip = await clientIpFromHeaders();
+  const limited = rateLimit({
+    key: `forgot:${ip}:${email}`,
+    limit: 3,
+    windowMs: RATE_WINDOW_MS,
+  });
+  if (!limited.ok) {
     return { ok: true };
   }
 
@@ -454,19 +486,17 @@ export async function resetPasswordWithTokenAction(input: {
   newPassword: string;
   confirmPassword: string;
 }): Promise<ResetPasswordResult> {
-  const token = input.token.trim();
-  const next = input.newPassword ?? "";
-  const confirm = input.confirmPassword ?? "";
+  const parsed = resetPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    const msg =
+      parsed.error.issues[0]?.message ||
+      "Password must meet the strength requirements.";
+    return { ok: false, error: msg };
+  }
+  const token = parsed.data.token;
+  const next = parsed.data.newPassword;
+  const confirm = parsed.data.confirmPassword;
 
-  if (!token) {
-    return { ok: false, error: "Reset link is invalid or incomplete." };
-  }
-  if (!next || !confirm) {
-    return { ok: false, error: "All password fields are required." };
-  }
-  if (next.length < 8) {
-    return { ok: false, error: "New password must be at least 8 characters." };
-  }
   if (next !== confirm) {
     return { ok: false, error: "New password and confirmation do not match." };
   }
@@ -512,7 +542,7 @@ export async function resetPasswordWithTokenAction(input: {
     };
   }
 
-  const passwordHash = await bcrypt.hash(next, 12);
+  const passwordHash = await hashPassword(next);
 
   // Consume token first (single-use), then update password + kill sessions.
   await db
@@ -630,7 +660,7 @@ export async function deleteAccountAction(input: {
     };
   }
 
-  const valid = await bcrypt.compare(input.password, user.passwordHash);
+  const valid = await verifyPassword(input.password, user.passwordHash);
   if (!valid) return { ok: false, error: "Password is incorrect." };
 
   const [activeTrip] = await db
@@ -652,7 +682,7 @@ export async function deleteAccountAction(input: {
   }
 
   const scrubbedEmail = `deleted.${user.id}@deleted.local`;
-  const scrubHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
+  const scrubHash = await hashPassword(randomBytes(32).toString("hex"));
 
   const { deleteUserPhotos } = await import("@/lib/photos");
   await deleteUserPhotos(user.id);

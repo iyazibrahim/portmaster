@@ -7,7 +7,10 @@ export function hasStripeKeys(): boolean {
 }
 
 export function hasHitPayKeys(): boolean {
-  return Boolean(process.env.HITPAY_API_KEY?.trim());
+  return Boolean(
+    process.env.HITPAY_API_KEY?.trim() &&
+      process.env.HITPAY_WEBHOOK_SALT?.trim(),
+  );
 }
 
 export function stripeSecretKey(): string {

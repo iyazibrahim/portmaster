@@ -32,6 +32,7 @@ import { requireRole } from "@/lib/session";
 import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
 import { writeAudit } from "@/lib/audit";
 import { id, DEFAULT_OVERDUE_HOURS, formatDateMY } from "@/lib/utils-app";
+import { hashPassword } from "@/lib/password";
 import type {
   AccountStatus,
   BoatStatus,
@@ -211,7 +212,7 @@ export async function actionSaveItSettings(values: Record<string, string>) {
       });
   }
   if (values.it_settings_password && values.it_settings_password.length >= 8) {
-    const hash = await bcrypt.hash(values.it_settings_password, 10);
+    const hash = await hashPassword(values.it_settings_password);
     await db
       .insert(settings)
       .values({
@@ -492,7 +493,7 @@ export async function actionCreateUser(input: {
   }
 
   const userId = id("usr");
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  const passwordHash = await hashPassword(input.password);
   await db.insert(users).values({
     id: userId,
     name,
@@ -686,7 +687,7 @@ export async function actionResetUserPassword(input: {
     .limit(1);
   if (!target) throw new Error("User not found.");
 
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  const passwordHash = await hashPassword(input.password);
   await db
     .update(users)
     .set({ passwordHash })
@@ -818,7 +819,7 @@ export async function actionUpsertBoatOwner(input: {
       name,
       email,
       phone: input.phone?.trim() || null,
-      passwordHash: await bcrypt.hash(input.password, 10),
+      passwordHash: await hashPassword(input.password),
       role: "USER",
       citizenship: "MY",
     });

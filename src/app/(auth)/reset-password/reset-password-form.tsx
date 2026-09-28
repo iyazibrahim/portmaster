@@ -5,14 +5,17 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { resetPasswordWithTokenAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { BrandLogo } from "@/components/brand-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { KeyboardSafeForm } from "@/components/ux/keyboard-safe-form";
+import { PasswordWithStrengthFields } from "@/components/auth/password-with-strength-fields";
 import { useT } from "@/i18n/locale-provider";
+import {
+  getPasswordChecks,
+  passwordChecksOk,
+} from "@/lib/password-policy";
 
 export function ResetPasswordForm() {
   const { t, locale } = useT();
@@ -20,8 +23,6 @@ export function ResetPasswordForm() {
   const router = useRouter();
   const token = search.get("token") ?? "";
 
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -30,6 +31,17 @@ export function ResetPasswordForm() {
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    const fd = new FormData(e.currentTarget);
+    const password = String(fd.get("password") ?? "");
+    const confirm = String(fd.get("confirmPassword") ?? "");
+    if (!passwordChecksOk(getPasswordChecks(password))) {
+      setError(t("auth.passwordHint"));
+      return;
+    }
+    if (password !== confirm) {
+      setError(t("auth.passwordMismatch"));
+      return;
+    }
     startTransition(async () => {
       const result = await resetPasswordWithTokenAction({
         token,
@@ -75,35 +87,9 @@ export function ResetPasswordForm() {
             </Alert>
           ) : (
             <KeyboardSafeForm onSubmit={onSubmit} className="mt-6 space-y-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="password">{t("auth.newPassword")}</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("auth.passwordHint")}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="confirm">{t("auth.confirmPassword")}</Label>
-                <Input
-                  id="confirm"
-                  name="confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                />
-              </div>
+              <PasswordWithStrengthFields
+                passwordLabel={t("auth.newPassword")}
+              />
 
               {error ? (
                 <Alert variant="destructive">

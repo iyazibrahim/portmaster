@@ -247,6 +247,23 @@
   transform: scale(0.98);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-boat-settle,
+  .animate-seat-press,
+  .animate-scan-flash,
+  .animate-list-in > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .pressable {
+    transition: none;
+  }
+  .pressable:active {
+    transform: none;
+  }
+}
+
 .font-display {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }

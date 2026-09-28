@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { runBoardingScan } from "@/lib/boarding-scan";
+import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
+import { boardingScanSchema } from "@/lib/validation/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,42 +21,48 @@ function boardingJson(
 /** Stable boarding scan — every failure path returns clear JSON. */
 export async function POST(req: Request) {
   try {
-    let body: {
-      token?: string;
-      lat?: string;
-      lng?: string;
-      clientEventId?: string;
-      expectedAction?: "CHECK_IN" | "CHECK_OUT";
-    };
+    const ip = await clientIpFromHeaders();
+    const limited = rateLimit({
+      key: `boarding-scan:${ip}`,
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (!limited.ok) {
+      return boardingJson(
+        {
+          ok: false,
+          error: `Too many scans. Try again in ${limited.retryAfterSec}s.`,
+        },
+        429,
+      );
+    }
+
+    let raw: unknown;
     try {
-      body = (await req.json()) as typeof body;
+      raw = await req.json();
     } catch {
       return boardingJson(
-        { ok: false, error: "Invalid JSON body. Send { \"token\": \"…\" }." },
+        { ok: false, error: 'Invalid JSON body. Send { "token": "…" }.' },
         400,
       );
     }
 
-    const token = typeof body.token === "string" ? body.token.trim() : "";
-    if (!token) {
+    const parsed = boardingScanSchema.safeParse(raw);
+    if (!parsed.success) {
       return boardingJson(
         { ok: false, error: "Pass QR token required." },
         400,
       );
     }
 
-    const expected =
-      body.expectedAction === "CHECK_IN" || body.expectedAction === "CHECK_OUT"
-        ? body.expectedAction
-        : undefined;
+    const { token, lat, lng, clientEventId, expectedAction } = parsed.data;
 
     const result = await runBoardingScan({
       token,
-      lat: typeof body.lat === "string" ? body.lat : undefined,
-      lng: typeof body.lng === "string" ? body.lng : undefined,
-      clientEventId:
-        typeof body.clientEventId === "string" ? body.clientEventId : undefined,
-      expectedAction: expected,
+      lat,
+      lng,
+      clientEventId,
+      expectedAction: expectedAction ?? undefined,
     });
     return boardingJson(result, result.ok ? 200 : 400);
   } catch (err) {

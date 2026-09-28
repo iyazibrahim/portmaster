@@ -17,6 +17,11 @@ import {
   EkycCameraCapture,
   type EkycCaptureResult,
 } from "@/components/profile/ekyc-camera-capture";
+import { PasswordWithStrengthFields } from "@/components/auth/password-with-strength-fields";
+import {
+  getPasswordChecks,
+  passwordChecksOk,
+} from "@/lib/password-policy";
 
 const MIN_AGE = 14;
 
@@ -103,6 +108,16 @@ export function SignUpForm() {
     }
 
     const fd = new FormData(e.currentTarget);
+    const password = String(fd.get("password") ?? "");
+    const confirmPassword = String(fd.get("confirmPassword") ?? "");
+    if (!passwordChecksOk(getPasswordChecks(password))) {
+      setError(t("auth.passwordHint"));
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError(t("auth.passwordMismatch"));
+      return;
+    }
 
     startTransition(async () => {
       const payload = {
@@ -115,7 +130,7 @@ export function SignUpForm() {
         myKad: String(fd.get("myKad") ?? ""),
         citizenship: String(fd.get("citizenship") ?? "MY"),
         dob: ageCheck.dob ?? undefined,
-        password: String(fd.get("password") ?? ""),
+        password,
         acceptPolicy: fd.get("acceptPolicy") === "on",
         acceptPdpa: fd.get("acceptPdpa") === "on",
         acceptLocation: fd.get("acceptLocation") === "on",
@@ -249,20 +264,7 @@ export function SignUpForm() {
                     max={todayMYT()}
                   />
                 </div>
-                <div className="flex flex-col gap-2 sm:col-span-2">
-                  <Label htmlFor="password">{t("auth.password")}</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    minLength={8}
-                  />
-                  <p className="text-xs leading-normal text-muted-foreground">
-                    {t("auth.passwordHint")}
-                  </p>
-                </div>
+                <PasswordWithStrengthFields className="sm:col-span-2" />
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <Label htmlFor="address">{t("auth.address")}</Label>
                   <textarea

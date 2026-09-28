@@ -266,6 +266,8 @@ export default async function AdminOpsPage() {
               rows={m.overdueRows.map((r) => ({
                 passId: r.passId,
                 name: r.name,
+                phone: r.phone,
+                passReference: r.passReference,
                 pillar: r.pillar,
                 expectedReturnOn: r.expectedReturnOn,
                 durationMin: r.durationMin,

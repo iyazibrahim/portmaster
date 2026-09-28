@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Phone } from "lucide-react";
 import { actionAdminForceCheckOut } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -31,9 +32,16 @@ function formatDuration(mins: number) {
   return `${h}h ${m}m`;
 }
 
+function telHref(phone: string) {
+  const digits = phone.replace(/[^\d+]/g, "");
+  return digits ? `tel:${digits}` : null;
+}
+
 export type StillUnderRow = {
   passId: string;
   name: string;
+  phone: string | null;
+  passReference: string;
   pillar: string;
   expectedReturnOn: string | null;
   durationMin: number;
@@ -78,6 +86,9 @@ export function StillUnderBridgeTable({
       router.refresh();
     });
   }
+
+  const phoneDisplay = active?.phone?.trim() || null;
+  const callHref = phoneDisplay ? telHref(phoneDisplay) : null;
 
   return (
     <>
@@ -151,14 +162,66 @@ export function StillUnderBridgeTable({
           <DialogHeader>
             <DialogTitle>{t("admin.ops.forceCheckoutTitle")}</DialogTitle>
             <DialogDescription>
-              {active
-                ? t("admin.ops.forceCheckoutBody", {
-                    name: active.name,
-                    pillar: active.pillar,
-                  })
-                : null}
+              {t("admin.ops.forceCheckoutBodyShort")}
             </DialogDescription>
           </DialogHeader>
+
+          {active ? (
+            <dl className="divide-y divide-border/70 rounded-lg border border-border/80 px-4">
+              <div className="flex items-start justify-between gap-4 py-3">
+                <dt className="shrink-0 text-xs text-muted-foreground">
+                  {t("admin.ops.forceCheckoutAngler")}
+                </dt>
+                <dd className="min-w-0 text-right text-sm font-medium tracking-tight">
+                  {active.name}
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-4 py-3">
+                <dt className="shrink-0 text-xs text-muted-foreground">
+                  {t("common.phone")}
+                </dt>
+                <dd className="min-w-0 text-right text-sm font-medium tracking-tight">
+                  {phoneDisplay && callHref ? (
+                    <a
+                      href={callHref}
+                      className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+                    >
+                      <Phone className="size-3.5 shrink-0" aria-hidden />
+                      <span className="font-mono">{phoneDisplay}</span>
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {t("admin.ops.forceCheckoutNoPhone")}
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-4 py-3">
+                <dt className="shrink-0 text-xs text-muted-foreground">
+                  {t("admin.col.pillar")}
+                </dt>
+                <dd className="min-w-0 text-right text-sm font-medium">
+                  {active.pillar}
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-4 py-3">
+                <dt className="shrink-0 text-xs text-muted-foreground">
+                  {t("handler.pass")}
+                </dt>
+                <dd className="min-w-0 text-right font-mono text-sm">
+                  {active.passReference}
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-4 py-3">
+                <dt className="shrink-0 text-xs text-muted-foreground">
+                  {t("admin.col.duration")}
+                </dt>
+                <dd className="min-w-0 text-right text-sm font-medium text-amber-800">
+                  {formatDuration(active.durationMin)}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="force-reason">

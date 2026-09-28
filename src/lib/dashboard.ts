@@ -155,7 +155,11 @@ export async function getDashboardMetrics() {
   const overdueRows = [];
   for (const p of stillUnderBridge) {
     const [u] = await db
-      .select({ name: users.name, myKadLast4: users.myKadLast4 })
+      .select({
+        name: users.name,
+        phone: users.phone,
+        myKadLast4: users.myKadLast4,
+      })
       .from(users)
       .where(eq(users.id, p.userId))
       .limit(1);
@@ -173,12 +177,14 @@ export async function getDashboardMetrics() {
       : 0;
     overdueRows.push({
       name: u?.name ?? "—",
+      phone: u?.phone ?? null,
       myKadLast4: u?.myKadLast4 ?? "—",
       pillar: pillar ? pillarBarLabel(pillar.side, pillar.number) : "—",
       checkIn: p.checkedInAt?.toISOString() ?? null,
       durationMin: mins,
       boatId: p.boatId,
       passId: p.id,
+      passReference: p.reference,
       intendsOvernight: p.intendsOvernight,
       expectedReturnOn: p.expectedReturnOn,
     });
