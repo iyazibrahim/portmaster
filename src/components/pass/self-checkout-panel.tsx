@@ -114,7 +114,7 @@ export function OvernightIntentionPanel({
     <div className={cn("w-full min-w-0", className)}>
       <Button
         type="button"
-        className="h-auto min-h-11 w-full shrink flex-col items-stretch justify-center gap-0.5 border-teal-700/20 bg-teal-700 px-3 py-2 text-left text-white hover:bg-teal-800 hover:text-white"
+        className="h-auto min-h-11 w-full shrink justify-center gap-1.5 whitespace-normal border-teal-700/20 bg-teal-700 px-3 text-center leading-snug text-white hover:bg-teal-800 hover:text-white"
         onClick={() => {
           setOvernight(intendsOvernight);
           setReturnOn(expectedReturnOn ?? defaultExpectedReturnOn(validOn));
@@ -123,12 +123,8 @@ export function OvernightIntentionPanel({
           setOpen(true);
         }}
       >
-        <span className="font-medium leading-snug whitespace-normal">
-          {t("pass.overnight.open")}
-        </span>
-        <span className="text-xs font-normal leading-snug text-teal-100 whitespace-normal">
-          {summary}
-        </span>
+        {t("pass.overnight.open")}
+        <span className="font-normal text-teal-100">· {summary}</span>
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

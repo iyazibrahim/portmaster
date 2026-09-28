@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { KeyRound } from "lucide-react";
 import { changePasswordAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export function ChangePasswordButton({
   className,
@@ -57,9 +59,10 @@ export function ChangePasswordButton({
       <Button
         type="button"
         variant="outline"
-        className={className ?? "min-h-11"}
+        className={cn(className ?? "min-h-11")}
         onClick={() => setOpen(true)}
       >
+        <KeyRound className="size-4" aria-hidden />
         Change password
       </Button>
       <Dialog

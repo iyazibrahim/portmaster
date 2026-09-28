@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Newsreader } from "next/font/google";
 import { signUpAngler, loginWithCredentials } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,13 +17,6 @@ import {
   type EkycCaptureResult,
 } from "@/components/profile/ekyc-camera-capture";
 import { cn } from "@/lib/utils";
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-display-landing",
-  display: "swap",
-});
 
 const MIN_AGE = 14;
 
@@ -149,12 +141,7 @@ export function SignUpForm() {
   }
 
   return (
-    <main
-      className={cn(
-        newsreader.variable,
-        "relative flex min-h-dvh flex-col overflow-x-hidden",
-      )}
-    >
+    <main className="relative flex min-h-dvh flex-col overflow-x-hidden">
       <MarketingBackground />
 
       <header className="relative z-10 flex h-14 shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
@@ -182,7 +169,7 @@ export function SignUpForm() {
           <div className="hidden space-y-5 lg:sticky lg:top-8 lg:block lg:self-start">
             <div className="flex items-center gap-3">
               <BrandLogo size={64} className="h-16 w-16 shrink-0" />
-              <p className="font-[family-name:var(--font-display-landing)] text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
+              <p className="font-display text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
                 TiangPass
               </p>
             </div>

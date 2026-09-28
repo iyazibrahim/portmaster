@@ -75,34 +75,61 @@ export default async function HandlerFleetPage() {
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Reg</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {myBoats.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell>{b.name}</TableCell>
-                  <TableCell>{b.registration ?? "—"}</TableCell>
-                  <TableCell>{b.owner ?? "—"}</TableCell>
-                  <TableCell>{b.capacity}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {formatEnumLabel(b.status)}
-                    </Badge>
-                  </TableCell>
+        <>
+          <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-card md:hidden">
+            {myBoats.map((b) => (
+              <li
+                key={b.id}
+                className="flex items-start justify-between gap-3 px-3 py-2.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium tracking-tight">
+                    {b.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    <span className="font-mono">{b.registration ?? "—"}</span>
+                    <span className="mx-1 text-border">·</span>
+                    {b.owner ?? "—"}
+                    <span className="mx-1 text-border">·</span>
+                    {b.capacity} seats
+                  </p>
+                </div>
+                <Badge variant="secondary" className="shrink-0">
+                  {formatEnumLabel(b.status)}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-hidden rounded-lg ring-1 ring-foreground/10 md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Reg</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Capacity</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {myBoats.map((b) => (
+                  <TableRow key={b.id}>
+                    <TableCell>{b.name}</TableCell>
+                    <TableCell>{b.registration ?? "—"}</TableCell>
+                    <TableCell>{b.owner ?? "—"}</TableCell>
+                    <TableCell>{b.capacity}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {formatEnumLabel(b.status)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

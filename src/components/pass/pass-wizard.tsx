@@ -24,10 +24,6 @@ import {
 } from "@/lib/utils-app";
 import { haversineMeters, parseCoord } from "@/lib/geo";
 import { cn } from "@/lib/utils";
-import {
-  PaginationBar,
-  useClientPagination,
-} from "@/hooks/use-client-pagination";
 import { CancelPassActions } from "@/components/pass/cancel-pass-actions";
 import { useT } from "@/i18n/locale-provider";
 import { canCancelPass } from "@/domain/pass";
@@ -165,23 +161,6 @@ export function PassWizard({
         : null;
     return rankJetties(jetties, device, bypassGeofence);
   }, [jetties, coords, bypassGeofence]);
-
-  const jettyPager = useClientPagination(rankedJetties, 5);
-
-  useEffect(() => {
-    jettyPager.resetPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when list identity changes
-  }, [rankedJetties]);
-
-  // Keep the selected jetty visible on its page after locate/refresh.
-  useEffect(() => {
-    if (!jettyId) return;
-    const idx = rankedJetties.findIndex((j) => j.id === jettyId);
-    if (idx < 0) return;
-    const page = Math.floor(idx / 5);
-    if (page !== jettyPager.page) jettyPager.setPage(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jettyId, rankedJetties]);
 
   const pillars = useMemo(
     () => (jettyId ? pillarsByJetty[jettyId] ?? [] : []),
@@ -479,13 +458,6 @@ export function PassWizard({
         ))}
       </div>
 
-      {allowMultipleSameDay || bypassGeofence ? (
-        <p className="text-xs text-muted-foreground">
-          Demo account: testing shortcuts enabled (multi-pass
-          {bypassGeofence ? ", any jetty" : ""}).
-        </p>
-      ) : null}
-
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>Cannot continue</AlertTitle>
@@ -508,8 +480,8 @@ export function PassWizard({
                 Finding nearby jetties…
               </p>
             ) : null}
-            <div className="space-y-2">
-              {jettyPager.pageItems.map((j) => {
+            <div className="max-h-[min(26rem,calc(100dvh-22rem))] space-y-2 overflow-y-auto overscroll-y-contain pr-1">
+              {rankedJetties.map((j) => {
                 const disabled = !bypassGeofence && !j.inRange;
                 const availability = bypassGeofence
                   ? "AVAILABLE"
@@ -555,15 +527,6 @@ export function PassWizard({
                 );
               })}
             </div>
-            <PaginationBar
-              page={jettyPager.page}
-              pageCount={jettyPager.pageCount}
-              total={jettyPager.total}
-              canPrev={jettyPager.canPrev}
-              canNext={jettyPager.canNext}
-              onPrev={jettyPager.goPrev}
-              onNext={jettyPager.goNext}
-            />
             {!bypassGeofence && locationReady && !locating ? (
               <Button
                 type="button"
@@ -574,18 +537,20 @@ export function PassWizard({
                 Refresh nearby jetties
               </Button>
             ) : null}
-            <Button
-              className={actionBtn}
-              onClick={goPillar}
-              disabled={
-                pending ||
-                locating ||
-                !jettyId ||
-                (!bypassGeofence && !selectedJetty?.inRange)
-              }
-            >
-              Continue
-            </Button>
+            <div className="border-t border-border pt-4">
+              <Button
+                className={cn(actionBtn, "w-full sm:w-full")}
+                onClick={goPillar}
+                disabled={
+                  pending ||
+                  locating ||
+                  !jettyId ||
+                  (!bypassGeofence && !selectedJetty?.inRange)
+                }
+              >
+                Continue
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -728,15 +693,11 @@ export function PassWizard({
                       : t("pass.pay.hitpayCta")}
                 </Button>
               </div>
-            ) : preferredGateway !== "mock" ? (
-              <p className="text-xs text-muted-foreground">
-                {t("pass.pay.keysMissing")}
-              </p>
-            ) : (
+            ) : preferredGateway === "mock" ? (
               <p className="text-xs text-muted-foreground">
                 {t("pass.pay.mockHint")}
               </p>
-            )}
+            ) : null}
 
             <div
               className={cn(

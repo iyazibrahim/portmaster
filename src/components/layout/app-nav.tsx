@@ -87,9 +87,9 @@ function navForRole(role: UserRole): NavItem[] {
   }
   if (role === "HANDLER") {
     return [
-      { href: "/handler/scan", labelKey: "nav.scan", icon: QrCode },
       { href: "/handler", labelKey: "nav.today", icon: LayoutDashboard },
       { href: "/handler/boat", labelKey: "nav.fleet", icon: Ship },
+      { href: "/handler/scan", labelKey: "nav.scan", icon: QrCode },
       { href: "/profile", labelKey: "common.account", icon: Users },
     ];
   }
@@ -113,6 +113,13 @@ function roleLabelKey(role: UserRole) {
   return "common.role.admin";
 }
 
+function navItemActive(pathname: string, href: string) {
+  if (pathname === href || pathname === `${href}/`) return true;
+  // Exact /handler is Today — do not treat /handler/scan or /handler/boat as Today.
+  if (href === "/handler") return false;
+  return pathname.startsWith(`${href}/`);
+}
+
 function NavLinks({
   items,
   pathname,
@@ -129,8 +136,7 @@ function NavLinks({
   return (
     <>
       {items.map((item) => {
-        const active =
-          pathname === item.href || pathname.startsWith(item.href + "/");
+        const active = navItemActive(pathname, item.href);
         const Icon = item.icon;
         const label = t(item.labelKey);
         if (variant === "bottom") {
@@ -315,6 +321,85 @@ export function MobileBottomNav({
         })}
       </div>
     </div>
+  ) : role === "HANDLER" ? (
+    <nav className="relative flex shrink-0 items-end border-t border-border bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <div className="flex min-h-14 flex-1 items-center justify-evenly">
+        {(() => {
+          const item = items.find((i) => i.href === "/handler")!;
+          const active = navItemActive(pathname, item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-0.5 px-0.5 text-center text-[10px] font-medium leading-tight sm:text-[11px]",
+                active ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Icon
+                className={cn("size-5 shrink-0", active && "text-primary")}
+              />
+              <span className="line-clamp-2 max-w-[4.5rem]">
+                {t(item.labelKey)}
+              </span>
+            </Link>
+          );
+        })()}
+      </div>
+
+      {/* Equal left/right halves so Scan stays on the true center line */}
+      <div className="w-16 shrink-0" aria-hidden />
+
+      <div className="flex min-h-14 flex-1 items-center justify-evenly">
+        {(
+          [
+            items.find((i) => i.href === "/handler/boat"),
+            items.find((i) => i.href === "/profile"),
+          ] as NavItem[]
+        ).map((item) => {
+          const active = navItemActive(pathname, item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-0.5 px-0.5 text-center text-[10px] font-medium leading-tight sm:text-[11px]",
+                active ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Icon
+                className={cn("size-5 shrink-0", active && "text-primary")}
+              />
+              <span className="line-clamp-2 max-w-[4.5rem]">
+                {t(item.labelKey)}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      <Link
+        href="/handler/scan"
+        className="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 -translate-y-[28%] flex-col items-center"
+        aria-label={t("nav.scan")}
+      >
+        <span className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background">
+          <QrCode className="size-6" aria-hidden />
+        </span>
+        <span
+          className={cn(
+            "mt-1 text-[10px] font-medium sm:text-[11px]",
+            navItemActive(pathname, "/handler/scan")
+              ? "text-primary"
+              : "text-muted-foreground",
+          )}
+        >
+          {t("nav.scan")}
+        </span>
+      </Link>
+    </nav>
   ) : (
     <nav className="flex shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
       <NavLinks items={items} pathname={pathname} variant="bottom" t={t} />

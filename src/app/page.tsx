@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Newsreader } from "next/font/google";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
@@ -9,13 +8,6 @@ import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
 import { getTranslator } from "@/i18n";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-display-landing",
-  display: "swap",
-});
 
 export default async function HomePage() {
   const session = await auth();
@@ -29,12 +21,7 @@ export default async function HomePage() {
   const { t, locale } = await getTranslator();
 
   return (
-    <main
-      className={cn(
-        newsreader.variable,
-        "relative flex min-h-dvh flex-col overflow-hidden",
-      )}
-    >
+    <main className="relative flex min-h-dvh flex-col overflow-hidden">
       <MarketingBackground />
 
       <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
@@ -63,26 +50,21 @@ export default async function HomePage() {
 
       <div className="relative z-10 flex flex-1 flex-col justify-center px-4 py-10 sm:px-6 lg:px-10 lg:py-12">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
-          <div className="space-y-7 animate-[fadeUp_0.7s_ease-out_both]">
-            <div className="flex items-center gap-4">
+          <div className="mx-auto w-full max-w-lg space-y-7 text-center animate-[fadeUp_0.7s_ease-out_both] lg:mx-0 lg:max-w-none lg:text-left">
+            <div className="flex items-center justify-center gap-4 lg:justify-start">
               <BrandLogo
                 size={96}
                 className="h-20 w-20 sm:h-24 sm:w-24"
                 priority
               />
-              <p className="font-[family-name:var(--font-display-landing)] text-5xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)] sm:text-6xl lg:text-7xl">
+              <p className="font-display text-5xl font-semibold tracking-[-0.03em] text-[oklch(0.22_0.045_255)] sm:text-6xl lg:text-7xl">
                 TiangPass
               </p>
             </div>
-            <div className="space-y-3 animate-[fadeUp_0.7s_ease-out_0.12s_both]">
-              <h1 className="max-w-lg text-xl font-medium tracking-tight text-foreground sm:text-2xl">
-                {t("home.headline")}
-              </h1>
-              <p className="max-w-md text-base text-muted-foreground sm:text-lg">
-                {t("home.sub")}
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row animate-[fadeUp_0.7s_ease-out_0.22s_both]">
+            <h1 className="mx-auto max-w-xl text-xl font-medium leading-snug tracking-tight text-foreground/75 animate-[fadeUp_0.7s_ease-out_0.12s_both] sm:text-2xl lg:mx-0 lg:text-3xl">
+              {t("home.headline")}
+            </h1>
+            <div className="mx-auto flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center animate-[fadeUp_0.7s_ease-out_0.22s_both] lg:mx-0 lg:justify-start">
               <Link
                 href="/login?next=/pass"
                 className={cn(
@@ -113,7 +95,7 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <div className="relative animate-[fadeUp_0.85s_ease-out_0.15s_both]">
+          <div className="relative hidden animate-[fadeUp_0.85s_ease-out_0.15s_both] lg:block">
             <FishingScene className="mx-auto max-w-xl lg:max-w-none" />
           </div>
         </div>

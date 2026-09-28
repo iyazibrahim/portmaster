@@ -62,11 +62,13 @@ export function StatusBadge({
   status,
   label,
   className,
+  title,
 }: {
   status: string;
   /** Override display text (defaults to i18n status.* or title-cased enum). */
   label?: string;
   className?: string;
+  title?: string;
 }) {
   const { t } = useT();
   const key = status.toUpperCase().replace(/\s+/g, "_");
@@ -76,7 +78,7 @@ export function StatusBadge({
     label ??
     (translated === `status.${key}` ? formatEnumLabel(status) : translated);
   return (
-    <Badge variant="secondary" className={cn(PILL, tone, className)}>
+    <Badge variant="secondary" className={cn(PILL, tone, className)} title={title}>
       {text}
     </Badge>
   );

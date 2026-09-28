@@ -62,7 +62,7 @@ export function PaginationBar({
   onNext: () => void;
 }) {
   const { t } = useT();
-  if (total === 0) return null;
+  if (total === 0 || pageCount <= 1) return null;
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground">

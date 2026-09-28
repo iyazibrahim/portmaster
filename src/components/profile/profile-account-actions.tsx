@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import {
   deleteAccountAction,
   updateProfileDetailsAction,
@@ -17,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export function EditProfileButton({
   initial,
@@ -68,9 +70,13 @@ export function EditProfileButton({
       <Button
         type="button"
         variant="outline"
-        className={className ?? "min-h-11"}
+        className={cn(
+          "border-primary/30 text-primary hover:bg-primary/10 hover:text-primary",
+          className ?? "min-h-11",
+        )}
         onClick={() => setOpen(true)}
       >
+        <Pencil className="size-4" aria-hidden />
         Edit details
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>

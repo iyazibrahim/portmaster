@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import Link from "next/link";
+import { CircleCheck, CircleMinus, LogOut } from "lucide-react";
 import { requireSession } from "@/lib/session";
 import { logoutAction } from "@/lib/actions/auth";
 import { db } from "@/db";
@@ -19,7 +20,23 @@ import {
   DeleteAccountButton,
   EditProfileButton,
 } from "@/components/profile/profile-account-actions";
-
+import { cn } from "@/lib/utils";
+function ConsentChip({ label, ok }: { label: string; ok: boolean }) {
+  const Icon = ok ? CircleCheck : CircleMinus;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2 py-0.5 text-xs font-medium text-foreground">
+      <Icon
+        className={
+          ok
+            ? "size-3.5 text-emerald-600"
+            : "size-3.5 text-muted-foreground"
+        }
+        aria-hidden
+      />
+      {label}
+    </span>
+  );
+}
 function Field({
   label,
   value,
@@ -84,7 +101,7 @@ export default async function ProfilePage() {
       </div>
 
       <Card className="overflow-hidden border-border/80 shadow-sm">
-        <div className="border-b border-border/60 bg-[linear-gradient(160deg,oklch(0.97_0.01_250),oklch(0.99_0.005_230))] px-4 py-5 sm:px-5">
+        <div className="px-4 py-5 sm:px-5">
           {isAngler ? (
             <ProfilePhotoCard photoKey={user?.photoKey ?? null} compact />
           ) : (
@@ -199,11 +216,13 @@ export default async function ProfilePage() {
                 label="Consents"
                 wide
                 value={
-                  <span className="font-normal text-muted-foreground">
-                    Policy
-                    {user?.policyAcceptedAt ? " ✓" : " —"} · PDPA
-                    {user?.pdpaAcceptedAt ? " ✓" : " —"} · Location
-                    {user?.locationConsentAt ? " ✓" : " —"}
+                  <span className="flex flex-wrap gap-1.5">
+                    <ConsentChip label="Policy" ok={Boolean(user?.policyAcceptedAt)} />
+                    <ConsentChip label="PDPA" ok={Boolean(user?.pdpaAcceptedAt)} />
+                    <ConsentChip
+                      label="Location"
+                      ok={Boolean(user?.locationConsentAt)}
+                    />
                   </span>
                 }
               />
@@ -227,8 +246,11 @@ export default async function ProfilePage() {
               <Button
                 type="submit"
                 variant="outline"
-                className="min-h-11 w-full sm:w-auto"
+                className={cn(
+                  "min-h-11 w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto",
+                )}
               >
+                <LogOut className="size-4" aria-hidden />
                 Sign out
               </Button>
             </form>

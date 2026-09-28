@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { Outfit, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { PwaRegister } from "@/components/pwa-register";
 import { PwaInstallBanner } from "@/components/pwa-install-banner";
@@ -8,7 +8,7 @@ import { LocaleProvider } from "@/i18n/locale-provider";
 import { getCatalog, getLocale } from "@/i18n";
 import "./globals.css";
 
-const geist = Geist({
+const outfit = Outfit({
   variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
@@ -17,13 +17,6 @@ const geist = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
-  display: "swap",
-});
-
-const newsreader = Newsreader({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600"],
   display: "swap",
 });
 
@@ -69,9 +62,9 @@ export default async function RootLayout({
   return (
     <html
       lang={locale === "ms" ? "ms" : "en"}
-      className={`${geist.variable} ${geistMono.variable} ${newsreader.variable} h-full`}
+      className={`${outfit.variable} ${geistMono.variable} h-full`}
     >
-      <body className="flex min-h-full flex-col font-sans">
+      <body className="flex min-h-full flex-col font-sans antialiased">
         <LocaleProvider locale={locale} messages={messages}>
           {children}
           <PwaRegister />

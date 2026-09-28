@@ -9,6 +9,7 @@ import {
   type PassWalletSnapshot,
 } from "@/lib/offline/pass-wallet";
 import { warmPassShell } from "@/lib/offline/warm-cache";
+import { useT } from "@/i18n/locale-provider";
 
 function formatMYRClient(cents: number) {
   return new Intl.NumberFormat("en-MY", {
@@ -30,6 +31,7 @@ export type PassWalletCacheProps = {
 
 /** Persists pass + QR for offline display; shows cached copy when online fetch fails. */
 export function PassWalletCache(props: PassWalletCacheProps) {
+  const { t } = useT();
   const [cached, setCached] = useState<PassWalletSnapshot | null>(null);
 
   useEffect(() => {
@@ -67,11 +69,18 @@ export function PassWalletCache(props: PassWalletCacheProps) {
 
   if (!cached?.syncedAt) return null;
 
+  const syncedLabel = new Date(cached.syncedAt).toLocaleString();
+
   return (
-    <p className="text-xs text-muted-foreground">
-      Saved for offline · last synced{" "}
-      {new Date(cached.syncedAt).toLocaleString()}
-    </p>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{t("pass.sync")}</span>
+      <StatusBadge
+        status="AVAILABLE"
+        label={t("pass.offlineReady")}
+        className="min-w-0 max-w-[14rem] truncate"
+        title={t("pass.savedOffline", { when: syncedLabel })}
+      />
+    </div>
   );
 }
 

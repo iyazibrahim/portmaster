@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Fleet mobile cards (2026-09-28):** Handler Fleet (`/handler/boat`) no longer uses a horizontally scrolling table on phone widths. Mobile shows a stacked list (name, reg, owner, capacity, status); `md+` keeps the table.
+
 **Clean project base (2026-09-28):** Removed unused legacy booking UI, orphan revenue/earnings pages, dead payment/admin wrappers, unused shadcn components, starter/superseded brand assets, and the unused `cn` npm package. Dropped the public `AUTH_SECRET` compose fallback (Dokploy / `.env` must set it). Added named volume `tiangpass_photos` at `/app/data/photos` so e-KYC photos survive redeploys; entrypoint chowns the mount then runs as `nextjs`.
 
 **Stripe primary + Admin gateway (2026-09-24):** Admin Ops → Payment gateway selects primary checkout: `stripe` (default), `hitpay`, or `mock`. Resolution: Admin setting + env keys; missing keys fall back to mock. Stripe Checkout Sessions + webhook `POST /api/webhooks/stripe` on **`checkout.session.completed`** (also `checkout.session.async_payment_succeeded`). Return URL confirms via `session_id` (Stripe API) so passes activate even if the webhook event type was wrong. Pass detail recovers PENDING + stored `cs_*` session. Mock Pay buttons always remain as Demo / fallback. Dokploy: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`; webhook URL `{APP_URL}/api/webhooks/stripe` must listen to **`checkout.session.completed`** (not only `payment_intent.succeeded`). Redeploy after env change.

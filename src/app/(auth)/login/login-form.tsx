@@ -70,15 +70,17 @@ export function LoginForm() {
         </div>
       </header>
 
-      <div className="relative z-10 flex flex-1 items-center px-4 py-8 sm:px-6 lg:px-10">
-        <div className="mx-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-2 lg:gap-14">
-          <FishingScene className="max-w-[220px] lg:hidden" />
+      <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-10">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6 lg:max-w-5xl lg:grid lg:grid-cols-2 lg:items-center lg:gap-14">
+          <BrandLogo
+            size={96}
+            className="h-20 w-20 sm:h-24 sm:w-24 lg:hidden"
+            priority
+          />
           <div className="hidden space-y-4 lg:block">
             <div className="flex items-center gap-3">
               <BrandLogo size={64} className="h-16 w-16" />
-              <p
-                className="font-display text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]"
-              >
+              <p className="font-display text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
                 TiangPass
               </p>
             </div>
@@ -154,10 +156,6 @@ export function LoginForm() {
               >
                 {t("auth.signupLink")}
               </Link>
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Boat operators are registered by Association Admin — there is no
-              operator self-signup. Use the account you were given to sign in.
             </p>
 
             <div className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">

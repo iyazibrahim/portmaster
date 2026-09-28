@@ -38,8 +38,8 @@ export default async function TripsPage() {
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-6 lg:max-w-xl">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">
             {t("trips.title")}
           </h1>
@@ -47,7 +47,7 @@ export default async function TripsPage() {
         </div>
         <Link
           href="/pass"
-          className={cn(buttonVariants(), "inline-flex min-h-11 w-full sm:w-auto")}
+          className={cn(buttonVariants({ size: "sm" }), "mt-0.5 shrink-0")}
         >
           {t("trips.buyCta")}
         </Link>
