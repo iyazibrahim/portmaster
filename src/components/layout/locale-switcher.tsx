@@ -13,12 +13,15 @@ export function LocaleSwitcher({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-lg border border-border/70 p-0.5 text-xs">
+    <div className="inline-flex items-center gap-1 rounded-lg border border-border/70 p-1 text-xs">
       <Button
         type="button"
         size="sm"
         variant={locale === "en" ? "default" : "ghost"}
-        className={cn("h-7 px-2", locale === "en" && "pointer-events-none")}
+        className={cn(
+          "h-8 min-h-8 min-w-8 px-2",
+          locale === "en" && "pointer-events-none",
+        )}
         disabled={pending}
         onClick={() => startTransition(() => actionSetLocale("en"))}
       >
@@ -28,7 +31,10 @@ export function LocaleSwitcher({
         type="button"
         size="sm"
         variant={locale === "ms" ? "default" : "ghost"}
-        className={cn("h-7 px-2", locale === "ms" && "pointer-events-none")}
+        className={cn(
+          "h-8 min-h-8 min-w-8 px-2",
+          locale === "ms" && "pointer-events-none",
+        )}
         disabled={pending}
         onClick={() => startTransition(() => actionSetLocale("ms"))}
       >

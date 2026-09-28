@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Anchor,
   AlertTriangle,
   Bell,
   ClipboardList,
@@ -19,7 +18,6 @@ import {
   LogOut,
   Menu,
   Eye,
-  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -53,20 +51,12 @@ function navForRole(role: UserRole): NavItem[] {
       { href: "/admin/ops", labelKey: "nav.dashboard", icon: LayoutDashboard },
       { href: "/admin/users", labelKey: "nav.people", icon: Users },
       { href: "/admin/passes", labelKey: "nav.passes", icon: Ticket },
-      { href: "/admin/boats", labelKey: "nav.boats", icon: Ship },
-      { href: "/admin/operators", labelKey: "nav.operators", icon: Anchor },
-      { href: "/admin/locations", labelKey: "nav.pillars", icon: MapPinned },
-      { href: "/admin/jetties", labelKey: "nav.jetties", icon: Anchor },
+      { href: "/admin/boats", labelKey: "nav.fleet", icon: Ship },
+      { href: "/admin/locations", labelKey: "nav.sites", icon: MapPinned },
       { href: "/admin/payments", labelKey: "nav.payments", icon: Wallet },
       { href: "/admin/alerts", labelKey: "nav.alerts", icon: Bell },
-      {
-        href: "/admin/sync-conflicts",
-        labelKey: "nav.syncConflicts",
-        icon: AlertTriangle,
-      },
-      { href: "/admin/reports", labelKey: "nav.reports", icon: FileBarChart },
+      { href: "/admin/reports", labelKey: "nav.insights", icon: FileBarChart },
       { href: "/admin/settings", labelKey: "nav.settings", icon: Settings },
-      { href: "/admin/audit", labelKey: "nav.audit", icon: ScrollText },
       { href: "/profile", labelKey: "common.account", icon: Users },
     ];
   }
@@ -145,7 +135,7 @@ function NavLinks({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 text-center text-[10px] font-medium leading-tight sm:text-[11px]",
+                "flex min-h-14 flex-1 flex-col items-center justify-center gap-1 px-1 text-center text-xs font-medium leading-normal",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
@@ -333,7 +323,7 @@ export function MobileBottomNav({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-0.5 px-0.5 text-center text-[10px] font-medium leading-tight sm:text-[11px]",
+                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-1 px-1 text-center text-xs font-medium leading-normal",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
@@ -365,7 +355,7 @@ export function MobileBottomNav({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-0.5 px-0.5 text-center text-[10px] font-medium leading-tight sm:text-[11px]",
+                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-1 px-1 text-center text-xs font-medium leading-normal",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
@@ -390,13 +380,85 @@ export function MobileBottomNav({
         </span>
         <span
           className={cn(
-            "mt-1 text-[10px] font-medium sm:text-[11px]",
+            "mt-1 text-xs font-medium",
             navItemActive(pathname, "/handler/scan")
               ? "text-primary"
               : "text-muted-foreground",
           )}
         >
           {t("nav.scan")}
+        </span>
+      </Link>
+    </nav>
+  ) : role === "USER" ? (
+    <nav className="relative flex shrink-0 items-end border-t border-border bg-background pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <div className="flex min-h-14 flex-1 items-center justify-evenly">
+        {(() => {
+          const item = items.find((i) => i.href === "/pass")!;
+          const active = navItemActive(pathname, item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              href={item.href}
+              className={cn(
+                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-1 px-1 text-center text-xs font-medium leading-normal",
+                active ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Icon
+                className={cn("size-5 shrink-0", active && "text-primary")}
+              />
+              <span className="line-clamp-2 max-w-[4.5rem]">
+                {t(item.labelKey)}
+              </span>
+            </Link>
+          );
+        })()}
+      </div>
+
+      <div className="w-16 shrink-0" aria-hidden />
+
+      <div className="flex min-h-14 flex-1 items-center justify-evenly">
+        {(() => {
+          const item = items.find((i) => i.href === "/profile")!;
+          const active = navItemActive(pathname, item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              href={item.href}
+              className={cn(
+                "flex min-h-14 w-full max-w-[5.5rem] flex-col items-center justify-center gap-1 px-1 text-center text-xs font-medium leading-normal",
+                active ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Icon
+                className={cn("size-5 shrink-0", active && "text-primary")}
+              />
+              <span className="line-clamp-2 max-w-[4.5rem]">
+                {t(item.labelKey)}
+              </span>
+            </Link>
+          );
+        })()}
+      </div>
+
+      <Link
+        href="/trips"
+        className="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 -translate-y-[28%] flex-col items-center"
+        aria-label={t("nav.myPasses")}
+      >
+        <span className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background">
+          <ClipboardList className="size-6" strokeWidth={2} aria-hidden />
+        </span>
+        <span
+          className={cn(
+            "mt-1 text-xs font-medium",
+            navItemActive(pathname, "/trips")
+              ? "text-primary"
+              : "text-muted-foreground",
+          )}
+        >
+          {t("nav.myPasses")}
         </span>
       </Link>
     </nav>
@@ -419,8 +481,8 @@ export function MobileTopBar({
   if (isPassReceiptPath(pathname)) return null;
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6 lg:hidden">
-      <span className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight">
+    <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-border bg-background/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-6 lg:hidden">
+      <span className="flex min-w-0 items-center gap-2 py-2 text-sm font-semibold tracking-tight">
         <BrandLogo size={28} className="h-7 w-7 shrink-0" />
         <span className="truncate">{title ?? t("nav.brand.default")}</span>
       </span>

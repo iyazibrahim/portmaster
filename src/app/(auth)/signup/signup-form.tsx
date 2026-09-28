@@ -11,12 +11,12 @@ import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
+import { KeyboardSafeForm } from "@/components/ux/keyboard-safe-form";
 import { useT } from "@/i18n/locale-provider";
 import {
   EkycCameraCapture,
   type EkycCaptureResult,
 } from "@/components/profile/ekyc-camera-capture";
-import { cn } from "@/lib/utils";
 
 const MIN_AGE = 14;
 
@@ -141,56 +141,56 @@ export function SignUpForm() {
   }
 
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-x-hidden">
+    <main className="relative flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
       <MarketingBackground />
 
-      <header className="relative z-10 flex h-14 shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
+      <header className="relative z-10 flex min-h-14 shrink-0 items-center justify-between gap-2 px-4 pt-[env(safe-area-inset-top)] sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight"
+          className="flex min-w-0 items-center gap-2 py-2 text-sm font-semibold tracking-tight"
         >
           <BrandLogo size={32} className="h-8 w-8 shrink-0" priority />
           TiangPass
         </Link>
-        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <LocaleSwitcher locale={locale} />
           <Link
             href="/login"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground"
           >
             {t("auth.loginLink")}
           </Link>
         </div>
       </header>
 
-      <div className="relative z-10 flex flex-1 items-start px-4 py-6 sm:px-6 sm:py-8 lg:items-center lg:px-10 lg:py-10">
-        <div className="mx-auto grid w-full max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)] lg:gap-12 xl:gap-16">
+      <div className="relative z-10 flex flex-1 items-start px-4 py-6 sm:px-6 sm:py-8 lg:items-center lg:px-8">
+        <div className="mx-auto grid w-full max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)]">
           <FishingScene className="mx-auto max-w-[200px] lg:hidden" />
-          <div className="hidden space-y-5 lg:sticky lg:top-8 lg:block lg:self-start">
-            <div className="flex items-center gap-3">
+          <div className="hidden space-y-4 lg:sticky lg:top-8 lg:block lg:self-start">
+            <div className="flex items-center gap-4">
               <BrandLogo size={64} className="h-16 w-16 shrink-0" />
-              <p className="font-display text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
+              <p className="font-display text-3xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
                 TiangPass
               </p>
             </div>
-            <p className="max-w-md text-base leading-relaxed text-muted-foreground">
+            <p className="max-w-md text-base leading-normal text-muted-foreground">
               {t("auth.signupHero", { min: MIN_AGE })}
             </p>
             <FishingScene className="max-w-md" />
           </div>
 
-          <div className="w-full rounded-xl border border-border/80 bg-background/90 p-5 shadow-sm backdrop-blur-sm sm:p-7 lg:p-8">
-            <div className="mb-6 space-y-1.5">
-              <h1 className="text-2xl font-semibold tracking-tight">
+          <div className="w-full rounded-xl border border-border/80 bg-background/90 p-4 shadow-sm backdrop-blur-sm sm:p-8">
+            <div className="mb-6 space-y-2">
+              <h1 className="text-xl font-semibold tracking-tight">
                 {t("auth.signupTitle")}
               </h1>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-normal text-muted-foreground">
                 {t("auth.signupSub", { min: MIN_AGE })}
               </p>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+            <KeyboardSafeForm onSubmit={onSubmit}>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field id="name" label={t("auth.name")} required />
                 <Field id="email" label={t("auth.email")} type="email" required />
                 <Field id="phone" label={t("auth.mobile")} type="tel" required />
@@ -205,7 +205,7 @@ export function SignUpForm() {
                   type="tel"
                   required
                 />
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="myKad">{t("auth.myKad")}</Label>
                   <Input
                     id="myKad"
@@ -216,11 +216,10 @@ export function SignUpForm() {
                     maxLength={14}
                     value={myKad}
                     onChange={(e) => setMyKad(e.target.value)}
-                    className="min-h-11"
                     placeholder={t("auth.myKadPlaceholder")}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="citizenship">{t("auth.citizenship")}</Label>
                   <select
                     id="citizenship"
@@ -233,10 +232,10 @@ export function SignUpForm() {
                     <option value="OTHER">{t("auth.citizenshipOther")}</option>
                   </select>
                 </div>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="dob">
                     {t("auth.dob")}
-                    <span className="font-normal text-muted-foreground">
+                    <span className="text-muted-foreground">
                       {" "}
                       {t("auth.dobHint")}
                     </span>
@@ -247,11 +246,10 @@ export function SignUpForm() {
                     type="date"
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
-                    className="min-h-11"
                     max={todayMYT()}
                   />
                 </div>
-                <div className="space-y-2 sm:col-span-2">
+                <div className="flex flex-col gap-2 sm:col-span-2">
                   <Label htmlFor="password">{t("auth.password")}</Label>
                   <Input
                     id="password"
@@ -260,20 +258,19 @@ export function SignUpForm() {
                     required
                     autoComplete="new-password"
                     minLength={8}
-                    className="min-h-11"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs leading-normal text-muted-foreground">
                     {t("auth.passwordHint")}
                   </p>
                 </div>
-                <div className="space-y-2 sm:col-span-2">
+                <div className="flex flex-col gap-2 sm:col-span-2">
                   <Label htmlFor="address">{t("auth.address")}</Label>
                   <textarea
                     id="address"
                     name="address"
                     required
                     rows={3}
-                    className="flex min-h-[5.5rem] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm"
+                    className="flex min-h-24 w-full rounded-lg border border-input bg-background px-4 py-2 text-base leading-normal"
                   />
                 </div>
               </div>
@@ -292,19 +289,19 @@ export function SignUpForm() {
                   </AlertDescription>
                 </Alert>
               ) : ageCheck.status === "ok" ? (
-                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs leading-normal text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
                   {t("auth.ageOk", {
                     age: ageCheck.age ?? "?",
                     min: MIN_AGE,
                   })}
                 </p>
               ) : myKad.trim().length > 0 ? (
-                <p className="text-xs text-amber-800 dark:text-amber-200">
+                <p className="text-xs leading-normal text-amber-800 dark:text-amber-200">
                   {t("auth.ageNeed", { min: MIN_AGE })}
                 </p>
               ) : null}
 
-              <div className="space-y-3 rounded-lg border border-border/70 p-4">
+              <div className="flex flex-col gap-4 rounded-lg border border-border/70 p-4">
                 <Label>{t("auth.photoLabel")}</Label>
                 <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                   <div className="size-24 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
@@ -316,21 +313,20 @@ export function SignUpForm() {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                      <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                         {t("auth.noPhoto")}
                       </div>
                     )}
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <Button
                       type="button"
                       variant="outline"
-                      className="min-h-11"
                       onClick={() => setCameraOpen(true)}
                     >
                       {photo ? t("auth.retakePhoto") : t("auth.openCamera")}
                     </Button>
-                    <p className="max-w-sm text-xs text-muted-foreground">
+                    <p className="max-w-sm text-xs leading-normal text-muted-foreground">
                       {t("auth.photoHint")}
                     </p>
                   </div>
@@ -401,9 +397,9 @@ export function SignUpForm() {
               >
                 {pending ? t("auth.creating") : t("auth.submitSignup")}
               </Button>
-            </form>
+            </KeyboardSafeForm>
 
-            <p className="mt-5 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm leading-normal text-muted-foreground">
               Already have an account?{" "}
               <Link
                 href="/login"
@@ -440,7 +436,7 @@ function Field({
   autoComplete?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
@@ -448,7 +444,6 @@ function Field({
         type={type}
         required={required}
         autoComplete={autoComplete}
-        className="min-h-11"
       />
     </div>
   );

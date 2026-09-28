@@ -90,12 +90,12 @@ export default async function ProfilePage() {
     user?.dob != null && user.dob.length > 0 ? ageFromDob(user.dob) : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-5 lg:max-w-xl">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-6 lg:max-w-xl">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-xl font-semibold tracking-tight">
           {isOperator ? t("profile.accountTitle") : t("profile.title")}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="text-sm leading-normal text-muted-foreground">
           {isOperator ? t("profile.operatorSub") : t("profile.sub")}
         </p>
       </div>
@@ -205,11 +205,7 @@ export default async function ProfilePage() {
               <>
                 <Field label="Registered jetty" value={operatorJetty ?? "—"} />
                 <Field label="License" value={licenseNo ?? "—"} />
-                <Field label="Role" value={<Badge>{roleLabel(role)}</Badge>} />
               </>
-            ) : null}
-            {!isAngler && !isOperator ? (
-              <Field label="Role" value={<Badge>{roleLabel(role)}</Badge>} />
             ) : null}
             {isAngler ? (
               <Field
@@ -274,9 +270,8 @@ export default async function ProfilePage() {
       ) : null}
 
       {isOperator ? (
-        <p className="text-sm text-muted-foreground">
-          Need a jetty change? Ask Association Admin — operators cannot
-          self-register.
+        <p className="text-sm leading-normal text-muted-foreground">
+          {t("profile.jettyChangeHint")}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">

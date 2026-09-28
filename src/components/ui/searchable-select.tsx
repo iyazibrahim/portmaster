@@ -122,7 +122,7 @@ export function SearchableSelect({
   }
 
   return (
-    <div ref={rootRef} className={cn("relative w-full", className)}>
+    <div ref={rootRef} className="relative w-full">
       <button
         type="button"
         disabled={disabled}
@@ -143,6 +143,7 @@ export function SearchableSelect({
           "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           "disabled:cursor-not-allowed disabled:opacity-50",
           !selected && "text-muted-foreground",
+          className,
         )}
       >
         <span className="min-w-0 flex-1 truncate">

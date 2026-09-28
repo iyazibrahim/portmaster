@@ -179,7 +179,7 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
                 <TableHead className="w-[10%] px-3">Radius</TableHead>
                 <TableHead className="w-[10%] px-3">Counts</TableHead>
                 <TableHead className="w-[12%] px-3">Status</TableHead>
-                <TableHead className="w-[18%] px-3">Actions</TableHead>
+                <TableHead className="w-[18%] px-3 text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -210,7 +210,7 @@ export function JettyAdmin({ initial }: { initial: JettyRow[] }) {
                     />
                   </TableCell>
                   <TableCell className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"

@@ -195,7 +195,7 @@ export function LocationAdmin({
                 <TableHead className="px-3">Side</TableHead>
                 <TableHead className="px-3">Max</TableHead>
                 <TableHead className="px-3">Status</TableHead>
-                <TableHead className="px-3 w-[11rem]">Actions</TableHead>
+                <TableHead className="w-[11rem] px-3 text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -220,7 +220,7 @@ export function LocationAdmin({
                     <StatusBadge status={t.status} />
                   </TableCell>
                   <TableCell className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"

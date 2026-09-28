@@ -31,7 +31,7 @@ import {
   ADMIN_CONTROL,
 } from "@/components/admin/admin-data-table";
 import { StatusBadge } from "@/components/status-badge";
-import { formatMYR } from "@/lib/utils-app";
+import { formatMYR, formatDateMY } from "@/lib/utils-app";
 import { toast } from "sonner";
 
 type HistoryRow = {
@@ -278,7 +278,8 @@ export function ReportsPanel({
         <Card>
           <CardHeader>
             <CardTitle>
-              Preview · {preview.periodStart} → {preview.periodEnd}
+              Preview · {formatDateMY(preview.periodStart)} →{" "}
+              {formatDateMY(preview.periodEnd)}
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto p-0">

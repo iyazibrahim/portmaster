@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export function SettingsPanel({
   ops: initialOps,
@@ -151,8 +152,16 @@ export function SettingsPanel({
             <Button
               type="button"
               size="sm"
-              variant={ops.require_jetty_geofence !== "false" ? "default" : "outline"}
-              className="rounded-full"
+              variant={
+                ops.require_jetty_geofence === "false"
+                  ? "destructive"
+                  : "default"
+              }
+              className={cn(
+                "rounded-full",
+                ops.require_jetty_geofence !== "false" &&
+                  "bg-emerald-600 text-white hover:bg-emerald-700",
+              )}
               onClick={() =>
                 setOp(
                   "require_jetty_geofence",
@@ -160,7 +169,9 @@ export function SettingsPanel({
                 )
               }
             >
-              {ops.require_jetty_geofence === "false" ? "GPS off (testing)" : "GPS required"}
+              {ops.require_jetty_geofence === "false"
+                ? "GPS off (testing)"
+                : "GPS required"}
             </Button>
             <span className="text-sm text-muted-foreground">
               {ops.require_jetty_geofence === "false"

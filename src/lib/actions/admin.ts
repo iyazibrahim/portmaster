@@ -31,7 +31,7 @@ import {
 import { requireRole } from "@/lib/session";
 import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
 import { writeAudit } from "@/lib/audit";
-import { id, DEFAULT_OVERDUE_HOURS } from "@/lib/utils-app";
+import { id, DEFAULT_OVERDUE_HOURS, formatDateMY } from "@/lib/utils-app";
 import type {
   AccountStatus,
   BoatStatus,
@@ -365,13 +365,13 @@ export async function actionGenerateReport(input: {
     const end = endOfWeek(anchor, { weekStartsOn: 1 });
     periodStart = format(start, "yyyy-MM-dd");
     periodEnd = format(end, "yyyy-MM-dd");
-    title = `Weekly report ${periodStart} → ${periodEnd}`;
+    title = `Weekly report ${formatDateMY(periodStart)} → ${formatDateMY(periodEnd)}`;
   } else {
     const start = startOfMonth(anchor);
     const end = endOfMonth(anchor);
     periodStart = format(start, "yyyy-MM-dd");
     periodEnd = format(end, "yyyy-MM-dd");
-    title = `Monthly report ${format(start, "yyyy-MM")}`;
+    title = `Monthly report ${format(start, "MM/yyyy")}`;
   }
 
   if (input.jettyId) {

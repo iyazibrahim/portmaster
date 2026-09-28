@@ -68,6 +68,23 @@ export function todayMYT(date = new Date()): string {
   }).format(date);
 }
 
+/** Display YYYY-MM-DD (or Date) as Malaysian DD/MM/YYYY. */
+export function formatDateMY(isoDate: string | Date): string {
+  if (typeof isoDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(isoDate)) {
+    const [y, m, d] = isoDate.slice(0, 10).split("-");
+    return `${d}/${m}/${y}`;
+  }
+  const d =
+    isoDate instanceof Date ? isoDate : new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return String(isoDate);
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kuala_Lumpur",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
 /** Add calendar days to a YYYY-MM-DD string (UTC date arithmetic). */
 export function addCalendarDays(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);

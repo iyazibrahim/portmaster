@@ -1,23 +1,22 @@
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
+import { Ticket } from "lucide-react";
 import { requireSession } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, locations, passes } from "@/db/schema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { StatusBadge } from "@/components/status-badge";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ux/empty-state";
+import { TripsPassList } from "@/components/pass/trips-pass-list";
 import { getTranslator } from "@/i18n";
-import { CancelPassActions } from "@/components/pass/cancel-pass-actions";
-import { canCancelPass } from "@/domain/pass";
-import type { PassStatus } from "@/db/schema";
 
 export default async function TripsPage() {
   const session = await requireSession();
   const { t } = await getTranslator();
   if (session.user.role === "HANDLER") {
     return (
-      <p className="text-sm text-muted-foreground">{t("scan.subtitle")}</p>
+      <p className="text-sm leading-normal text-muted-foreground">
+        {t("scan.subtitle")}
+      </p>
     );
   }
 
@@ -37,72 +36,30 @@ export default async function TripsPage() {
     .orderBy(desc(passes.createdAt));
 
   return (
-    <div className="mx-auto w-full max-w-lg space-y-6 lg:max-w-xl">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-6 lg:max-w-xl">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex flex-col gap-2">
+          <h1 className="text-xl font-semibold tracking-tight">
             {t("trips.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">{t("trips.subtitle")}</p>
+          <p className="text-sm leading-normal text-muted-foreground">
+            {t("trips.subtitle")}
+          </p>
         </div>
-        <Link
-          href="/pass"
-          className={cn(buttonVariants({ size: "sm" }), "mt-0.5 shrink-0")}
-        >
+        <Button render={<Link href="/pass" />} className="shrink-0">
           {t("trips.buyCta")}
-        </Link>
+        </Button>
       </div>
 
       {rows.length === 0 ? (
-        <Card>
-          <CardContent className="px-4 py-8 text-sm text-muted-foreground sm:px-5">
-            {t("trips.empty")}{" "}
-            <Link href="/pass" className="text-primary underline-offset-4 hover:underline">
-              {t("pass.buy")}
-            </Link>
-            .
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Ticket}
+          title={t("trips.empty")}
+          actionLabel={t("pass.buy")}
+          actionHref="/pass"
+        />
       ) : (
-        <div className="grid gap-3">
-          {rows.map((r) => (
-            <Card key={r.id}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 pb-2 pt-4 sm:px-5 sm:pt-5">
-                <CardTitle className="font-mono text-sm">
-                  {r.reference}
-                </CardTitle>
-                <StatusBadge status={r.status} />
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 px-4 pb-4 text-sm sm:px-5 sm:pb-5">
-                <div>
-                  <p>{r.jetty}</p>
-                  <p className="text-muted-foreground">
-                    {r.pillar} · {r.validOn}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                  <Link
-                    href={`/pass/${r.id}`}
-                    className={cn(
-                      buttonVariants({ variant: "outline" }),
-                      "inline-flex min-h-11 w-full sm:w-auto",
-                    )}
-                  >
-                    {t("trips.view")}
-                  </Link>
-                  {canCancelPass(r.status as PassStatus) ? (
-                    <CancelPassActions
-                      passId={r.id}
-                      status={r.status}
-                      pillarName={r.pillar}
-                      layout="inline"
-                    />
-                  ) : null}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <TripsPassList rows={rows} />
       )}
     </div>
   );

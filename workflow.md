@@ -1,6 +1,10 @@
 # TiangPass workflow
 
+**Mobile PWA UX foundations (2026-09-28):** Applied checklist 1A+2B on landing/auth/angler/operator/offline: spacing 4/8/16/24/32 + type 12/14/16/20/28, 44px defaults, safe-area top, no maxScale lock, Empty/Error/Skeleton/OfflineBanner, route error/loading/not-found, keyboard-safe auth forms, list fade-in. Local only — push when ordered.
+
 **Fleet mobile cards (2026-09-28):** Handler Fleet (`/handler/boat`) no longer uses a horizontally scrolling table on phone widths. Mobile shows a stacked list (name, reg, owner, capacity, status); `md+` keeps the table.
+
+**Operator Today search button (2026-09-28):** Today toolbar keeps On water / All today on the left; search is an icon button on the right that expands the field only when needed.
 
 **Clean project base (2026-09-28):** Removed unused legacy booking UI, orphan revenue/earnings pages, dead payment/admin wrappers, unused shadcn components, starter/superseded brand assets, and the unused `cn` npm package. Dropped the public `AUTH_SECRET` compose fallback (Dokploy / `.env` must set it). Added named volume `tiangpass_photos` at `/app/data/photos` so e-KYC photos survive redeploys; entrypoint chowns the mount then runs as `nextjs`.
 

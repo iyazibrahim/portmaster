@@ -11,6 +11,24 @@
   --font-mono: var(--font-mono);
   --font-display: var(--font-sans);
   --font-heading: var(--font-sans);
+  /* Type scale: 12 / 14 / 16 / 20 / 28 */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-xl: 1.25rem;
+  --text-3xl: 1.75rem;
+  --leading-normal: 1.5;
+  /* Spacing scale: 4 / 8 / 16 / 24 / 32 */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -66,7 +84,8 @@
   --secondary: oklch(0.94 0.015 250);
   --secondary-foreground: oklch(0.28 0.04 250);
   --muted: oklch(0.95 0.012 250);
-  --muted-foreground: oklch(0.5 0.03 250);
+  /* Darker muted for ≥4.5:1 on background/card */
+  --muted-foreground: oklch(0.42 0.03 250);
   --accent: oklch(0.93 0.02 250);
   --accent-foreground: oklch(0.28 0.05 250);
   --destructive: oklch(0.55 0.2 25);
@@ -100,7 +119,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-base leading-normal text-foreground antialiased;
   }
   html {
     @apply font-sans;
@@ -190,6 +209,42 @@
 
 .animate-scan-flash {
   animation: scan-flash 0.55s ease-out;
+}
+
+@keyframes list-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-list-in > * {
+  animation: list-in 0.22s ease-out both;
+}
+.animate-list-in > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.animate-list-in > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.animate-list-in > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.animate-list-in > *:nth-child(n + 4) {
+  animation-delay: 100ms;
+}
+
+.pressable {
+  transition:
+    transform 0.16s ease-out,
+    opacity 0.16s ease-out;
+}
+.pressable:active {
+  transform: scale(0.98);
 }
 
 .font-display {

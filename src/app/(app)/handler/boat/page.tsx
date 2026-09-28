@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { Ship } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { boats, boatOwners, handlers } from "@/db/schema";
@@ -12,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EmptyState } from "@/components/ux/empty-state";
 import { formatEnumLabel } from "@/lib/utils-app";
 import { getTranslator } from "@/i18n";
 
@@ -61,32 +63,33 @@ export default async function HandlerFleetPage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-xl font-semibold tracking-tight">
           {t("handler.fleetTitle")}
         </h1>
-        <p className="text-muted-foreground">{t("handler.fleetSub")}</p>
+        <p className="text-sm leading-normal text-muted-foreground">
+          {t("handler.fleetSub")}
+        </p>
       </div>
       {myBoats.length === 0 ? (
-        <Alert>
-          <AlertTitle>No boats</AlertTitle>
-          <AlertDescription>
-            Ask Association Admin to assign boats to your owner account.
-          </AlertDescription>
-        </Alert>
+        <EmptyState
+          icon={Ship}
+          title={t("handler.fleetEmptyTitle")}
+          description={t("handler.fleetEmptyBody")}
+        />
       ) : (
         <>
-          <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-card md:hidden">
+          <ul className="animate-list-in divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-card md:hidden">
             {myBoats.map((b) => (
               <li
                 key={b.id}
-                className="flex items-start justify-between gap-3 px-3 py-2.5"
+                className="flex items-start justify-between gap-4 px-4 py-4"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium tracking-tight">
                     {b.name}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-xs leading-normal text-muted-foreground">
                     <span className="font-mono">{b.registration ?? "—"}</span>
                     <span className="mx-1 text-border">·</span>
                     {b.owner ?? "—"}

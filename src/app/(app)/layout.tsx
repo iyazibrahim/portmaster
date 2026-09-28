@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/session";
 import { AppNav, MobileTopBar, MobileBottomNav } from "@/components/layout/app-nav";
+import { OfflineBanner } from "@/components/ux/offline-banner";
 import { getLocale } from "@/i18n";
 
 export default async function AppLayout({
@@ -19,7 +20,8 @@ export default async function AppLayout({
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
         <MobileTopBar locale={locale} />
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:py-7 lg:pb-7">
+        <OfflineBanner className="lg:hidden" />
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:py-8 lg:pb-8">
           {children}
         </main>
         <MobileBottomNav role={session.user.role} locale={locale} />

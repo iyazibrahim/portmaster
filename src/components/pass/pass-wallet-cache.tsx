@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { StatusBadge } from "@/components/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ux/empty-state";
+import { PageSkeleton } from "@/components/ux/skeleton-list";
 import {
   getPassWallet,
   savePassWallet,
@@ -10,6 +13,7 @@ import {
 } from "@/lib/offline/pass-wallet";
 import { warmPassShell } from "@/lib/offline/warm-cache";
 import { useT } from "@/i18n/locale-provider";
+import { WifiOff } from "lucide-react";
 
 function formatMYRClient(cents: number) {
   return new Intl.NumberFormat("en-MY", {
@@ -67,13 +71,17 @@ export function PassWalletCache(props: PassWalletCacheProps) {
     });
   }, [props.passId]);
 
-  if (!cached?.syncedAt) return null;
+  if (!cached?.syncedAt) {
+    return <Skeleton className="h-8 w-full max-w-xs" />;
+  }
 
   const syncedLabel = new Date(cached.syncedAt).toLocaleString();
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-muted-foreground">{t("pass.sync")}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm leading-normal text-muted-foreground">
+        {t("pass.sync")}
+      </span>
       <StatusBadge
         status="AVAILABLE"
         label={t("pass.offlineReady")}
@@ -86,6 +94,7 @@ export function PassWalletCache(props: PassWalletCacheProps) {
 
 /** Full offline fallback UI when the pass page cannot load from the network. */
 export function OfflinePassWalletView({ passId }: { passId: string }) {
+  const { t } = useT();
   const [snap, setSnap] = useState<PassWalletSnapshot | null | undefined>(
     undefined,
   );
@@ -95,58 +104,62 @@ export function OfflinePassWalletView({ passId }: { passId: string }) {
   }, [passId]);
 
   if (snap === undefined) {
-    return (
-      <p className="text-sm text-muted-foreground">Loading offline pass…</p>
-    );
+    return <PageSkeleton className="max-w-lg" />;
   }
   if (!snap) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No offline copy of this pass. Open it once while online to cache the QR.
-      </p>
+        <EmptyState
+          icon={WifiOff}
+          title={t("pass.offlineMissing")}
+          actionLabel={t("common.retry")}
+          onAction={() => window.location.reload()}
+        />
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Fishing pass (offline)
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-xl font-semibold tracking-tight">
+          {t("pass.offlineTitle")}
         </h1>
-        <p className="text-sm text-muted-foreground">{snap.reference}</p>
+        <p className="text-sm leading-normal text-muted-foreground">
+          {snap.reference}
+        </p>
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">Status</span>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm text-muted-foreground">{t("common.status")}</span>
         <StatusBadge status={snap.status} />
       </div>
       {snap.qrToken &&
       (snap.status === "ACTIVE" || snap.status === "CHECKED_IN") ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border bg-white p-4">
+        <div className="flex flex-col items-center gap-4 rounded-xl border bg-white p-4">
           <QRCodeSVG value={snap.qrToken} size={220} level="M" />
-          <p className="text-center text-xs text-muted-foreground">
-            Offline copy — status may be stale. Last synced{" "}
-            {new Date(snap.syncedAt).toLocaleString()}.
+          <p className="text-center text-xs leading-normal text-muted-foreground">
+            {t("pass.offlineStale", {
+              when: new Date(snap.syncedAt).toLocaleString(),
+            })}
           </p>
-          <code className="max-w-full break-all text-center text-[10px] text-muted-foreground">
+          <code className="max-w-full break-all text-center text-xs text-muted-foreground">
             {snap.qrToken}
           </code>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          QR not available for this cached status.
+        <p className="text-sm leading-normal text-muted-foreground">
+          {t("pass.offlineNoQr")}
         </p>
       )}
       <dl className="grid gap-2 text-sm">
         <div className="flex justify-between gap-2">
-          <dt className="text-muted-foreground">Jetty</dt>
+          <dt className="text-muted-foreground">{t("common.jetty")}</dt>
           <dd className="font-medium">{snap.jettyName}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-muted-foreground">Pillar</dt>
+          <dt className="text-muted-foreground">{t("pass.pillar")}</dt>
           <dd className="font-medium">{snap.pillarName}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-muted-foreground">Fee</dt>
+          <dt className="text-muted-foreground">{t("pass.fee")}</dt>
           <dd className="font-medium">{formatMYRClient(snap.feeCents)}</dd>
         </div>
       </dl>

@@ -12,6 +12,8 @@ import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
+import { KeyboardSafeForm } from "@/components/ux/keyboard-safe-form";
+import { classifyError, uxErrorKeys } from "@/lib/ux/map-error";
 import { useT } from "@/i18n/locale-provider";
 
 const DEMO_LOGINS = [
@@ -40,68 +42,76 @@ export function LoginForm() {
     setError(null);
 
     startTransition(async () => {
-      const result = await loginWithCredentials(email, password, next);
-      if (!result.ok) {
-        setError(result.error);
-        return;
+      try {
+        const result = await loginWithCredentials(email, password, next);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        window.location.assign(result.redirectTo);
+      } catch (err) {
+        const kind = classifyError(err);
+        const keys = uxErrorKeys(kind);
+        setError(`${t(keys.title)} — ${t(keys.body)}`);
       }
-      // Full navigation so the new session cookie is applied on the next document.
-      window.location.assign(result.redirectTo);
     });
   }
 
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-hidden">
+    <main className="relative flex min-h-dvh flex-col overflow-y-auto overscroll-y-contain">
       <MarketingBackground />
 
-      <header className="relative z-10 flex h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
-        <Link href="/" className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight">
+      <header className="relative z-10 flex min-h-14 items-center justify-between gap-2 px-4 pt-[env(safe-area-inset-top)] sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-2 py-2 text-sm font-semibold tracking-tight"
+        >
           <BrandLogo size={32} className="h-8 w-8 shrink-0" priority />
           TiangPass
         </Link>
-        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <LocaleSwitcher locale={locale} />
           <Link
             href="/signup"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground"
           >
             {t("auth.signupLink")}
           </Link>
         </div>
       </header>
 
-      <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-10">
-        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6 lg:max-w-5xl lg:grid lg:grid-cols-2 lg:items-center lg:gap-14">
+      <div className="relative z-10 flex flex-1 items-start justify-center px-4 py-8 sm:items-center sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6 lg:max-w-5xl lg:grid lg:grid-cols-2 lg:items-center lg:gap-8">
           <BrandLogo
             size={96}
             className="h-20 w-20 sm:h-24 sm:w-24 lg:hidden"
             priority
           />
           <div className="hidden space-y-4 lg:block">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <BrandLogo size={64} className="h-16 w-16" />
-              <p className="font-display text-4xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
+              <p className="font-display text-3xl font-semibold tracking-tight text-[oklch(0.22_0.045_255)]">
                 TiangPass
               </p>
             </div>
-            <p className="max-w-sm text-muted-foreground">
+            <p className="max-w-sm text-base leading-normal text-muted-foreground">
               {t("auth.loginSub")}
             </p>
             <FishingScene className="max-w-md" />
           </div>
 
-          <div className="w-full rounded-xl border border-border/80 bg-background/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
-            <div className="mb-6 space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">
+          <div className="w-full rounded-xl border border-border/80 bg-background/80 p-4 shadow-sm backdrop-blur-sm sm:p-8">
+            <div className="mb-6 space-y-2">
+              <h1 className="text-xl font-semibold tracking-tight">
                 {t("auth.loginTitle")}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm leading-normal text-muted-foreground">
                 {t("auth.loginSub")}
               </p>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
+            <KeyboardSafeForm onSubmit={onSubmit}>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="email">{t("auth.email")}</Label>
                 <Input
                   id="email"
@@ -112,13 +122,12 @@ export function LoginForm() {
                   autoCorrect="off"
                   autoComplete="username"
                   required
-                  className="min-h-11"
                   placeholder="fisher@tiangpass.local"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="password">{t("auth.password")}</Label>
                 <Input
                   id="password"
@@ -126,7 +135,6 @@ export function LoginForm() {
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="min-h-11"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -134,21 +142,17 @@ export function LoginForm() {
 
               {error ? (
                 <Alert variant="destructive">
-                  <AlertTitle>Sign in failed</AlertTitle>
+                  <AlertTitle>{t("auth.loginFailed")}</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               ) : null}
 
-              <Button
-                type="submit"
-                className="min-h-11 w-full"
-                disabled={pending}
-              >
+              <Button type="submit" className="w-full" disabled={pending}>
                 {pending ? t("common.loading") : t("auth.submitLogin")}
               </Button>
-            </form>
+            </KeyboardSafeForm>
 
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm leading-normal text-muted-foreground">
               New angler?{" "}
               <Link
                 href="/signup"
@@ -158,7 +162,7 @@ export function LoginForm() {
               </Link>
             </p>
 
-            <div className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
+            <div className="mt-6 border-t border-border pt-4 text-xs leading-normal text-muted-foreground">
               <p className="mb-2 font-medium text-foreground">Demo logins</p>
               <p className="mb-2">Password for all: password123</p>
               <div className="flex flex-wrap gap-2">
@@ -168,7 +172,7 @@ export function LoginForm() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="font-mono text-[11px]"
+                    className="min-h-11 font-mono text-xs"
                     onClick={() => fillDemo(demo.email)}
                   >
                     {demo.label}

@@ -24,24 +24,24 @@ export default async function HomePage() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden">
       <MarketingBackground />
 
-      <header className="relative z-10 flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
+      <header className="relative z-10 flex min-h-14 items-center justify-between px-4 pt-[env(safe-area-inset-top)] sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
           <BrandLogo size={36} className="h-9 w-9" priority />
           <span className="text-sm font-semibold tracking-tight text-foreground">
             TiangPass
           </span>
         </Link>
-        <nav className="flex items-center gap-3 text-sm sm:gap-5">
+        <nav className="flex items-center gap-2 text-sm sm:gap-4">
           <LocaleSwitcher locale={locale} />
           <Link
             href="/policy"
-            className="text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground"
           >
             {t("home.policy")}
           </Link>
           <Link
             href="/login"
-            className="font-medium text-foreground hover:text-primary"
+            className="inline-flex min-h-11 items-center font-medium text-foreground hover:text-primary"
           >
             {t("common.signIn")}
           </Link>
@@ -49,8 +49,8 @@ export default async function HomePage() {
       </header>
 
       <div className="relative z-10 flex flex-1 flex-col justify-center px-4 py-10 sm:px-6 lg:px-10 lg:py-12">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
-          <div className="mx-auto w-full max-w-lg space-y-7 text-center animate-[fadeUp_0.7s_ease-out_both] lg:mx-0 lg:max-w-none lg:text-left">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          <div className="mx-auto flex w-full max-w-lg flex-col gap-8 text-center animate-[fadeUp_0.7s_ease-out_both] lg:mx-0 lg:max-w-none lg:text-left">
             <div className="flex items-center justify-center gap-4 lg:justify-start">
               <BrandLogo
                 size={96}
@@ -61,10 +61,10 @@ export default async function HomePage() {
                 TiangPass
               </p>
             </div>
-            <h1 className="mx-auto max-w-xl text-xl font-medium leading-snug tracking-tight text-foreground/75 animate-[fadeUp_0.7s_ease-out_0.12s_both] sm:text-2xl lg:mx-0 lg:text-3xl">
+            <h1 className="mx-auto max-w-xl text-xl font-medium leading-normal tracking-tight text-foreground/75 animate-[fadeUp_0.7s_ease-out_0.12s_both] lg:mx-0 lg:text-3xl">
               {t("home.headline")}
             </h1>
-            <div className="mx-auto flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center animate-[fadeUp_0.7s_ease-out_0.22s_both] lg:mx-0 lg:justify-start">
+            <div className="mx-auto flex w-full max-w-sm flex-col gap-4 sm:max-w-none sm:flex-row sm:justify-center animate-[fadeUp_0.7s_ease-out_0.22s_both] lg:mx-0 lg:justify-start">
               <Link
                 href="/login?next=/pass"
                 className={cn(
