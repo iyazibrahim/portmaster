@@ -67,7 +67,12 @@ export function PasswordWithStrengthFields({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">{passwordLabel ?? t("auth.password")}</Label>
+        <Label htmlFor="password">
+          {passwordLabel ?? t("auth.password")}
+          <span className="text-destructive" aria-hidden>
+            *
+          </span>
+        </Label>
         <div className="relative">
           <Input
             id="password"
@@ -155,7 +160,12 @@ export function PasswordWithStrengthFields({
 
       {confirmRequired ? (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="confirmPassword">{t("auth.confirmPassword")}</Label>
+          <Label htmlFor="confirmPassword">
+            {t("auth.confirmPassword")}
+            <span className="text-destructive" aria-hidden>
+              *
+            </span>
+          </Label>
           <div className="relative">
             <Input
               id="confirmPassword"

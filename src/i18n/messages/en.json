@@ -122,7 +122,7 @@
   "auth.ageSourceMyKad": "MyKad",
   "auth.ageOk": "Age check passed: {age} years old (minimum {min}).",
   "auth.ageNeed": "Enter a valid 12-digit MyKad or DOB so we can verify you are {min}+.",
-  "auth.photoLabel": "Identity photo (required)",
+  "auth.photoLabel": "Identity photo",
   "auth.noPhoto": "No photo",
   "auth.retakePhoto": "Retake photo",
   "auth.openCamera": "Open camera",

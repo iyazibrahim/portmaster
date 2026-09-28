@@ -122,7 +122,7 @@
   "auth.ageSourceMyKad": "MyKad",
   "auth.ageOk": "Semakan umur lulus: {age} tahun (minimum {min}).",
   "auth.ageNeed": "Masukkan MyKad 12 digit yang sah atau tarikh lahir untuk mengesahkan anda {min}+.",
-  "auth.photoLabel": "Foto identiti (wajib)",
+  "auth.photoLabel": "Foto identiti",
   "auth.noPhoto": "Tiada foto",
   "auth.retakePhoto": "Ambil semula foto",
   "auth.openCamera": "Buka kamera",

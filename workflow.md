@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Signup form polish (2026-09-28):** Required fields show a red `*` (name, email, mobile, emergency contacts, MyKad, citizenship, password, confirm, address, identity photo). DOB is plain “Date of birth” (no MyKad-year hint). Photo label uses `*` instead of “(required)”. Mobile-only FishingScene removed; desktop left-column scene kept.
+
 **Signup password UX (2026-09-28):** Password field has live strength bar, per-rule checklist (length/upper/lower/number/symbol), show/hide toggle, and confirm-password with mismatch error. Shared `PasswordWithStrengthFields` + client-safe `password-policy.ts`; also on reset-password. Client + server still enforce strong policy.
 
 **Security hardening (2026-09-28):** In-memory rate limits (login 5/min, signup 3/min, forgot 3/min, boarding 30/min). bcrypt cost **12** via `hashPassword`. Signup/reset password policy: 8+ with upper, lower, number, symbol. Zod on login/reset/boarding. Generic login errors. HitPay requires webhook salt. `prefers-reduced-motion` + scan-flash on QR confirm.

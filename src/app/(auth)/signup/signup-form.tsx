@@ -180,7 +180,6 @@ export function SignUpForm() {
 
       <div className="relative z-10 flex flex-1 items-start px-4 py-6 sm:px-6 sm:py-8 lg:items-center lg:px-8">
         <div className="mx-auto grid w-full max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)]">
-          <FishingScene className="mx-auto max-w-[200px] lg:hidden" />
           <div className="hidden space-y-4 lg:sticky lg:top-8 lg:block lg:self-start">
             <div className="flex items-center gap-4">
               <BrandLogo size={64} className="h-16 w-16 shrink-0" />
@@ -221,7 +220,10 @@ export function SignUpForm() {
                   required
                 />
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="myKad">{t("auth.myKad")}</Label>
+                  <Label htmlFor="myKad">
+                    {t("auth.myKad")}
+                    <RequiredMark />
+                  </Label>
                   <Input
                     id="myKad"
                     name="myKad"
@@ -235,7 +237,10 @@ export function SignUpForm() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="citizenship">{t("auth.citizenship")}</Label>
+                  <Label htmlFor="citizenship">
+                    {t("auth.citizenship")}
+                    <RequiredMark />
+                  </Label>
                   <select
                     id="citizenship"
                     name="citizenship"
@@ -248,13 +253,7 @@ export function SignUpForm() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="dob">
-                    {t("auth.dob")}
-                    <span className="text-muted-foreground">
-                      {" "}
-                      {t("auth.dobHint")}
-                    </span>
-                  </Label>
+                  <Label htmlFor="dob">{t("auth.dob")}</Label>
                   <Input
                     id="dob"
                     name="dob"
@@ -266,7 +265,10 @@ export function SignUpForm() {
                 </div>
                 <PasswordWithStrengthFields className="sm:col-span-2" />
                 <div className="flex flex-col gap-2 sm:col-span-2">
-                  <Label htmlFor="address">{t("auth.address")}</Label>
+                  <Label htmlFor="address">
+                    {t("auth.address")}
+                    <RequiredMark />
+                  </Label>
                   <textarea
                     id="address"
                     name="address"
@@ -304,7 +306,10 @@ export function SignUpForm() {
               ) : null}
 
               <div className="flex flex-col gap-4 rounded-lg border border-border/70 p-4">
-                <Label>{t("auth.photoLabel")}</Label>
+                <Label>
+                  {t("auth.photoLabel")}
+                  <RequiredMark />
+                </Label>
                 <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                   <div className="size-24 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
                     {photo ? (
@@ -424,6 +429,14 @@ export function SignUpForm() {
   );
 }
 
+function RequiredMark() {
+  return (
+    <span className="text-destructive" aria-hidden>
+      *
+    </span>
+  );
+}
+
 function Field({
   id,
   label,
@@ -439,7 +452,10 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        {label}
+        {required ? <RequiredMark /> : null}
+      </Label>
       <Input
         id={id}
         name={id}
