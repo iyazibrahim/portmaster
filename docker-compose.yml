@@ -63,7 +63,8 @@ services:
       - "${PORT:-43127}:43127"
     environment:
       DATABASE_URL: postgresql://tiangpass:tiangpass@postgres:5432/tiangpass
-      AUTH_SECRET: ${AUTH_SECRET:-tiangpass-dev-secret-change-in-production-32chars}
+      # Required in Dokploy / .env — empty if unset (no public fallback).
+      AUTH_SECRET: ${AUTH_SECRET:-}
       APP_URL: ${APP_URL:-http://127.0.0.1:43127}
       AUTH_URL: ${APP_URL:-http://127.0.0.1:43127}
       PORT: "43127"
@@ -80,6 +81,8 @@ services:
       HITPAY_PAYMENT_METHODS: ${HITPAY_PAYMENT_METHODS:-grabpay_direct,shopee_pay,atome}
       CRON_SECRET: ${CRON_SECRET:-}
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}
+    volumes:
+      - tiangpass_photos:/app/data/photos
     depends_on:
       postgres:
         condition: service_healthy
@@ -108,3 +111,4 @@ services:
 
 volumes:
   tiangpass_pg:
+  tiangpass_photos:

@@ -57,8 +57,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-srs-mvp1.ts ./scrip
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/ensure-demo-ops.ts ./scripts/ensure-demo-ops.ts
 COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN mkdir -p /app/data/photos && chown -R nextjs:nodejs /app/data
+RUN mkdir -p /app/data/photos && chown -R nextjs:nodejs /app/data \
+ && chmod +x ./docker-entrypoint.sh
 
-USER nextjs
+# Entrypoint starts as root to chown the photos volume, then drops to nextjs.
+USER root
 EXPOSE 43127
 ENTRYPOINT ["sh", "./docker-entrypoint.sh"]

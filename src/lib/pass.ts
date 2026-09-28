@@ -482,11 +482,6 @@ export async function startGatewayCheckout(passId: string, userId: string) {
   };
 }
 
-/** @deprecated Use startGatewayCheckout */
-export async function startHitPayCheckout(passId: string, userId: string) {
-  return startGatewayCheckout(passId, userId);
-}
-
 export async function mockPayPassSuccess(passId: string, userId: string) {
   await expireStaleReservations();
 

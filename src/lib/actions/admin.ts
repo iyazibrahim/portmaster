@@ -496,15 +496,6 @@ export async function actionCreateUser(input: {
   return { ok: true as const };
 }
 
-/** @deprecated use actionCreateUser */
-export async function actionCreateAdminUser(input: {
-  name: string;
-  email: string;
-  password: string;
-}) {
-  return actionCreateUser({ ...input, role: "ADMIN" });
-}
-
 export async function actionUpdateUserRole(input: {
   userId: string;
   role: UserRole;

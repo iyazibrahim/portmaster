@@ -1,7 +1,7 @@
 {
   "name": "TiangPass",
   "short_name": "TiangPass",
-  "description": "Book Penang Bridge fishing locations, seats, and board with QR.",
+  "description": "Same-day Penang Bridge fishing pass with QR check-in.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

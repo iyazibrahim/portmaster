@@ -70,11 +70,6 @@ export async function actionStartGatewayCheckout(
   }
 }
 
-/** @deprecated Use actionStartGatewayCheckout */
-export async function actionStartHitPayCheckout(passId: string) {
-  return actionStartGatewayCheckout(passId);
-}
-
 export async function actionMockPaySuccess(
   passId: string,
 ): Promise<PassActionResult> {

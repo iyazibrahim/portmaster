@@ -8,7 +8,6 @@ import { requireRole, requireSession } from "@/lib/session";
 import {
   completeTrip,
   createTripGroupWithAllocations,
-  mockPayBooking,
   type LocationAllocation,
 } from "@/lib/booking";
 import { id } from "@/lib/utils-app";
@@ -64,18 +63,6 @@ export async function actionCreateBooking(input: {
   });
   revalidatePath("/trips");
   return result;
-}
-
-export async function actionMockPay(bookingId: string) {
-  const session = await requireSession();
-  const result = await mockPayBooking(bookingId, session.user.id);
-  revalidatePath("/trips");
-  revalidatePath(`/trips/${bookingId}`);
-  return {
-    token: result.token,
-    mockRef: result.mockRef,
-    expiresAt: result.expiresAt.toISOString(),
-  };
 }
 
 export async function actionPreviewPassToken(token: string) {
