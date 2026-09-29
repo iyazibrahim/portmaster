@@ -10,6 +10,7 @@ type BrandLogoProps = {
 
 /**
  * Official TiangPass mark (transparent PNG). Use in nav, auth, and marketing chrome.
+ * Direct public URL (images.unoptimized) so standalone Docker never hits /_next/image.
  */
 export function BrandLogo({
   className,

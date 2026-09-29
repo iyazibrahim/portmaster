@@ -66,7 +66,11 @@ export function PwaInstallBanner() {
     null,
   );
   const [guideOpen, setGuideOpen] = useState(false);
-  const [platform, setPlatform] = useState<PwaPlatform>("other");
+  const platform = useSyncExternalStore(
+    () => () => {},
+    detectPwaPlatform,
+    (): PwaPlatform => "other",
+  );
 
   useEffect(() => {
     if (!isClient || dismissed || isStandalone() || !isMobileViewport()) {
@@ -76,7 +80,6 @@ export function PwaInstallBanner() {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
     };
-    setPlatform(detectPwaPlatform());
     window.addEventListener("beforeinstallprompt", onBip);
     return () => window.removeEventListener("beforeinstallprompt", onBip);
   }, [isClient, dismissed]);

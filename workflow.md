@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Live images fix (2026-09-29):** Brand and scene marks used `/_next/image` in standalone Docker and went blank on the testing host. Set `images.unoptimized` so every `next/image` serves `/public` paths directly; middleware skips `/brand`, `/icons`, and image extensions; Dockerfile asserts brand/PWA icon files exist after the public copy.
+
 **Launch readiness (2026-09-29):** Privacy, consent, and cookies rewritten for live PDPA language (EN/BM); contact from Admin settings; no analytics cookies. Compose/README note that named volumes survive rebuilds (R2 backs Postgres). Rate-limit map prunes and caps keys. Payment fulfillment failures create one PAYMENT_FAILED alert and email `receipt_email` once when SMTP is set.
 
 **PWA install guide (2026-09-29):** The phone install banner opens a step list. iPhone Safari uses Share → Add to Home Screen. Android Chrome uses the three-dot menu → Install app. In-app browsers are told to open Safari or Chrome first. English and Bahasa Melayu.

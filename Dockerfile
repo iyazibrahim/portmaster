@@ -45,7 +45,12 @@ RUN addgroup --system --gid 1001 nodejs \
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# standalone output omits public/; must sit next to server.js for static + brand assets
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+RUN test -f ./public/brand/tiangpass-logo.png \
+ && test -f ./public/brand/tiangpass-scene-brush.png \
+ && test -f ./public/icons/icon-192.png \
+ && test -f ./public/icons/icon-512.png
 
 COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=prod-deps --chown=nextjs:nodejs /app/package.json ./package.json
