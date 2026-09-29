@@ -5,6 +5,7 @@ import { Check, Eye, EyeOff, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { RequiredMark } from "@/components/auth/required-mark";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/locale-provider";
 import {
@@ -17,14 +18,32 @@ export function PasswordWithStrengthFields({
   className,
   passwordLabel,
   confirmRequired = true,
+  password: passwordProp,
+  confirmPassword: confirmProp,
+  onPasswordChange,
+  onConfirmChange,
 }: {
   className?: string;
   passwordLabel?: string;
   confirmRequired?: boolean;
+  password?: string;
+  confirmPassword?: string;
+  onPasswordChange?: (value: string) => void;
+  onConfirmChange?: (value: string) => void;
 }) {
   const { t } = useT();
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [passwordState, setPasswordState] = useState("");
+  const [confirmState, setConfirmState] = useState("");
+  const password = passwordProp ?? passwordState;
+  const confirm = confirmProp ?? confirmState;
+  function setPassword(value: string) {
+    onPasswordChange?.(value);
+    if (passwordProp === undefined) setPasswordState(value);
+  }
+  function setConfirm(value: string) {
+    onConfirmChange?.(value);
+    if (confirmProp === undefined) setConfirmState(value);
+  }
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -69,9 +88,7 @@ export function PasswordWithStrengthFields({
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">
           {passwordLabel ?? t("auth.password")}
-          <span className="text-destructive" aria-hidden>
-            *
-          </span>
+          <RequiredMark />
         </Label>
         <div className="relative">
           <Input
@@ -162,9 +179,7 @@ export function PasswordWithStrengthFields({
         <div className="flex flex-col gap-2">
           <Label htmlFor="confirmPassword">
             {t("auth.confirmPassword")}
-            <span className="text-destructive" aria-hidden>
-              *
-            </span>
+            <RequiredMark />
           </Label>
           <div className="relative">
             <Input

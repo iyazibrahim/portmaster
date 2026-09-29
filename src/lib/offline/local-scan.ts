@@ -4,6 +4,7 @@
  */
 
 import { assertWithinGeofence } from "@/lib/geo";
+import { todayMYT as todayMYTClient } from "@/lib/calendar";
 import type { ManifestPass } from "@/lib/offline/boarding-manifest";
 
 type PassStatus = "ACTIVE" | "CHECKED_IN" | "CHECKED_OUT" | string;
@@ -16,16 +17,6 @@ function nextStatusAfterCheckIn(current: PassStatus): PassStatus | null {
 function nextStatusAfterCheckOut(current: PassStatus): PassStatus | null {
   if (current === "CHECKED_IN") return "CHECKED_OUT";
   return null;
-}
-
-/** Calendar date in Asia/Kuala_Lumpur as YYYY-MM-DD (client-safe). */
-export function todayMYTClient(date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kuala_Lumpur",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
 }
 
 export type ScanPreview = {

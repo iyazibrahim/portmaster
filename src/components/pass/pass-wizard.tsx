@@ -480,7 +480,7 @@ export function PassWizard({
                 Finding nearby jetties…
               </p>
             ) : null}
-            <div className="max-h-[min(26rem,calc(100dvh-22rem))] space-y-2 overflow-y-auto overscroll-y-contain pr-1">
+            <div className="space-y-2 lg:max-h-[min(26rem,calc(100dvh-22rem))] lg:overflow-y-auto lg:overscroll-y-contain lg:pr-1">
               {rankedJetties.map((j) => {
                 const disabled = !bypassGeofence && !j.inRange;
                 const availability = bypassGeofence
@@ -564,7 +564,7 @@ export function PassWizard({
             <p className="text-sm text-muted-foreground">
               One pillar per pass. Capacity is set by Association per pillar.
             </p>
-            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+            <div className="space-y-2 lg:max-h-80 lg:overflow-y-auto lg:pr-1">
               {pillars.map((p) => {
                 const full = p.remaining <= 0;
                 return (

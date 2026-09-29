@@ -1,5 +1,31 @@
 # TiangPass workflow
 
+**Code cleanup (2026-09-29):** Removed unused table imports on the admin ops page. MyKad formatting and Malaysia calendar helpers now live in client-safe modules shared with signup. Forgot-password and reset-password share one auth card shell. Required asterisks share one mark component.
+
+**Reset password card (2026-09-29):** The forgot-password card is vertically centered on a phone, in the space under the header.
+
+**Signup password icon (2026-09-29):** On the phone password step, a key icon sits above the Password label so the empty area over the fields is not blank. Desktop sign up and reset password stay unchanged.
+
+**Signup photo step (2026-09-29):** On a phone, the identity photo, Open camera button, and hint are centered in the photo card. Each consent line shows a red asterisk because the photo and all three consents are required before sign up.
+
+**Signup password step (2026-09-29):** The password fields sit in the vertical middle of the phone card, with Back and Next still along the bottom, so the short step does not leave a large empty region under the inputs.
+
+**Signup card size (2026-09-29):** On a phone, every signup step uses the same card height (fills the screen under the header). Back and Next stay at the bottom, including the shorter password step.
+
+**Signup card spacing (2026-09-29):** Mobile signup card uses tighter title, field, and section spacing so the address step fits on a phone without scrolling. Desktop spacing stays looser.
+
+**Signup email check (2026-09-29):** Email must include a real domain ending. `iyaz@gmail` shows “Enter a valid email address.” on the field; `iyaz@gmail.com` passes. The server uses the same check.
+
+**Signup state selector (2026-09-29):** Address state uses the app dropdown (search + list) instead of the browser’s native menu.
+
+**Signup step title (2026-09-29):** Mobile step 1 heading is “Tell us more about you” (BM: “Beritahu kami lebih lanjut tentang anda”).
+
+**MyKad format (2026-09-29):** Signup MyKad types as `YYMMDD-PB-XXXX` (for example `900101-14-5678`). Date of birth fills from the first six digits and stays editable. The `YYMMDD######` placeholder is removed.
+
+**Signup steps (2026-09-29):** Phone widths (`< lg`) split angler signup into About you, Address (house number, street, postcode, state, plus emergency contact), password, then photo and consents. Desktop stays one page with the same structured address. Postcode must be 5 digits and match the selected Malaysian state. Stored `users.address` remains one line.
+
+**Pass wizard mobile lists (2026-09-29):** Jetty and pillar option lists no longer scroll inside the page on phone widths. The page is the only scroller, so a swipe on the list reaches Continue. Wide screens (`lg+`) keep the capped inner list.
+
 **Signup form polish (2026-09-28):** Required fields show a red `*` (name, email, mobile, emergency contacts, MyKad, citizenship, password, confirm, address, identity photo). DOB is plain “Date of birth” (no MyKad-year hint). Photo label uses `*` instead of “(required)”. Mobile-only FishingScene removed; desktop left-column scene kept.
 
 **Signup password UX (2026-09-28):** Password field has live strength bar, per-rule checklist (length/upper/lower/number/symbol), show/hide toggle, and confirm-password with mismatch error. Shared `PasswordWithStrengthFields` + client-safe `password-policy.ts`; also on reset-password. Client + server still enforce strong policy.

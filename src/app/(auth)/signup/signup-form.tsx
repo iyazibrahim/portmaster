@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { KeyRound } from "lucide-react";
 import Link from "next/link";
 import { signUpAngler, loginWithCredentials } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MarketingBackground } from "@/components/layout/marketing-background";
 import { FishingScene } from "@/components/layout/fishing-scene";
@@ -19,43 +18,29 @@ import {
 } from "@/components/profile/ekyc-camera-capture";
 import { PasswordWithStrengthFields } from "@/components/auth/password-with-strength-fields";
 import {
+  AboutFields,
+  AddressFields,
+  PhotoFields,
+} from "@/components/auth/signup-sections";
+import {
   getPasswordChecks,
   passwordChecksOk,
 } from "@/lib/password-policy";
+import {
+  type AddressErrorCode,
+  validateMalaysianAddress,
+} from "@/lib/my-address";
+import { isValidEmail } from "@/lib/email";
+import { ageFromDob, todayMYT } from "@/lib/calendar";
+import { formatMyKad, normalizeMyKad, parseMyKadDobPrefix } from "@/lib/my-kad";
+import { cn } from "@/lib/utils";
 
 const MIN_AGE = 14;
+const STEPS = ["about", "address", "password", "photo"] as const;
 
-/** Client-safe MyKad / age helpers (mirror server utils). */
-function normalizeMyKad(raw: string) {
-  return raw.replace(/[\s-]/g, "").toUpperCase();
-}
-
-function parseMyKadDob(raw: string): string | null {
-  const n = normalizeMyKad(raw);
-  if (!/^\d{12}$/.test(n)) return null;
-  const yy = Number(n.slice(0, 2));
-  const mm = Number(n.slice(2, 4));
-  const dd = Number(n.slice(4, 6));
-  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
-  const year = yy <= 30 ? 2000 + yy : 1900 + yy;
-  return `${year.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
-}
-
-function todayMYT(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kuala_Lumpur",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function ageFromDob(dob: string, onDate = todayMYT()): number {
-  const [y, m, d] = dob.split("-").map(Number);
-  const [cy, cm, cd] = onDate.split("-").map(Number);
-  let age = cy - y;
-  if (cm < m || (cm === m && cd < d)) age -= 1;
-  return age;
+function phoneOk(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 9 && digits.length <= 15;
 }
 
 export function SignUpForm() {
@@ -63,21 +48,38 @@ export function SignUpForm() {
   const [pending, startTransition] = useTransition();
   const [cameraOpen, setCameraOpen] = useState(false);
   const [photo, setPhoto] = useState<EkycCaptureResult | null>(null);
+  const [step, setStep] = useState(0);
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [phone, setPhone] = useState("");
   const [myKad, setMyKad] = useState("");
+  const [citizenship, setCitizenship] = useState("MY");
   const [dob, setDob] = useState("");
+  const [unit, setUnit] = useState("");
+  const [street, setStreet] = useState("");
+  const [postcode, setPostcode] = useState("");
+  const [stateId, setStateId] = useState("");
+  const [emergencyName, setEmergencyName] = useState("");
+  const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptPolicy, setAcceptPolicy] = useState(false);
+  const [acceptPdpa, setAcceptPdpa] = useState(false);
+  const [acceptLocation, setAcceptLocation] = useState(false);
   const { t, locale } = useT();
 
-  const policyParts = useMemo(
-    () => t("auth.acceptPolicy").split("{policy}"),
-    [t],
-  );
-  const pdpaParts = useMemo(
-    () => t("auth.acceptPdpa").split("{notice}"),
-    [t],
-  );
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setIsDesktop(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, []);
 
   const ageCheck = useMemo(() => {
-    const fromIc = parseMyKadDob(myKad);
+    const fromIc = parseMyKadDobPrefix(myKad);
     const effectiveDob = dob.trim() || fromIc || null;
     if (!effectiveDob) {
       return { status: "unknown" as const, age: null as number | null, dob: null as string | null };
@@ -89,64 +91,127 @@ export function SignUpForm() {
     return { status: "ok" as const, age, dob: effectiveDob };
   }, [myKad, dob]);
 
+  const stepTitles = [
+    t("auth.stepAbout"),
+    t("auth.stepAddress"),
+    t("auth.stepPassword"),
+    t("auth.stepPhoto"),
+  ];
+
+  function addressError(code: AddressErrorCode) {
+    switch (code) {
+      case "unit":
+        return t("auth.addressUnitRequired");
+      case "street":
+        return t("auth.addressStreetRequired");
+      case "postcode":
+        return t("auth.addressPostcodeInvalid");
+      case "state":
+        return t("auth.addressStateRequired");
+      case "postcode_state":
+        return t("auth.addressPostcodeState");
+    }
+  }
+
+  function validateAbout() {
+    if (name.trim().length < 2) return t("auth.nameRequired");
+    if (!isValidEmail(email)) {
+      setEmailTouched(true);
+      return t("auth.emailInvalid");
+    }
+    if (!phoneOk(phone)) return t("auth.phoneInvalid");
+    if (!/^\d{12}$/.test(normalizeMyKad(myKad))) return t("auth.ageNeed", { min: MIN_AGE });
+    if (citizenship !== "MY") return t("auth.citizenshipBlocked");
+    if (ageCheck.status === "blocked") {
+      return t("auth.blockedAge", { min: MIN_AGE, age: ageCheck.age ?? "?" });
+    }
+    if (ageCheck.status === "unknown") return t("auth.ageUnknown");
+    return null;
+  }
+
+  function validateAddress() {
+    const address = validateMalaysianAddress({
+      unit,
+      street,
+      postcode,
+      stateId,
+    });
+    if (!address.ok) return addressError(address.code);
+    if (emergencyName.trim().length < 2) return t("auth.emergencyNameRequired");
+    if (!phoneOk(emergencyPhone)) return t("auth.emergencyPhoneInvalid");
+    return null;
+  }
+
+  function validatePassword() {
+    if (!passwordChecksOk(getPasswordChecks(password))) return t("auth.passwordHint");
+    if (password !== confirmPassword) return t("auth.passwordMismatch");
+    return null;
+  }
+
+  function validatePhoto() {
+    if (!photo) return t("auth.photoRequired");
+    if (!acceptPolicy || !acceptPdpa || !acceptLocation) {
+      return t("auth.consentRequired");
+    }
+    return null;
+  }
+
+  const validators = [validateAbout, validateAddress, validatePassword, validatePhoto];
+
+  function goNext() {
+    const message = validators[step]();
+    setError(message);
+    if (!message) setStep((current) => Math.min(current + 1, STEPS.length - 1));
+  }
+
+  function goBack() {
+    setError(null);
+    setStep((current) => Math.max(current - 1, 0));
+  }
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!isDesktop && step < STEPS.length - 1) {
+      goNext();
+      return;
+    }
+
+    for (const validate of validators) {
+      const message = validate();
+      if (message) {
+        setError(message);
+        return;
+      }
+    }
+    if (!photo || !ageCheck.dob) return;
+
     setError(null);
-    if (!photo) {
-      setError(t("auth.photoRequired"));
-      return;
-    }
-    if (ageCheck.status === "blocked") {
-      setError(
-        t("auth.blockedAge", { min: MIN_AGE, age: ageCheck.age ?? "?" }),
-      );
-      return;
-    }
-    if (ageCheck.status === "unknown") {
-      setError(t("auth.ageUnknown"));
-      return;
-    }
-
-    const fd = new FormData(e.currentTarget);
-    const password = String(fd.get("password") ?? "");
-    const confirmPassword = String(fd.get("confirmPassword") ?? "");
-    if (!passwordChecksOk(getPasswordChecks(password))) {
-      setError(t("auth.passwordHint"));
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError(t("auth.passwordMismatch"));
-      return;
-    }
-
     startTransition(async () => {
-      const payload = {
-        name: String(fd.get("name") ?? ""),
-        email: String(fd.get("email") ?? ""),
-        phone: String(fd.get("phone") ?? ""),
-        emergencyContact: String(fd.get("emergencyContact") ?? ""),
-        emergencyContactName: String(fd.get("emergencyContactName") ?? ""),
-        address: String(fd.get("address") ?? ""),
-        myKad: String(fd.get("myKad") ?? ""),
-        citizenship: String(fd.get("citizenship") ?? "MY"),
+      const result = await signUpAngler({
+        name,
+        email,
+        phone,
+        emergencyContact: emergencyPhone,
+        emergencyContactName: emergencyName,
+        addressUnit: unit,
+        addressStreet: street,
+        addressPostcode: postcode,
+        addressState: stateId,
+        myKad,
+        citizenship,
         dob: ageCheck.dob ?? undefined,
         password,
-        acceptPolicy: fd.get("acceptPolicy") === "on",
-        acceptPdpa: fd.get("acceptPdpa") === "on",
-        acceptLocation: fd.get("acceptLocation") === "on",
+        acceptPolicy,
+        acceptPdpa,
+        acceptLocation,
         photoBase64: photo.base64,
         photoMimeType: photo.mimeType,
-      };
-
-      const result = await signUpAngler(payload);
+      });
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      const login = await loginWithCredentials(
-        payload.email,
-        payload.password,
-      );
+      const login = await loginWithCredentials(email, password);
       if (!login.ok) {
         setError(login.error);
         return;
@@ -154,6 +219,104 @@ export function SignUpForm() {
       window.location.assign(login.redirectTo);
     });
   }
+
+  const ageNotice =
+    ageCheck.status === "blocked" ? (
+      <Alert variant="destructive">
+        <AlertTitle>{t("auth.underAgeTitle")}</AlertTitle>
+        <AlertDescription>
+          {t("auth.underAgeBody", {
+            min: MIN_AGE,
+            source: dob.trim() ? t("auth.ageSourceDob") : t("auth.ageSourceMyKad"),
+            age: ageCheck.age ?? "?",
+          })}
+        </AlertDescription>
+      </Alert>
+    ) : ageCheck.status === "ok" ? (
+      <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs leading-normal text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+        {t("auth.ageOk", { age: ageCheck.age ?? "?", min: MIN_AGE })}
+      </p>
+    ) : myKad.trim().length > 0 ? (
+      <p className="text-xs leading-normal text-amber-800 dark:text-amber-200">
+        {t("auth.ageNeed", { min: MIN_AGE })}
+      </p>
+    ) : null;
+
+  const about = (
+    <AboutFields
+      columns={isDesktop === true}
+      name={name}
+      email={email}
+      phone={phone}
+      myKad={myKad}
+      citizenship={citizenship}
+      dob={dob}
+      maxDob={todayMYT()}
+      onName={setName}
+      onEmail={setEmail}
+      onEmailBlur={() => setEmailTouched(true)}
+      emailError={
+        (emailTouched || email.includes("@")) && !isValidEmail(email)
+          ? t("auth.emailInvalid")
+          : null
+      }
+      onPhone={setPhone}
+      onMyKad={(value) => {
+        const formatted = formatMyKad(value);
+        const previousDob = parseMyKadDobPrefix(myKad);
+        const nextDob = parseMyKadDobPrefix(formatted);
+        setMyKad(formatted);
+        if (nextDob && nextDob !== previousDob) setDob(nextDob);
+      }}
+      onCitizenship={setCitizenship}
+      onDob={setDob}
+      ageNotice={ageNotice}
+    />
+  );
+  const address = (
+    <AddressFields
+      columns={isDesktop === true}
+      unit={unit}
+      street={street}
+      postcode={postcode}
+      stateId={stateId}
+      emergencyName={emergencyName}
+      emergencyPhone={emergencyPhone}
+      onUnit={setUnit}
+      onStreet={setStreet}
+      onPostcode={setPostcode}
+      onState={setStateId}
+      onEmergencyName={setEmergencyName}
+      onEmergencyPhone={setEmergencyPhone}
+    />
+  );
+  const passwordFields = (
+    <PasswordWithStrengthFields
+      password={password}
+      confirmPassword={confirmPassword}
+      onPasswordChange={setPassword}
+      onConfirmChange={setConfirmPassword}
+    />
+  );
+  const photoFields = (
+    <PhotoFields
+      photo={photo}
+      acceptPolicy={acceptPolicy}
+      acceptPdpa={acceptPdpa}
+      acceptLocation={acceptLocation}
+      onOpenCamera={() => setCameraOpen(true)}
+      onAcceptPolicy={setAcceptPolicy}
+      onAcceptPdpa={setAcceptPdpa}
+      onAcceptLocation={setAcceptLocation}
+    />
+  );
+
+  const errorAlert = error ? (
+    <Alert variant="destructive">
+      <AlertTitle>{t("auth.signupFailed")}</AlertTitle>
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  ) : null;
 
   return (
     <main className="relative flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
@@ -178,8 +341,8 @@ export function SignUpForm() {
         </div>
       </header>
 
-      <div className="relative z-10 flex flex-1 items-start px-4 py-6 sm:px-6 sm:py-8 lg:items-center lg:px-8">
-        <div className="mx-auto grid w-full max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)]">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)] lg:items-start lg:gap-8">
           <div className="hidden space-y-4 lg:sticky lg:top-8 lg:block lg:self-start">
             <div className="flex items-center gap-4">
               <BrandLogo size={64} className="h-16 w-16 shrink-0" />
@@ -193,221 +356,115 @@ export function SignUpForm() {
             <FishingScene className="max-w-md" />
           </div>
 
-          <div className="w-full rounded-xl border border-border/80 bg-background/90 p-4 shadow-sm backdrop-blur-sm sm:p-8">
-            <div className="mb-6 space-y-2">
+          <div className="flex w-full flex-1 flex-col rounded-xl border border-border/80 bg-background/90 p-4 shadow-sm backdrop-blur-sm sm:p-8 lg:flex-none">
+            <div className="mb-3 space-y-1 lg:mb-6 lg:space-y-2">
               <h1 className="text-xl font-semibold tracking-tight">
-                {t("auth.signupTitle")}
+                {isDesktop === false ? stepTitles[step] : t("auth.signupTitle")}
               </h1>
               <p className="text-sm leading-normal text-muted-foreground">
-                {t("auth.signupSub", { min: MIN_AGE })}
+                {isDesktop === false
+                  ? t("auth.stepProgress", { step: step + 1, total: STEPS.length })
+                  : t("auth.signupSub", { min: MIN_AGE })}
               </p>
             </div>
 
-            <KeyboardSafeForm onSubmit={onSubmit}>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field id="name" label={t("auth.name")} required />
-                <Field id="email" label={t("auth.email")} type="email" required />
-                <Field id="phone" label={t("auth.mobile")} type="tel" required />
-                <Field
-                  id="emergencyContactName"
-                  label={t("auth.emergencyName")}
-                  required
-                />
-                <Field
-                  id="emergencyContact"
-                  label={t("auth.emergencyPhone")}
-                  type="tel"
-                  required
-                />
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="myKad">
-                    {t("auth.myKad")}
-                    <RequiredMark />
-                  </Label>
-                  <Input
-                    id="myKad"
-                    name="myKad"
-                    required
-                    autoComplete="off"
-                    inputMode="numeric"
-                    maxLength={14}
-                    value={myKad}
-                    onChange={(e) => setMyKad(e.target.value)}
-                    placeholder={t("auth.myKadPlaceholder")}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="citizenship">
-                    {t("auth.citizenship")}
-                    <RequiredMark />
-                  </Label>
-                  <select
-                    id="citizenship"
-                    name="citizenship"
-                    required
-                    defaultValue="MY"
-                    className="flex min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="MY">{t("auth.citizenshipMY")}</option>
-                    <option value="OTHER">{t("auth.citizenshipOther")}</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="dob">{t("auth.dob")}</Label>
-                  <Input
-                    id="dob"
-                    name="dob"
-                    type="date"
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                    max={todayMYT()}
-                  />
-                </div>
-                <PasswordWithStrengthFields className="sm:col-span-2" />
-                <div className="flex flex-col gap-2 sm:col-span-2">
-                  <Label htmlFor="address">
-                    {t("auth.address")}
-                    <RequiredMark />
-                  </Label>
-                  <textarea
-                    id="address"
-                    name="address"
-                    required
-                    rows={3}
-                    className="flex min-h-24 w-full rounded-lg border border-input bg-background px-4 py-2 text-base leading-normal"
-                  />
-                </div>
-              </div>
-
-              {ageCheck.status === "blocked" ? (
-                <Alert variant="destructive">
-                  <AlertTitle>{t("auth.underAgeTitle")}</AlertTitle>
-                  <AlertDescription>
-                    {t("auth.underAgeBody", {
-                      min: MIN_AGE,
-                      source: dob.trim()
-                        ? t("auth.ageSourceDob")
-                        : t("auth.ageSourceMyKad"),
-                      age: ageCheck.age ?? "?",
-                    })}
-                  </AlertDescription>
-                </Alert>
-              ) : ageCheck.status === "ok" ? (
-                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs leading-normal text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
-                  {t("auth.ageOk", {
-                    age: ageCheck.age ?? "?",
-                    min: MIN_AGE,
-                  })}
-                </p>
-              ) : myKad.trim().length > 0 ? (
-                <p className="text-xs leading-normal text-amber-800 dark:text-amber-200">
-                  {t("auth.ageNeed", { min: MIN_AGE })}
-                </p>
-              ) : null}
-
-              <div className="flex flex-col gap-4 rounded-lg border border-border/70 p-4">
-                <Label>
-                  {t("auth.photoLabel")}
-                  <RequiredMark />
-                </Label>
-                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                  <div className="size-24 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                    {photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={photo.previewUrl}
-                        alt="Captured identity"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                        {t("auth.noPhoto")}
-                      </div>
+            {isDesktop === false ? (
+              <div className="mb-3 flex gap-1" aria-hidden>
+                {STEPS.map((key, index) => (
+                  <div
+                    key={key}
+                    className={cn(
+                      "h-1 flex-1 rounded-full",
+                      index <= step ? "bg-primary" : "bg-muted",
                     )}
-                  </div>
-                  <div className="flex flex-col gap-2">
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {isDesktop === null ? (
+              <div className="space-y-3" aria-hidden>
+                <div className="h-11 rounded-lg bg-muted" />
+                <div className="h-11 rounded-lg bg-muted" />
+                <div className="h-11 rounded-lg bg-muted" />
+              </div>
+            ) : (
+              <KeyboardSafeForm onSubmit={onSubmit} className="gap-3 max-lg:min-h-0 max-lg:flex-1 lg:gap-4">
+                {isDesktop ? (
+                  <>
+                    {about}
+                    {address}
+                    {passwordFields}
+                    {photoFields}
+                    {errorAlert}
                     <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setCameraOpen(true)}
+                      type="submit"
+                      className="min-h-11 w-full"
+                      disabled={pending || ageCheck.status === "blocked"}
                     >
-                      {photo ? t("auth.retakePhoto") : t("auth.openCamera")}
+                      {pending ? t("auth.creating") : t("auth.submitSignup")}
                     </Button>
-                    <p className="max-w-sm text-xs leading-normal text-muted-foreground">
-                      {t("auth.photoHint")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="flex items-start gap-3 text-sm leading-snug">
-                  <input
-                    type="checkbox"
-                    name="acceptPolicy"
-                    className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
-                    required
-                  />
-                  <span>
-                    {policyParts[0]}
-                    <Link
-                      href="/policy"
-                      className="text-primary underline-offset-4 hover:underline"
-                      target="_blank"
+                  </>
+                ) : (
+                  <>
+                    {step === 0 ? about : null}
+                    {step === 1 ? address : null}
+                    {step === 2 ? (
+                      <div className="my-auto flex w-full flex-col items-center gap-5">
+                        <div
+                          className="flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary"
+                          aria-hidden
+                        >
+                          <KeyRound className="size-8" />
+                        </div>
+                        {passwordFields}
+                      </div>
+                    ) : null}
+                    {step === 3 ? photoFields : null}
+                    {errorAlert}
+                    <div
+                      className={cn(
+                        "flex gap-2",
+                        step !== 2 && "max-lg:mt-auto",
+                        step === 0 && "flex-col",
+                      )}
                     >
-                      {t("auth.privacyPolicy")}
-                    </Link>
-                    {policyParts[1] ?? ""}
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 text-sm leading-snug">
-                  <input
-                    type="checkbox"
-                    name="acceptPdpa"
-                    className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
-                    required
-                  />
-                  <span>
-                    {pdpaParts[0]}
-                    <Link
-                      href="/consent"
-                      className="text-primary underline-offset-4 hover:underline"
-                      target="_blank"
-                    >
-                      {t("auth.pdpaNotice")}
-                    </Link>
-                    {pdpaParts[1] ?? ""}
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 text-sm leading-snug">
-                  <input
-                    type="checkbox"
-                    name="acceptLocation"
-                    className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
-                    required
-                  />
-                  <span>{t("auth.acceptLocation")}</span>
-                </label>
-              </div>
+                      {step > 0 ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="min-h-11 flex-1"
+                          onClick={goBack}
+                        >
+                          {t("auth.back")}
+                        </Button>
+                      ) : null}
+                      {step < STEPS.length - 1 ? (
+                        <Button
+                          type="button"
+                          className="min-h-11 flex-1"
+                          onClick={goNext}
+                          disabled={step === 0 && ageCheck.status === "blocked"}
+                        >
+                          {t("auth.next")}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="submit"
+                          className="min-h-11 flex-1"
+                          disabled={pending}
+                        >
+                          {pending ? t("auth.creating") : t("auth.submitSignup")}
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </KeyboardSafeForm>
+            )}
 
-              {error ? (
-                <Alert variant="destructive">
-                  <AlertTitle>{t("auth.signupFailed")}</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              <Button
-                type="submit"
-                className="min-h-11 w-full"
-                disabled={pending || ageCheck.status === "blocked"}
-              >
-                {pending ? t("auth.creating") : t("auth.submitSignup")}
-              </Button>
-            </KeyboardSafeForm>
-
-            <p className="mt-4 text-sm leading-normal text-muted-foreground">
-              Already have an account?{" "}
+            <p className="mt-3 text-sm leading-normal text-muted-foreground lg:mt-4">
+              {t("auth.alreadyAccount")}{" "}
               <Link
                 href="/login"
                 className="text-primary underline-offset-4 hover:underline"
@@ -426,43 +483,5 @@ export function SignUpForm() {
         title={t("auth.cameraTitle")}
       />
     </main>
-  );
-}
-
-function RequiredMark() {
-  return (
-    <span className="text-destructive" aria-hidden>
-      *
-    </span>
-  );
-}
-
-function Field({
-  id,
-  label,
-  type = "text",
-  required,
-  autoComplete,
-}: {
-  id: string;
-  label: string;
-  type?: string;
-  required?: boolean;
-  autoComplete?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>
-        {label}
-        {required ? <RequiredMark /> : null}
-      </Label>
-      <Input
-        id={id}
-        name={id}
-        type={type}
-        required={required}
-        autoComplete={autoComplete}
-      />
-    </div>
   );
 }

@@ -14,6 +14,11 @@ import {
 } from "@/lib/auth-cookies";
 import { validateAnglerIdentity } from "@/domain/pass";
 import {
+  malaysianAddressError,
+  validateMalaysianAddress,
+} from "@/lib/my-address";
+import { isValidEmail } from "@/lib/email";
+import {
   hashMyKad,
   id,
   myKadLast4,
@@ -191,7 +196,10 @@ export async function signUpAngler(input: {
   phone: string;
   emergencyContact: string;
   emergencyContactName: string;
-  address: string;
+  addressUnit: string;
+  addressStreet: string;
+  addressPostcode: string;
+  addressState: string;
   myKad: string;
   citizenship: string;
   dob?: string;
@@ -220,7 +228,12 @@ export async function signUpAngler(input: {
   const phone = input.phone.trim();
   const emergencyContact = input.emergencyContact.trim();
   const emergencyContactName = input.emergencyContactName.trim();
-  const address = input.address.trim();
+  const addressCheck = validateMalaysianAddress({
+    unit: input.addressUnit,
+    street: input.addressStreet,
+    postcode: input.addressPostcode,
+    stateId: input.addressState,
+  });
 
   if (
     !name ||
@@ -228,12 +241,18 @@ export async function signUpAngler(input: {
     !phone ||
     !emergencyContact ||
     !emergencyContactName ||
-    !address ||
     !input.myKad ||
     !input.password
   ) {
     return { ok: false, error: "All required fields must be filled." };
   }
+  if (!isValidEmail(email)) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+  if (!addressCheck.ok) {
+    return { ok: false, error: malaysianAddressError(addressCheck.code) };
+  }
+  const address = addressCheck.formatted;
   if (!input.photoBase64 || !input.photoMimeType) {
     return { ok: false, error: "Profile photo is required." };
   }

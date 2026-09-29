@@ -28,6 +28,7 @@ export function SearchableSelect({
   className,
   disabled,
   searchable,
+  id,
 }: {
   options: SearchableSelectOption[];
   value: string;
@@ -38,6 +39,7 @@ export function SearchableSelect({
   className?: string;
   disabled?: boolean;
   searchable?: boolean;
+  id?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -124,6 +126,7 @@ export function SearchableSelect({
   return (
     <div ref={rootRef} className="relative w-full">
       <button
+        id={id}
         type="button"
         disabled={disabled}
         aria-haspopup="listbox"

@@ -1,5 +1,9 @@
 import { createHash } from "crypto";
 import { nanoid } from "nanoid";
+import { ageFromDob, todayMYT } from "@/lib/calendar";
+import { normalizeMyKad } from "@/lib/my-kad";
+
+export { ageFromDob, todayMYT, normalizeMyKad };
 
 export function id(prefix?: string) {
   return prefix ? `${prefix}_${nanoid(16)}` : nanoid(21);
@@ -58,16 +62,6 @@ export function roleLabel(role: string) {
   return formatEnumLabel(role);
 }
 
-/** Calendar date in Asia/Kuala_Lumpur as YYYY-MM-DD. */
-export function todayMYT(date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kuala_Lumpur",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
 /** Display YYYY-MM-DD (or Date) as Malaysian DD/MM/YYYY. */
 export function formatDateMY(isoDate: string | Date): string {
   if (typeof isoDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(isoDate)) {
@@ -100,10 +94,6 @@ export function defaultExpectedReturnOn(validOn: string): string {
 /** Max nights beyond validOn for overnight stay intention (Phase B). */
 export const DEFAULT_MAX_OVERNIGHT_NIGHTS = 3;
 
-export function normalizeMyKad(raw: string): string {
-  return raw.replace(/[\s-]/g, "").toUpperCase();
-}
-
 export function hashMyKad(raw: string): string {
   const normalized = normalizeMyKad(raw);
   return createHash("sha256").update(normalized).digest("hex");
@@ -124,14 +114,6 @@ export function parseMyKadDob(raw: string): string | null {
   if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
   const year = yy <= 30 ? 2000 + yy : 1900 + yy;
   return `${year.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
-}
-
-export function ageFromDob(dob: string, onDate = todayMYT()): number {
-  const [y, m, d] = dob.split("-").map(Number);
-  const [cy, cm, cd] = onDate.split("-").map(Number);
-  let age = cy - y;
-  if (cm < m || (cm === m && cd < d)) age -= 1;
-  return age;
 }
 
 /**
