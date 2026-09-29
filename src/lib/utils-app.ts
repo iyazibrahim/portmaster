@@ -1,7 +1,9 @@
 import { createHash } from "crypto";
 import { nanoid } from "nanoid";
-import { ageFromDob, todayMYT } from "@/lib/calendar";
-import { normalizeMyKad } from "@/lib/my-kad";
+// Relative imports so Docker entrypoint seed (node --experimental-strip-types)
+// works without Next path aliases. Keep .ts for Node ESM resolution.
+import { ageFromDob, todayMYT } from "./calendar.ts";
+import { normalizeMyKad } from "./my-kad.ts";
 
 export { ageFromDob, todayMYT, normalizeMyKad };
 

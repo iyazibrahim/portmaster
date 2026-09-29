@@ -1,6 +1,8 @@
 # TiangPass workflow
 
-**Compose DATABASE_URL from env (2026-09-29):** `docker-compose.yml` no longer hardcodes the local Postgres URL. `DATABASE_URL: ${DATABASE_URL:-postgresql://tiangpass:tiangpass@postgres:5432/tiangpass}` so Dokploy/Layerbase secrets override the default. README / `.env.example` note `sslmode=require` and password URL-encoding.
+**Docker seed `@/` crash + pin local Postgres (2026-09-29):** Entrypoint seed failed with `Cannot find package '@/lib'` because `utils-app.ts` used Next aliases and calendar/my-kad were not copied into the image. Switched to relative `./calendar.ts` / `./my-kad.ts`, copy those files in the Dockerfile, and hardwire compose `DATABASE_URL` back to `postgres:5432` so Dokploy Layerbase overrides cannot break boot.
+
+**Compose DATABASE_URL from env (2026-09-29):** Temporarily allowed Dokploy to override `DATABASE_URL`; reverted — see pin above.
 
 **Live images fix (2026-09-29):** Brand and scene marks used `/_next/image` in standalone Docker and went blank on the testing host. Set `images.unoptimized` so every `next/image` serves `/public` paths directly; middleware skips `/brand`, `/icons`, and image extensions; Dockerfile asserts brand/PWA icon files exist after the public copy.
 

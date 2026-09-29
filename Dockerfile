@@ -58,6 +58,8 @@ COPY --from=prod-deps --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=nextjs:nodejs /app/src/db ./src/db
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/utils-app.ts ./src/lib/utils-app.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/calendar.ts ./src/lib/calendar.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/my-kad.ts ./src/lib/my-kad.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-srs-mvp1.ts ./scripts/apply-srs-mvp1.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/ensure-demo-ops.ts ./scripts/ensure-demo-ops.ts
 COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
