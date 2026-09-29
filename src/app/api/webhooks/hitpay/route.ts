@@ -1,7 +1,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { hasHitPayKeys, hitPayWebhookSalt } from "@/lib/payments/config";
 import { fulfillHitPayPayment } from "@/lib/pass";
+import { reportPaymentFailure } from "@/lib/payment-failure-notify";
+import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
+import { db } from "@/db";
+import { passes, payments } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
@@ -19,13 +25,23 @@ function verifyHitPaySignature(rawBody: string, signature: string | null) {
   }
 }
 
-type HitPayWebhookBody = {
-  id?: string;
-  status?: string;
-  reference_number?: string | null;
-};
+const hitPayWebhookSchema = z.object({
+  id: z.string().min(1).max(128).optional(),
+  status: z.string().max(64).optional(),
+  reference_number: z.string().max(128).nullable().optional(),
+});
 
 export async function POST(request: Request) {
+  const ip = await clientIpFromHeaders();
+  const limited = rateLimit({
+    key: `hitpay-webhook:${ip}`,
+    limit: 120,
+    windowMs: 60_000,
+  });
+  if (!limited.ok) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  }
+
   if (!hasHitPayKeys()) {
     return NextResponse.json({ ok: false, error: "HitPay disabled" }, { status: 503 });
   }
@@ -37,11 +53,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 401 });
   }
 
-  let payload: HitPayWebhookBody;
+  let payload: z.infer<typeof hitPayWebhookSchema>;
   try {
-    payload = JSON.parse(rawBody) as HitPayWebhookBody;
+    payload = hitPayWebhookSchema.parse(JSON.parse(rawBody));
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
   }
 
   const status = (payload.status ?? "").toLowerCase();
@@ -61,11 +77,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[hitpay webhook]", e);
+    let passId: string | null = null;
+    let reference = payload.reference_number ?? payload.id;
+    if (payload.reference_number) {
+      const [pass] = await db
+        .select({ id: passes.id, reference: passes.reference })
+        .from(passes)
+        .where(eq(passes.reference, payload.reference_number))
+        .limit(1);
+      if (pass) {
+        passId = pass.id;
+        reference = pass.reference;
+      }
+    }
+    if (!passId) {
+      const [byRef] = await db
+        .select({ passId: payments.passId })
+        .from(payments)
+        .where(eq(payments.mockRef, payload.id))
+        .limit(1);
+      passId = byRef?.passId ?? null;
+    }
+    if (passId) {
+      await reportPaymentFailure({
+        passId,
+        reference,
+        description: `HitPay payment fulfillment failed for request ${payload.id}.`,
+      }).catch((err) => console.error("[hitpay webhook] notify", err));
+    }
     return NextResponse.json(
-      {
-        ok: false,
-        error: e instanceof Error ? e.message : "Fulfillment failed",
-      },
+      { ok: false, error: "Fulfillment failed" },
       { status: 500 },
     );
   }

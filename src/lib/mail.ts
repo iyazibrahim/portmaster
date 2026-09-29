@@ -125,14 +125,24 @@ export async function sendMail(input: {
       auth: config.user
         ? { user: config.user, pass: config.pass }
         : undefined,
+      disableFileAccess: true,
+      disableUrlAccess: true,
     });
+
+    const html =
+      input.html ??
+      input.text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\n/g, "<br/>");
 
     await transporter.sendMail({
       from: `"${config.fromName.replace(/"/g, "")}" <${config.fromEmail}>`,
       to: input.to,
       subject: input.subject,
       text: input.text,
-      html: input.html ?? input.text.replace(/\n/g, "<br/>"),
+      html,
       headers: {
         "X-Entity-Ref-ID": randomBytes(8).toString("hex"),
       },

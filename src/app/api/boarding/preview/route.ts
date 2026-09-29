@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runBoardingPreview } from "@/lib/boarding-scan";
 import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
+import { clientSafeMessage } from "@/lib/http-security";
 import { boardingPreviewSchema } from "@/lib/validation/auth";
 
 export const dynamic = "force-dynamic";
@@ -64,10 +65,7 @@ export async function POST(req: Request) {
     return boardingJson(
       {
         ok: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Boarding preview failed unexpectedly.",
+        error: clientSafeMessage(err, "Boarding preview failed unexpectedly."),
       },
       400,
     );

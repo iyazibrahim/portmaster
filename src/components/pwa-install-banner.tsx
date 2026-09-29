@@ -4,6 +4,11 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
 import { useT } from "@/i18n/locale-provider";
+import {
+  detectPwaPlatform,
+  PwaInstallGuide,
+  type PwaPlatform,
+} from "@/components/pwa-install-guide";
 
 const DISMISS_KEY = "tiangpass_pwa_dismiss";
 
@@ -34,11 +39,6 @@ function isMobileViewport() {
   return window.matchMedia("(max-width: 1023px)").matches;
 }
 
-function isIos() {
-  if (typeof navigator === "undefined") return false;
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
 function subscribeDismiss(onStoreChange: () => void) {
   window.addEventListener("storage", onStoreChange);
   window.addEventListener("tiangpass-pwa-dismiss", onStoreChange);
@@ -65,6 +65,8 @@ export function PwaInstallBanner() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
     null,
   );
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [platform, setPlatform] = useState<PwaPlatform>("other");
 
   useEffect(() => {
     if (!isClient || dismissed || isStandalone() || !isMobileViewport()) {
@@ -74,6 +76,7 @@ export function PwaInstallBanner() {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
     };
+    setPlatform(detectPwaPlatform());
     window.addEventListener("beforeinstallprompt", onBip);
     return () => window.removeEventListener("beforeinstallprompt", onBip);
   }, [isClient, dismissed]);
@@ -96,53 +99,58 @@ export function PwaInstallBanner() {
 
   if (!visible) return null;
 
-  const iosHint = isIos();
-
   return (
-    <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 px-3 lg:hidden">
-      <div className="mx-auto flex max-w-lg flex-col gap-2 rounded-xl border border-border bg-background p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <BrandLogo size={40} className="mt-0.5 h-10 w-10 shrink-0" />
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-sm font-medium">{t("pwa.install")}</p>
-            <p className="text-xs text-muted-foreground">
-              {iosHint
-                ? "On iPhone: Share → Add to Home Screen for quicker boarding."
-                : "Add TiangPass to your home screen for faster pass purchase and boarding."}
-            </p>
+    <>
+      <div
+        className={`fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 px-3 lg:hidden ${guideOpen ? "hidden" : ""}`}
+      >
+        <div className="mx-auto flex max-w-lg flex-col gap-2 rounded-xl border border-border bg-background p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <BrandLogo size={40} className="mt-0.5 h-10 w-10 shrink-0" />
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-medium">{t("pwa.install")}</p>
+              <p className="text-xs text-muted-foreground">{t("pwa.bannerBody")}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="min-h-10"
-            onClick={dismiss}
-          >
-            {t("pwa.dismiss")}
-          </Button>
-          {deferred ? (
+          <div className="flex shrink-0 gap-2">
             <Button
               type="button"
-              size="sm"
-              className="min-h-10"
-              onClick={() => void install()}
-            >
-              {t("pwa.install")}
-            </Button>
-          ) : iosHint ? (
-            <Button
-              type="button"
+              variant="ghost"
               size="sm"
               className="min-h-10"
               onClick={dismiss}
             >
-              Got it
+              {t("pwa.dismiss")}
             </Button>
-          ) : null}
+            {deferred ? (
+              <Button
+                type="button"
+                size="sm"
+                className="min-h-10"
+                onClick={() => void install()}
+              >
+                {t("pwa.install")}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant={deferred ? "outline" : "default"}
+              className="min-h-10"
+              onClick={() => setGuideOpen(true)}
+            >
+              {t("pwa.howTo")}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+      <PwaInstallGuide
+        open={guideOpen}
+        onOpenChange={setGuideOpen}
+        platform={platform}
+        canInstall={Boolean(deferred)}
+        onInstall={() => void install()}
+      />
+    </>
   );
 }

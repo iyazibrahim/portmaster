@@ -68,7 +68,7 @@ Password for all: **`password123`**
 | `npm run lint` | ESLint |
 | `npm run test` | Vitest (domain / AC unit tests) |
 | `npm run db:setup` | `drizzle-kit push` + seed |
-| `npm run db:seed` | Re-seed (**clears** demo tables) |
+| `npm run db:seed` | Re-seed (**clears** demo tables) — **never** on the public database |
 | `npm run db:cleanup` | Purge expired sessions/tokens + audit older than 1 year |
 | GitHub Actions | Build image → GHCR → trigger **Dokploy** deploy |
 
@@ -100,6 +100,8 @@ Push to `main` (or **Actions → Docker build & Dokploy deploy → Run workflow*
 CI builds → pushes GHCR → calls Dokploy `compose.deploy` / `application.deploy`. Done.
 
 **App env (Dokploy compose environment, not GitHub Actions):** set at least `AUTH_SECRET`, `APP_URL` (public HTTPS URL). For Stripe (primary): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` — webhook URL `{APP_URL}/api/webhooks/stripe`. For HitPay (optional): `HITPAY_API_KEY`, `HITPAY_WEBHOOK_SALT`, optional `HITPAY_API_URL` / `HITPAY_CURRENCY` / `HITPAY_PAYMENT_METHODS`. These are wired in `docker-compose.yml` `app.environment` — vars only in the Dokploy UI that are **not** listed there never reach the container. Admin Ops → Payment gateway picks primary; missing keys fall back to mock. Redeploy after changing env.
+
+**Data volumes (survive rebuild / redeploy):** Compose uses named volumes `tiangpass_pg` (Postgres) and `tiangpass_photos` (`/app/data/photos`). Pulling a new app image and restarting containers keeps that data. Do **not** run `docker compose down -v` on production. Postgres backups are the existing R2 job over `tiangpass_pg`; identity photos are only on `tiangpass_photos` (back up that volume separately if you need photo restore). Do **not** run `npm run db:seed` against the live database — it clears demo tables. Keep a **single** `app` replica (rate limits are in-process).
 
 Local laptop build (optional):  
 `docker compose -f docker-compose.yml -f docker-compose.build.yml build`

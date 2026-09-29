@@ -2,26 +2,19 @@ import { and, eq, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, boats, passes, payments, users } from "@/db/schema";
 import { id } from "@/lib/utils-app";
+import { reportPaymentFailure } from "@/lib/payment-failure-notify";
 
 const PERMIT_WARN_DAYS = 30;
 
-async function hasOpenAlert(opts: {
-  type: string;
-  passId?: string | null;
-  boatId?: string | null;
-}) {
+async function hasOpenBoatPermitAlert(boatId: string) {
   const [existing] = await db
     .select({ id: alerts.id })
     .from(alerts)
     .where(
       and(
-        eq(alerts.type, opts.type),
+        eq(alerts.type, "BOAT_PERMIT_EXPIRY"),
         isNull(alerts.resolvedAt),
-        opts.passId
-          ? eq(alerts.passId, opts.passId)
-          : opts.boatId
-            ? eq(alerts.boatId, opts.boatId)
-            : sql`true`,
+        eq(alerts.boatId, boatId),
       ),
     )
     .limit(1);
@@ -31,12 +24,11 @@ async function hasOpenAlert(opts: {
 /**
  * Upsert system ops alerts from live pass / boat / payment state.
  * Safe to call on admin alerts page load; skips duplicates while open.
+ * New PAYMENT_FAILED alerts also email receipt_email once (if SMTP is set).
  */
 export async function refreshOpsAlerts() {
   const now = new Date();
   let created = 0;
-
-  // Long stays (including overnight) are shown on the dashboard only — no auto OVERDUE_CHECKIN alerts.
 
   const horizon = new Date(now.getTime() + PERMIT_WARN_DAYS * 86_400_000);
   const expiring = await db
@@ -56,7 +48,7 @@ export async function refreshOpsAlerts() {
 
   for (const b of expiring) {
     if (!b.permitExpiresAt) continue;
-    if (await hasOpenAlert({ type: "BOAT_PERMIT_EXPIRY", boatId: b.id })) {
+    if (await hasOpenBoatPermitAlert(b.id)) {
       continue;
     }
     const days = Math.ceil(
@@ -94,18 +86,12 @@ export async function refreshOpsAlerts() {
 
   for (const p of failed) {
     if (!p.passId) continue;
-    if (await hasOpenAlert({ type: "PAYMENT_FAILED", passId: p.passId })) {
-      continue;
-    }
-    await db.insert(alerts).values({
-      id: id("alt"),
-      type: "PAYMENT_FAILED",
-      severity: "CRITICAL",
-      title: `Payment failed · ${p.reference}`,
-      description: `${p.angler} — ${(p.amountCents / 100).toFixed(2)} MYR payment failed.`,
+    const result = await reportPaymentFailure({
       passId: p.passId,
+      reference: p.reference,
+      description: `${p.angler} — ${(p.amountCents / 100).toFixed(2)} MYR payment failed.`,
     });
-    created += 1;
+    if (result.alertCreated) created += 1;
   }
 
   return { created };

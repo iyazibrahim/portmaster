@@ -1,5 +1,11 @@
 # TiangPass workflow
 
+**Launch readiness (2026-09-29):** Privacy, consent, and cookies rewritten for live PDPA language (EN/BM); contact from Admin settings; no analytics cookies. Compose/README note that named volumes survive rebuilds (R2 backs Postgres). Rate-limit map prunes and caps keys. Payment fulfillment failures create one PAYMENT_FAILED alert and email `receipt_email` once when SMTP is set.
+
+**PWA install guide (2026-09-29):** The phone install banner opens a step list. iPhone Safari uses Share → Add to Home Screen. Android Chrome uses the three-dot menu → Install app. In-app browsers are told to open Safari or Chrome first. English and Bahasa Melayu.
+
+**API security pass (2026-09-29):** Sessions, roles, webhook signatures, and existing rate limits stay. Added HTTPS redirect only when `APP_URL`/`AUTH_URL` is https (local HTTP unchanged), security headers, timing-safe cron secret compare, Stripe/HitPay checkout idempotency keys, a single-winner payment activation, generic public errors, login and password-reset audit rows, and `npm run audit:deps`. Nodemailer high advisories have no fix yet; the mailer disables file and URL access. Demo `password123` remains seed-only.
+
 **Code cleanup (2026-09-29):** Removed unused table imports on the admin ops page. MyKad formatting and Malaysia calendar helpers now live in client-safe modules shared with signup. Forgot-password and reset-password share one auth card shell. Required asterisks share one mark component.
 
 **Reset password card (2026-09-29):** The forgot-password card is vertically centered on a phone, in the space under the header.

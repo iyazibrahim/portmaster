@@ -27,7 +27,8 @@ export async function createStripeCheckoutSession(input: {
   const successUrl = `${appPublicUrl()}/pass/${input.passId}/paid?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${appPublicUrl()}/pass/${input.passId}/paid?status=cancelled`;
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await stripe.checkout.sessions.create(
+    {
     mode: "payment",
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -51,7 +52,12 @@ export async function createStripeCheckoutSession(input: {
         },
       },
     ],
-  });
+    },
+    {
+      // Same key for a few seconds so a double tap does not open two checkouts.
+      idempotencyKey: `checkout:${input.passId}:${Math.floor(Date.now() / 30_000)}`,
+    },
+  );
 
   if (!session.url) {
     throw new Error("Stripe Checkout did not return a URL.");

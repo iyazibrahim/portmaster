@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/locale-provider";
 
 const COOKIE_KEY = "tiangpass_cookie_consent";
 const STORAGE_KEY = "tiangpass_cookie_consent";
@@ -36,7 +37,6 @@ function readConsent(): CookieConsentChoice | null {
   if (fromCookie) return fromCookie;
   const fromStorage = readStorageConsent();
   if (fromStorage) {
-    // Re-seed the cookie if Safari/ITP dropped it but localStorage remains.
     writeConsentCookie(fromStorage);
     return fromStorage;
   }
@@ -72,7 +72,6 @@ function subscribe(onStoreChange: () => void) {
   };
 }
 
-/** Avoid hydration flash: treat as dismissed until the client can read storage. */
 function getServerSnapshot(): CookieConsentChoice | null {
   return "necessary";
 }
@@ -81,18 +80,15 @@ function getSnapshot(): CookieConsentChoice | null {
   return readConsent();
 }
 
-/** First-visit cookie banner — Necessary always on; Analytics optional. */
+/** First-visit acknowledgement — necessary cookies only (no analytics). */
 export function CookieConsentBanner() {
+  const { t } = useT();
   const consent = useSyncExternalStore(
     subscribe,
     getSnapshot,
     getServerSnapshot,
   );
   const visible = consent === null;
-
-  function accept(choice: CookieConsentChoice) {
-    writeConsent(choice);
-  }
 
   if (!visible) return null;
 
@@ -101,44 +97,32 @@ export function CookieConsentBanner() {
       <div className="mx-auto max-w-3xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1 text-sm">
-            <p className="font-medium">Cookies &amp; privacy</p>
+            <p className="font-medium">{t("legal.bannerTitle")}</p>
             <p className="text-muted-foreground">
-              We use necessary cookies to keep you signed in and remember language
-              preference. Optional analytics cookies help improve TiangPass. See
-              our{" "}
+              {t("legal.bannerBody")}{" "}
               <Link
                 href="/cookies"
                 className="text-primary underline-offset-4 hover:underline"
               >
-                Cookies Policy
+                {t("legal.linkCookies")}
               </Link>{" "}
-              and{" "}
+              ·{" "}
               <Link
                 href="/policy"
                 className="text-primary underline-offset-4 hover:underline"
               >
-                Privacy Policy
+                {t("legal.linkPolicy")}
               </Link>
               .
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              onClick={() => accept("necessary")}
-            >
-              Necessary only
-            </Button>
-            <Button
-              type="button"
-              className="min-h-11"
-              onClick={() => accept("all")}
-            >
-              Accept all
-            </Button>
-          </div>
+          <Button
+            type="button"
+            className="min-h-11 shrink-0"
+            onClick={() => writeConsent("necessary")}
+          >
+            {t("legal.bannerOk")}
+          </Button>
         </div>
       </div>
     </div>

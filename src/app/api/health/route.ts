@@ -11,11 +11,11 @@ export async function GET() {
       time: new Date().toISOString(),
     });
   } catch (error) {
+    console.error("[health]", error);
     return NextResponse.json(
       {
         status: "error",
         service: "tiangpass",
-        message: error instanceof Error ? error.message : "db unavailable",
       },
       { status: 503 },
     );

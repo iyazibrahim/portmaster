@@ -1,6 +1,14 @@
 # Small VPS (~4GB RAM) + Dokploy.
 # Build on GitHub Actions → GHCR; Dokploy only pulls (never `docker compose build` / --build on this host).
 # See .github/workflows/docker-build.yml and README "Dokploy deploy".
+#
+# Data persistence:
+# - Named volumes `tiangpass_pg` (Postgres) and `tiangpass_photos` (identity photos) survive
+#   image rebuilds and `docker compose up -d` / Dokploy pull+restart.
+# - Never use `docker compose down -v` on production — that deletes volumes.
+# - Postgres backups are handled outside this file (R2 / volume backup of tiangpass_pg).
+# - Identity photos live only on tiangpass_photos (not inside Postgres).
+# - Run a single `app` replica; in-memory rate limits are per process.
 
 name: tiangpass
 
@@ -110,5 +118,7 @@ services:
       start_period: 90s
 
 volumes:
+  # Survives app image updates. Do not remove on redeploy. R2 backup targets this volume's data.
   tiangpass_pg:
+  # Identity photos on disk; separate from Postgres R2 backup — include in host/volume backup if needed.
   tiangpass_photos:

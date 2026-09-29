@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { handlers } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { clientSafeMessage } from "@/lib/http-security";
 import { scanBoardingToken } from "@/lib/booking";
 
 export type BoardingPreviewResult =
@@ -71,7 +72,7 @@ export async function runBoardingPreview(
   } catch (err) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Could not preview pass.",
+      error: clientSafeMessage(err, "Could not preview pass."),
     };
   }
 }
@@ -146,7 +147,7 @@ export async function runBoardingScan(input: {
   } catch (err) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Check-in failed.",
+      error: clientSafeMessage(err, "Check-in failed."),
     };
   }
 }

@@ -37,6 +37,23 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  dependency-audit:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Audit high severity production dependencies
+        run: npm run audit:deps
+        continue-on-error: true
+
   build-and-push:
     name: Build & push GHCR image
     runs-on: ubuntu-latest

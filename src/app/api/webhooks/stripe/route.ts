@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { hasStripeKeys, stripeWebhookSecret } from "@/lib/payments/config";
 import { getStripeClient } from "@/lib/payments/stripe";
 import { fulfillPassPayment } from "@/lib/pass";
+import { reportPaymentFailure } from "@/lib/payment-failure-notify";
+import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -11,6 +13,16 @@ const FULFILL_EVENTS = new Set([
 ]);
 
 export async function POST(request: Request) {
+  const ip = await clientIpFromHeaders();
+  const limited = rateLimit({
+    key: `stripe-webhook:${ip}`,
+    limit: 120,
+    windowMs: 60_000,
+  });
+  if (!limited.ok) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  }
+
   if (!hasStripeKeys()) {
     return NextResponse.json({ ok: false, error: "Stripe disabled" }, { status: 503 });
   }
@@ -65,20 +77,27 @@ export async function POST(request: Request) {
     });
   }
 
+  const passId = session.client_reference_id || session.metadata?.passId || null;
+  const reference = session.metadata?.reference ?? passId ?? session.id;
+
   try {
     await fulfillPassPayment({
       providerRef: session.id,
-      passId: session.client_reference_id || session.metadata?.passId || null,
+      passId,
       referenceNumber: session.metadata?.reference ?? null,
     });
     return NextResponse.json({ ok: true, fulfilled: true, event: event.type });
   } catch (e) {
     console.error("[stripe webhook] fulfill", e);
+    if (passId) {
+      await reportPaymentFailure({
+        passId,
+        reference,
+        description: `Stripe checkout fulfillment failed for session ${session.id}.`,
+      }).catch((err) => console.error("[stripe webhook] notify", err));
+    }
     return NextResponse.json(
-      {
-        ok: false,
-        error: e instanceof Error ? e.message : "Fulfillment failed",
-      },
+      { ok: false, error: "Fulfillment failed" },
       { status: 500 },
     );
   }

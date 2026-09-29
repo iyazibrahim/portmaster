@@ -44,6 +44,7 @@ export async function createHitPayPaymentRequest(input: {
       "X-BUSINESS-API-KEY": hitPayApiKey(),
       "Content-Type": "application/x-www-form-urlencoded",
       "X-Requested-With": "XMLHttpRequest",
+      "Idempotency-Key": `checkout:${input.passId}:${Math.floor(Date.now() / 30_000)}`,
     },
     body,
   });

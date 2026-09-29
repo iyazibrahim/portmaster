@@ -43,11 +43,20 @@ import {
   verifyPassword,
 } from "@/lib/password";
 import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
+import { writeAudit } from "@/lib/audit";
 import {
   forgotPasswordSchema,
   loginBodySchema,
   resetPasswordSchema,
 } from "@/lib/validation/auth";
+
+async function recordAuthAudit(input: Parameters<typeof writeAudit>[0]) {
+  try {
+    await writeAudit(input);
+  } catch (err) {
+    console.error("[audit]", input.action, err);
+  }
+}
 
 const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
 const RATE_WINDOW_MS = 60_000;
@@ -104,6 +113,11 @@ export async function loginWithCredentials(
     `;
     const row = found[0];
     if (!row?.id) {
+      await recordAuthAudit({
+        action: "auth.login_failed",
+        entityType: "user",
+        meta: { email: normalized },
+      });
       return { ok: false, error: "Invalid email or password." };
     }
 
@@ -124,6 +138,12 @@ export async function loginWithCredentials(
     }
 
     if (!row.password_hash) {
+      await recordAuthAudit({
+        actorId: row.id,
+        action: "auth.login_failed",
+        entityType: "user",
+        entityId: row.id,
+      });
       return { ok: false, error: "Invalid email or password." };
     }
 
@@ -139,6 +159,12 @@ export async function loginWithCredentials(
       };
     }
     if (!valid) {
+      await recordAuthAudit({
+        actorId: row.id,
+        action: "auth.login_failed",
+        entityType: "user",
+        entityId: row.id,
+      });
       return { ok: false, error: "Invalid email or password." };
     }
 
@@ -174,6 +200,13 @@ export async function loginWithCredentials(
       path: "/",
       maxAge: SESSION_MAX_AGE_SEC,
       secure,
+    });
+
+    await recordAuthAudit({
+      actorId: row.id,
+      action: "auth.login_success",
+      entityType: "user",
+      entityId: row.id,
     });
 
     return {
@@ -574,6 +607,13 @@ export async function resetPasswordWithTokenAction(input: {
     .where(eq(users.id, user.id));
 
   await db.delete(sessions).where(eq(sessions.userId, user.id));
+
+  await recordAuthAudit({
+    actorId: user.id,
+    action: "auth.password_reset",
+    entityType: "user",
+    entityId: user.id,
+  });
 
   return { ok: true };
 }

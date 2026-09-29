@@ -366,7 +366,7 @@ export async function activatePassAfterPayment(input: {
   if (!next) throw new Error("Invalid payment transition.");
 
   const now = new Date();
-  await db
+  const activated = await db
     .update(passes)
     .set({
       status: next,
@@ -374,7 +374,15 @@ export async function activatePassAfterPayment(input: {
       reservedUntil: null,
       updatedAt: now,
     })
-    .where(eq(passes.id, pass.id));
+    .where(and(eq(passes.id, pass.id), eq(passes.status, "PENDING_PAYMENT")))
+    .returning({ id: passes.id });
+  if (activated.length === 0) {
+    return {
+      passId: pass.id,
+      reference: pass.reference,
+      alreadyActive: true as const,
+    };
+  }
 
   await db
     .update(payments)
