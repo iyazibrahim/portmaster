@@ -9,6 +9,11 @@
 # - Postgres backups are handled outside this file (R2 / volume backup of tiangpass_pg).
 # - Identity photos live only on tiangpass_photos (not inside Postgres).
 # - Run a single `app` replica; in-memory rate limits are per process.
+#
+# DATABASE_URL: set in Dokploy / .env to override the in-compose Postgres default
+# (e.g. Layerbase: postgresql://USER:PASS@HOST:PORT/DB?sslmode=require).
+# URL-encode special characters in the password. The local `postgres` service still
+# starts unless you stop it; the app uses whatever DATABASE_URL resolves to.
 
 name: tiangpass
 
@@ -70,7 +75,8 @@ services:
     ports:
       - "${PORT:-43127}:43127"
     environment:
-      DATABASE_URL: postgresql://tiangpass:tiangpass@postgres:5432/tiangpass
+      # Dokploy / .env overrides this; default keeps laptop + in-compose Postgres working.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://tiangpass:tiangpass@postgres:5432/tiangpass}
       # Required in Dokploy / .env — empty if unset (no public fallback).
       AUTH_SECRET: ${AUTH_SECRET:-}
       APP_URL: ${APP_URL:-http://127.0.0.1:43127}
