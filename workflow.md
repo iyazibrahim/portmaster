@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Occupancy unify + jetty↔pillar (2026-09-30):** Operator Pillars was correct (2/4 = Siti + Ahmad still CHECKED_IN). Angler booking and Admin dashboard only counted today’s `validOn`, so overnight CHECKED_IN showed as 0/4 / empty. Shared rule: CHECKED_IN always holds a slot; PENDING_PAYMENT/ACTIVE only for today. Admin ops / LLM pillar bars and availableSlots use `getPillarOccupancyMap`. Booking copy states pillars are only for the selected boarding jetty (server already rejects cross-jetty).
+
 **Legal + action loading (2026-09-30):** Added Terms of Use (`/terms`) with refund (no refund for wrong pillar), liability / assumption of risk, and usage rules (EN/BM). Cookies Policy expanded (necessary, functional, no analytics, third-party checkout). Signup accepts Privacy + Terms. Payment and identity-photo flows use button/overlay spinners while route skeletons stay for page loads.
 
 **PWA camera keep-alive (2026-09-30):** Operator Scan no longer unmounts on tab hops. `PersistentHandlerScanner` stays mounted in the app shell (parked 1×1px off-screen, not display:none). Soft release mutes tracks instead of stopping them immediately. Returning to Scan re-enables the stream without a new getUserMedia permission prompt when the OS left tracks alive.

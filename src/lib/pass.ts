@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   handlers,
@@ -123,14 +123,24 @@ export async function getPillarOccupancy(
 ) {
   await expireStaleReservations();
   await expireOvernightActivePasses();
+  // Include overnight CHECKED_IN (any validOn) so capacity matches who is still under the bridge.
   const rows = await db
-    .select({ status: passes.status, reservedUntil: passes.reservedUntil })
+    .select({
+      status: passes.status,
+      reservedUntil: passes.reservedUntil,
+      validOn: passes.validOn,
+    })
     .from(passes)
     .where(
       and(
         eq(passes.pillarId, pillarId),
-        eq(passes.validOn, validOn),
-        inArray(passes.status, [...PASS_OCCUPANCY_STATUSES]),
+        or(
+          eq(passes.status, "CHECKED_IN"),
+          and(
+            eq(passes.validOn, validOn),
+            inArray(passes.status, ["PENDING_PAYMENT", "ACTIVE"]),
+          ),
+        ),
       ),
     );
   const now = new Date();
@@ -150,6 +160,67 @@ export async function getPillarOccupancy(
       maxOccupancy,
     ),
   };
+}
+
+/** Batch occupancy for many pillars (same rules as {@link getPillarOccupancy}). */
+export async function getPillarOccupancyMap(
+  pillarIds: string[],
+  validOn: string,
+): Promise<Map<string, { heldCount: number; expiredReservationCount: number }>> {
+  const map = new Map<
+    string,
+    { heldCount: number; expiredReservationCount: number }
+  >();
+  if (pillarIds.length === 0) return map;
+
+  await expireStaleReservations();
+  await expireOvernightActivePasses();
+
+  const rows = await db
+    .select({
+      pillarId: passes.pillarId,
+      status: passes.status,
+      reservedUntil: passes.reservedUntil,
+    })
+    .from(passes)
+    .where(
+      and(
+        inArray(passes.pillarId, pillarIds),
+        or(
+          eq(passes.status, "CHECKED_IN"),
+          and(
+            eq(passes.validOn, validOn),
+            inArray(passes.status, ["PENDING_PAYMENT", "ACTIVE"]),
+          ),
+        ),
+      ),
+    );
+
+  const now = new Date();
+  const byPillar = new Map<
+    string,
+    { status: string; reservedUntil: Date | null }[]
+  >();
+  for (const r of rows) {
+    if (!r.pillarId) continue;
+    const list = byPillar.get(r.pillarId) ?? [];
+    list.push({ status: r.status, reservedUntil: r.reservedUntil });
+    byPillar.set(r.pillarId, list);
+  }
+
+  for (const id of pillarIds) {
+    const list = byPillar.get(id) ?? [];
+    const expiredReservationCount = list.filter(
+      (r) =>
+        r.status === "PENDING_PAYMENT" &&
+        isReservationExpired(r.reservedUntil, now),
+    ).length;
+    map.set(id, {
+      heldCount: list.length,
+      expiredReservationCount,
+    });
+  }
+  return map;
 }
 
 export async function createPassPendingPayment(input: {
@@ -983,16 +1054,32 @@ export async function listOpenPillarsForJetty(jettyId: string) {
     )
     .orderBy(asc(locations.side), asc(locations.number));
 
-  const withSlots = [];
-  for (const p of pillars) {
-    const occ = await getPillarOccupancy(p.id, validOn, p.maxOccupancy);
-    withSlots.push({
+  const occMap = await getPillarOccupancyMap(
+    pillars.map((p) => p.id),
+    validOn,
+  );
+
+  return pillars.map((p) => {
+    const occ = occMap.get(p.id) ?? {
+      heldCount: 0,
+      expiredReservationCount: 0,
+    };
+    const effectiveHeld = Math.max(
+      0,
+      occ.heldCount - occ.expiredReservationCount,
+    );
+    return {
       ...p,
-      remaining: occ.remaining,
-      held: occ.heldCount - occ.expiredReservationCount,
-    });
-  }
-  return withSlots;
+      remaining: remainingSlots(
+        {
+          heldCount: occ.heldCount,
+          expiredReservationCount: occ.expiredReservationCount,
+        },
+        p.maxOccupancy,
+      ),
+      held: effectiveHeld,
+    };
+  });
 }
 
 export async function getPassForUser(passId: string, userId: string) {

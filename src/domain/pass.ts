@@ -21,12 +21,29 @@ export {
   DEFAULT_MAX_OVERNIGHT_NIGHTS,
 } from "@/lib/utils-app";
 
-/** Statuses that hold a pillar slot. */
+/** Statuses that hold a pillar slot for a given fishing day. */
 export const PASS_OCCUPANCY_STATUSES: PassStatus[] = [
   "PENDING_PAYMENT",
   "ACTIVE",
   "CHECKED_IN",
 ];
+
+/**
+ * Rows that currently hold a physical pillar slot.
+ * - PENDING_PAYMENT / ACTIVE: only for the purchase day (`validOn`).
+ * - CHECKED_IN: always (angler still under the bridge, including overnight).
+ */
+export function passHoldsPillarSlot(input: {
+  status: PassStatus;
+  validOn: string;
+  day: string;
+}): boolean {
+  if (input.status === "CHECKED_IN") return true;
+  if (input.status === "PENDING_PAYMENT" || input.status === "ACTIVE") {
+    return input.validOn === input.day;
+  }
+  return false;
+}
 
 /** Statuses that block buying another pass the same day. */
 export const PASS_BLOCKING_STATUSES: PassStatus[] = [

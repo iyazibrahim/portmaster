@@ -11,11 +11,15 @@ import {
   settings,
   users,
 } from "@/db/schema";
-import { isOverdue, PASS_OCCUPANCY_STATUSES } from "@/domain/pass";
+import {
+  isOverdue,
+  remainingSlots,
+} from "@/domain/pass";
 import {
   DEFAULT_OVERDUE_HOURS,
   todayMYT,
 } from "@/lib/utils-app";
+import { getPillarOccupancyMap } from "@/lib/pass";
 
 async function overdueHoursFromSettings() {
   const [row] = await db
@@ -59,10 +63,6 @@ export async function getDashboardMetrics() {
   const openPillars = pillars.filter((p) => p.status === "AVAILABLE");
   const closedPillars = pillars.filter((p) => p.status !== "AVAILABLE");
   const totalSlots = openPillars.reduce((sum, p) => sum + p.maxOccupancy, 0);
-  const occupiedSlots = todayPasses.filter((p) =>
-    ["PENDING_PAYMENT", "ACTIVE", "CHECKED_IN"].includes(p.status),
-  ).length;
-  const availableSlots = Math.max(0, totalSlots - occupiedSlots);
 
   const boatRows = await db
     .select({
@@ -106,28 +106,48 @@ export async function getDashboardMetrics() {
     .where(inArray(incidents.status, ["OPEN", "IN_PROGRESS"]))
     .orderBy(asc(incidents.createdAt));
 
-  // Occupied first, unique GT/SP labels (not raw P1 from every jetty)
-  const pillarOcc = new Map<string, number>();
-  for (const p of todayPasses) {
-    if (PASS_OCCUPANCY_STATUSES.includes(p.status)) {
-      pillarOcc.set(p.pillarId, (pillarOcc.get(p.pillarId) ?? 0) + 1);
-    }
-  }
+  // Occupied first — same occupancy rule as angler buy (includes overnight CHECKED_IN).
+  const occMap = await getPillarOccupancyMap(
+    openPillars.map((p) => p.id),
+    validOn,
+  );
   const pillarBars = openPillars
-    .map((p) => ({
-      id: p.id,
-      label: pillarBarLabel(p.side, p.number),
-      name: p.name,
-      occupied: pillarOcc.get(p.id) ?? 0,
-      max: p.maxOccupancy,
-      status: p.status,
-    }))
+    .map((p) => {
+      const occ = occMap.get(p.id) ?? {
+        heldCount: 0,
+        expiredReservationCount: 0,
+      };
+      const occupied = Math.max(
+        0,
+        occ.heldCount - occ.expiredReservationCount,
+      );
+      return {
+        id: p.id,
+        label: pillarBarLabel(p.side, p.number),
+        name: p.name,
+        occupied,
+        max: p.maxOccupancy,
+        status: p.status,
+        remaining: remainingSlots(
+          {
+            heldCount: occ.heldCount,
+            expiredReservationCount: occ.expiredReservationCount,
+          },
+          p.maxOccupancy,
+        ),
+      };
+    })
     .sort((a, b) => b.occupied - a.occupied || a.label.localeCompare(b.label));
 
-  const occupiedPillars = openPillars.filter(
-    (p) => (pillarOcc.get(p.id) ?? 0) > 0,
-  ).length;
+  const occupiedPillars = openPillars.filter((p) => {
+    const occ = occMap.get(p.id);
+    if (!occ) return false;
+    return occ.heldCount - occ.expiredReservationCount > 0;
+  }).length;
   const availablePillars = openPillars.length - occupiedPillars;
+
+  const occupiedSlots = pillarBars.reduce((sum, b) => sum + b.occupied, 0);
+  const availableSlots = Math.max(0, totalSlots - occupiedSlots);
 
   // Hourly sales (activatedAt hour)
   const hourly = Array.from({ length: 13 }, (_, i) => ({

@@ -8,6 +8,7 @@ import {
   canUpdateOvernightIntention,
   defaultExpectedReturnOn,
   remainingSlots,
+  passHoldsPillarSlot,
   validateAnglerIdentity,
   nextStatusAfterPaymentSuccess,
   nextStatusAfterPaymentFail,
@@ -67,6 +68,68 @@ describe("AC-002 MyKad format", () => {
       dob: "1990-01-01",
     });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("passHoldsPillarSlot occupancy", () => {
+  const day = "2026-09-30";
+
+  it("CHECKED_IN holds a slot on any validOn (overnight)", () => {
+    expect(
+      passHoldsPillarSlot({
+        status: "CHECKED_IN",
+        validOn: "2026-09-29",
+        day,
+      }),
+    ).toBe(true);
+    expect(
+      passHoldsPillarSlot({
+        status: "CHECKED_IN",
+        validOn: day,
+        day,
+      }),
+    ).toBe(true);
+  });
+
+  it("PENDING_PAYMENT / ACTIVE only hold when validOn matches day", () => {
+    expect(
+      passHoldsPillarSlot({
+        status: "ACTIVE",
+        validOn: day,
+        day,
+      }),
+    ).toBe(true);
+    expect(
+      passHoldsPillarSlot({
+        status: "PENDING_PAYMENT",
+        validOn: "2026-09-29",
+        day,
+      }),
+    ).toBe(false);
+    expect(
+      passHoldsPillarSlot({
+        status: "ACTIVE",
+        validOn: "2026-09-29",
+        day,
+      }),
+    ).toBe(false);
+  });
+
+  it("CHECKED_OUT / EXPIRED do not hold a slot", () => {
+    expect(
+      passHoldsPillarSlot({
+        status: "CHECKED_OUT",
+        validOn: day,
+        day,
+      }),
+    ).toBe(false);
+    expect(
+      passHoldsPillarSlot({
+        status: "EXPIRED",
+        validOn: day,
+        day,
+      }),
+    ).toBe(false);
   });
 });
 

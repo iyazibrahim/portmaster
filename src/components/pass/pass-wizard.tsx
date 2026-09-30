@@ -563,7 +563,11 @@ export function PassWizard({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              One pillar per pass. Capacity is set by Association per pillar.
+              Only pillars at{" "}
+              <span className="font-medium text-foreground">
+                {selectedJetty?.name ?? "your boarding jetty"}
+              </span>
+              . One pillar per pass — you cannot book a pillar from another jetty.
             </p>
             <div className="space-y-2 lg:max-h-80 lg:overflow-y-auto lg:pr-1">
               {pillars.map((p) => {

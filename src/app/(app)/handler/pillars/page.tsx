@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { handlers, jetties, locations, passes, users } from "@/db/schema";
@@ -8,6 +8,8 @@ import {
   HandlerPillarsPanel,
   type HandlerPillarRow,
 } from "@/components/handler/handler-pillars-panel";
+import { getPillarOccupancyMap } from "@/lib/pass";
+import { todayMYT } from "@/lib/utils-app";
 import { getTranslator } from "@/i18n";
 
 export default async function HandlerPillarsPage() {
@@ -66,17 +68,32 @@ export default async function HandlerPillarsPage() {
     .where(eq(locations.jettyId, jettyId))
     .orderBy(asc(locations.side), asc(locations.number));
 
-  const occupants = await db
-    .select({
-      passId: passes.id,
-      pillarId: passes.pillarId,
-      reference: passes.reference,
-      anglerName: users.name,
-      checkedInAt: passes.checkedInAt,
-    })
-    .from(passes)
-    .innerJoin(users, eq(passes.userId, users.id))
-    .where(and(eq(passes.jettyId, jettyId), eq(passes.status, "CHECKED_IN")));
+  const validOn = todayMYT();
+  const pillarIds = pillarRows.map((p) => p.id);
+  const occMap = await getPillarOccupancyMap(pillarIds, validOn);
+
+  // Who is physically under the bridge (names) — any fishing day still CHECKED_IN.
+  const occupants =
+    pillarIds.length === 0
+      ? []
+      : await db
+          .select({
+            passId: passes.id,
+            pillarId: passes.pillarId,
+            reference: passes.reference,
+            anglerName: users.name,
+            checkedInAt: passes.checkedInAt,
+          })
+          .from(passes)
+          .innerJoin(users, eq(passes.userId, users.id))
+          .innerJoin(locations, eq(passes.pillarId, locations.id))
+          .where(
+            and(
+              eq(locations.jettyId, jettyId),
+              eq(passes.status, "CHECKED_IN"),
+              inArray(passes.pillarId, pillarIds),
+            ),
+          );
 
   const byPillar = new Map<string, typeof occupants>();
   for (const o of occupants) {
@@ -86,24 +103,32 @@ export default async function HandlerPillarsPage() {
     byPillar.set(o.pillarId, list);
   }
 
-  const pillars: HandlerPillarRow[] = pillarRows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    number: p.number,
-    side: p.side,
-    status: p.status,
-    maxOccupancy: p.maxOccupancy,
-    occupants: (byPillar.get(p.id) ?? []).map((o) => ({
-      passId: o.passId,
-      reference: o.reference,
-      anglerName: o.anglerName ?? "—",
-      checkedInAt: o.checkedInAt?.toISOString() ?? null,
-    })),
-  }));
+  const pillars: HandlerPillarRow[] = pillarRows.map((p) => {
+    const occ = occMap.get(p.id) ?? {
+      heldCount: 0,
+      expiredReservationCount: 0,
+    };
+    const held = Math.max(0, occ.heldCount - occ.expiredReservationCount);
+    return {
+      id: p.id,
+      name: p.name,
+      number: p.number,
+      side: p.side,
+      status: p.status,
+      maxOccupancy: p.maxOccupancy,
+      held,
+      occupants: (byPillar.get(p.id) ?? []).map((o) => ({
+        passId: o.passId,
+        reference: o.reference,
+        anglerName: o.anglerName ?? "—",
+        checkedInAt: o.checkedInAt?.toISOString() ?? null,
+      })),
+    };
+  });
 
   pillars.sort((a, b) => {
-    const ao = a.occupants.length > 0 ? 0 : 1;
-    const bo = b.occupants.length > 0 ? 0 : 1;
+    const ao = a.held > 0 || a.occupants.length > 0 ? 0 : 1;
+    const bo = b.held > 0 || b.occupants.length > 0 ? 0 : 1;
     if (ao !== bo) return ao - bo;
     return 0;
   });

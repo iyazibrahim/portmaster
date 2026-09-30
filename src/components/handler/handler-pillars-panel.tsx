@@ -29,6 +29,8 @@ export type HandlerPillarRow = {
   side: string;
   status: string;
   maxOccupancy: number;
+  /** Slots held (checked-in + today's active/pending), same rule as angler buy. */
+  held: number;
   occupants: HandlerPillarOccupant[];
 };
 
@@ -48,11 +50,11 @@ export function HandlerPillarsPanel({
     minute: "2-digit",
   });
 
-  const occupiedCount = pillars.filter((p) => p.occupants.length > 0).length;
+  const occupiedCount = pillars.filter((p) => p.held > 0).length;
   const onWater = pillars.reduce((n, p) => n + p.occupants.length, 0);
   const selected = pillars.find((p) => p.id === selectedId) ?? null;
   const selectedFull =
-    selected != null && selected.occupants.length >= selected.maxOccupancy;
+    selected != null && selected.held >= selected.maxOccupancy;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -81,8 +83,8 @@ export function HandlerPillarsPanel({
       ) : (
         <ul className="animate-list-in grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           {pillars.map((p) => {
-            const full = p.occupants.length >= p.maxOccupancy;
-            const hasPeople = p.occupants.length > 0;
+            const full = p.held >= p.maxOccupancy;
+            const hasPeople = p.held > 0;
             return (
               <li key={p.id}>
                 <button
@@ -114,7 +116,7 @@ export function HandlerPillarsPanel({
                     <p className="flex items-center gap-1.5 text-xs font-medium leading-normal">
                       <Users className="size-3.5 shrink-0 text-muted-foreground" />
                       {t("handler.pillarsCapacity", {
-                        count: p.occupants.length,
+                        count: p.held,
                         max: p.maxOccupancy,
                       })}
                     </p>
@@ -143,7 +145,7 @@ export function HandlerPillarsPanel({
                   #{selected.number}
                   <span className="mx-1">·</span>
                   {t("handler.pillarsCapacity", {
-                    count: selected.occupants.length,
+                    count: selected.held,
                     max: selected.maxOccupancy,
                   })}
                 </DialogDescription>
