@@ -437,6 +437,9 @@ export async function startGatewayCheckout(passId: string, userId: string) {
     .where(eq(passes.id, passId))
     .limit(1);
   if (!pass || pass.userId !== userId) throw new Error("Pass not found.");
+  if (pass.status === "ACTIVE" || pass.status === "CHECKED_IN") {
+    throw new Error("This pass is already paid.");
+  }
   if (pass.status !== "PENDING_PAYMENT") {
     throw new Error("Pass is not awaiting payment.");
   }
@@ -446,6 +449,49 @@ export async function startGatewayCheckout(passId: string, userId: string) {
       .set({ status: "CANCELLED", updatedAt: new Date() })
       .where(eq(passes.id, passId));
     throw new Error("Reservation expired. Please start again.");
+  }
+
+  const [existingPay] = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.passId, passId))
+    .limit(1);
+  if (existingPay?.status === "PAID") {
+    throw new Error("This pass is already paid.");
+  }
+
+  // Reuse an open Stripe Checkout Session so a double tap cannot bill twice.
+  if (
+    existingPay?.provider === "stripe" &&
+    existingPay.mockRef?.startsWith("cs_") &&
+    hasStripeKeys()
+  ) {
+    try {
+      const session = await retrieveStripeCheckoutSession(existingPay.mockRef);
+      if (session.payment_status === "paid") {
+        await fulfillPassPayment({
+          providerRef: session.id,
+          passId,
+          referenceNumber: pass.reference,
+        });
+        return {
+          passId,
+          checkoutUrl: `/pass/${passId}`,
+          paymentRequestId: session.id,
+          provider: "stripe" as const,
+        };
+      }
+      if (session.status === "open" && session.url) {
+        return {
+          passId,
+          checkoutUrl: session.url,
+          paymentRequestId: session.id,
+          provider: "stripe" as const,
+        };
+      }
+    } catch {
+      /* create a fresh session below */
+    }
   }
 
   const provider = await getPaymentProvider();

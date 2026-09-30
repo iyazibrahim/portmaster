@@ -70,66 +70,147 @@ type JsQrFn = (
 ) => { data: string } | null;
 
 /** Keep tracks warm across tab hops so Open camera does not re-prompt. */
-const CAMERA_RELEASE_MS = 30 * 60_000;
+const CAMERA_RELEASE_MS = 60 * 60_000;
 /** Reliable timer decode — do not depend on requestVideoFrameCallback alone. */
 const DECODE_INTERVAL_MS = 100;
 const VIDEO_READY_TIMEOUT_MS = 10_000;
 const WARMUP_MS = 450;
+const CAMERA_HUB_KEY = "__tiangpassScanCameraHub";
 
-const cameraHub = {
-  stream: null as MediaStream | null,
-  releaseTimer: null as number | null,
-  consumers: 0,
-  openPromise: null as Promise<MediaStream> | null,
+type ScanCameraHub = {
+  stream: MediaStream | null;
+  releaseTimer: number | null;
+  consumers: number;
+  openPromise: Promise<MediaStream> | null;
+  cancelRelease(): void;
+  liveStream(): MediaStream | null;
+  attach(stream: MediaStream): MediaStream;
+  releaseSoft(): void;
+  releaseHard(): void;
+};
 
-  cancelRelease() {
-    if (this.releaseTimer != null) {
-      window.clearTimeout(this.releaseTimer);
-      this.releaseTimer = null;
-    }
-  },
+function createScanCameraHub(): ScanCameraHub {
+  return {
+    stream: null,
+    releaseTimer: null,
+    consumers: 0,
+    openPromise: null,
 
-  liveStream(): MediaStream | null {
-    const stream = this.stream;
-    if (!stream) return null;
-    const live = stream.getTracks().some((t) => t.readyState === "live");
-    if (!live) {
-      this.stream = null;
-      return null;
-    }
-    return stream;
-  },
+    cancelRelease() {
+      if (this.releaseTimer != null) {
+        window.clearTimeout(this.releaseTimer);
+        this.releaseTimer = null;
+      }
+    },
 
-  attach(stream: MediaStream) {
-    this.cancelRelease();
-    if (this.stream && this.stream !== stream) {
-      this.stream.getTracks().forEach((t) => t.stop());
-    }
-    this.stream = stream;
-    this.consumers += 1;
-    return stream;
-  },
+    liveStream(): MediaStream | null {
+      const stream = this.stream;
+      if (!stream) return null;
+      const live = stream.getTracks().some((t) => t.readyState === "live");
+      if (!live) {
+        this.stream = null;
+        return null;
+      }
+      return stream;
+    },
 
-  releaseSoft() {
-    this.consumers = Math.max(0, this.consumers - 1);
-    if (this.consumers > 0) return;
-    this.cancelRelease();
-    this.releaseTimer = window.setTimeout(() => {
-      this.releaseTimer = null;
+    attach(stream: MediaStream) {
+      this.cancelRelease();
+      if (this.stream && this.stream !== stream) {
+        this.stream.getTracks().forEach((t) => t.stop());
+      }
+      this.stream = stream;
+      this.consumers += 1;
+      return stream;
+    },
+
+    releaseSoft() {
+      this.consumers = Math.max(0, this.consumers - 1);
       if (this.consumers > 0) return;
+      this.cancelRelease();
+      this.releaseTimer = window.setTimeout(() => {
+        this.releaseTimer = null;
+        if (this.consumers > 0) return;
+        this.stream?.getTracks().forEach((t) => t.stop());
+        this.stream = null;
+      }, CAMERA_RELEASE_MS);
+    },
+
+    releaseHard() {
+      this.cancelRelease();
+      this.consumers = 0;
+      this.openPromise = null;
       this.stream?.getTracks().forEach((t) => t.stop());
       this.stream = null;
-    }, CAMERA_RELEASE_MS);
-  },
+    },
+  };
+}
 
+/** Survive Fast Refresh / SoftLiveRefresh remounts that recreate the module. */
+function getCameraHub(): ScanCameraHub {
+  const g = globalThis as unknown as Record<string, ScanCameraHub | undefined>;
+  if (!g[CAMERA_HUB_KEY]) {
+    g[CAMERA_HUB_KEY] = createScanCameraHub();
+  }
+  return g[CAMERA_HUB_KEY]!;
+}
+
+const cameraHub = {
+  get stream() {
+    return getCameraHub().stream;
+  },
+  set stream(v: MediaStream | null) {
+    getCameraHub().stream = v;
+  },
+  get releaseTimer() {
+    return getCameraHub().releaseTimer;
+  },
+  set releaseTimer(v: number | null) {
+    getCameraHub().releaseTimer = v;
+  },
+  get consumers() {
+    return getCameraHub().consumers;
+  },
+  set consumers(v: number) {
+    getCameraHub().consumers = v;
+  },
+  get openPromise() {
+    return getCameraHub().openPromise;
+  },
+  set openPromise(v: Promise<MediaStream> | null) {
+    getCameraHub().openPromise = v;
+  },
+  cancelRelease() {
+    getCameraHub().cancelRelease();
+  },
+  liveStream() {
+    return getCameraHub().liveStream();
+  },
+  attach(stream: MediaStream) {
+    return getCameraHub().attach(stream);
+  },
+  releaseSoft() {
+    getCameraHub().releaseSoft();
+  },
   releaseHard() {
-    this.cancelRelease();
-    this.consumers = 0;
-    this.openPromise = null;
-    this.stream?.getTracks().forEach((t) => t.stop());
-    this.stream = null;
+    getCameraHub().releaseHard();
   },
 };
+
+async function cameraPermissionState(): Promise<
+  PermissionState | "unsupported"
+> {
+  try {
+    if (!navigator.permissions?.query) return "unsupported";
+    const status = await navigator.permissions.query({
+      name: "camera" as PermissionName,
+    });
+    return status.state;
+  } catch {
+    // Safari / some WebViews reject camera PermissionName.
+    return "unsupported";
+  }
+}
 
 function formatScanError(err: unknown): string {
   if (err && typeof err === "object" && "code" in err) {
@@ -229,6 +310,13 @@ async function openRearCamera(forceNew = false): Promise<MediaStream> {
     cameraHub.releaseHard();
   }
 
+  const permission = await cameraPermissionState();
+  if (permission === "denied") {
+    throw new Error(
+      "Camera permission is blocked. Allow camera for this site in browser settings, then try again.",
+    );
+  }
+
   const attempts: MediaStreamConstraints[] = [
     {
       audio: false,
@@ -242,7 +330,7 @@ async function openRearCamera(forceNew = false): Promise<MediaStream> {
     {
       audio: false,
       video: {
-        facingMode: { exact: "environment" },
+        facingMode: { ideal: "environment" },
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },
@@ -908,17 +996,28 @@ export function ScannerPanel({
     startingRef.current = true;
     setError(null);
     try {
-      // Explicit Open always takes a fresh stream — soft-reuse was leaving a
-      // preview that looked live but would not decode until Stop → Open.
+      // Prefer a warm hub stream so the browser does not re-prompt camera.
+      // forceNew only after explicit Stop (or a dead stream).
       const forceNew = opts?.forceNew === true;
-      if (forceNew || (streamRef.current && !isStreamLive())) {
+      if (forceNew) {
         stopCameraHard();
+      } else if (streamRef.current && !isStreamLive()) {
+        detachVideo();
       }
 
-      let stream =
-        !forceNew && streamRef.current && isStreamLive()
-          ? streamRef.current
-          : null;
+      let stream: MediaStream | null = null;
+      if (!forceNew) {
+        if (streamRef.current && isStreamLive()) {
+          stream = streamRef.current;
+        } else {
+          const hubLive = cameraHub.liveStream();
+          if (hubLive) {
+            cameraHub.cancelRelease();
+            cameraHub.consumers += 1;
+            stream = hubLive;
+          }
+        }
+      }
       if (!stream) {
         stream = await openRearCamera(forceNew);
       }
@@ -952,13 +1051,21 @@ export function ScannerPanel({
     startingRef.current = true;
     setError(null);
     try {
+      const hubLive = cameraHub.liveStream();
+      if (hubLive) {
+        cameraHub.cancelRelease();
+        if (streamRef.current !== hubLive) {
+          cameraHub.consumers += 1;
+        }
+        await prepareLiveCamera(hubLive, gen);
+        return;
+      }
       if (isStreamLive() && streamRef.current) {
         await prepareLiveCamera(streamRef.current, gen);
         return;
       }
       startingRef.current = false;
-      stopCameraHard();
-      await startCamera({ forceNew: true });
+      await startCamera({ forceNew: false });
     } catch (err) {
       if (!mountedRef.current || gen !== cameraGenRef.current) return;
       setError(
@@ -1119,7 +1226,7 @@ export function ScannerPanel({
                 </p>
                 <Button
                   type="button"
-                  onClick={() => void startCamera({ forceNew: true })}
+                  onClick={() => void startCamera({ forceNew: false })}
                 >
                   {t("scan.openCamera")}
                 </Button>

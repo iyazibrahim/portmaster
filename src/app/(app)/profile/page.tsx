@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { CircleCheck, CircleMinus, LogOut } from "lucide-react";
 import { requireSession } from "@/lib/session";
-import { logoutAction } from "@/lib/actions/auth";
+import { logoutAction, logoutAllDevicesAction } from "@/lib/actions/auth";
 import { db } from "@/db";
 import { handlers, jetties, users } from "@/db/schema";
 import { Button } from "@/components/ui/button";
@@ -238,7 +238,7 @@ export default async function ProfilePage() {
               />
             ) : null}
             <ChangePasswordButton className="min-h-11 w-full sm:w-auto" />
-            <form action={logoutAction} className="w-full sm:ml-auto sm:w-auto">
+            <form action={logoutAction} className="w-full sm:w-auto">
               <Button
                 type="submit"
                 variant="outline"
@@ -247,7 +247,16 @@ export default async function ProfilePage() {
                 )}
               >
                 <LogOut className="size-4" aria-hidden />
-                Sign out
+                Sign out this device
+              </Button>
+            </form>
+            <form action={logoutAllDevicesAction} className="w-full sm:ml-auto sm:w-auto">
+              <Button
+                type="submit"
+                variant="outline"
+                className="min-h-11 w-full sm:w-auto"
+              >
+                Sign out all devices
               </Button>
             </form>
           </div>

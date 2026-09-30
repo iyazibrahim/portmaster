@@ -796,3 +796,18 @@ export async function logoutAction() {
   cookieStore.delete(authSessionCookieName());
   redirect("/");
 }
+
+/** Revoke every database session for the signed-in user (all devices). */
+export async function logoutAllDevicesAction() {
+  const { requireSession } = await import("@/lib/session");
+  const session = await requireSession();
+  try {
+    await authSignOut({ redirect: false });
+  } catch {
+    // fall through
+  }
+  await db.delete(sessions).where(eq(sessions.userId, session.user.id));
+  const cookieStore = await cookies();
+  cookieStore.delete(authSessionCookieName());
+  redirect("/");
+}
