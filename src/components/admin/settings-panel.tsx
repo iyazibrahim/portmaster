@@ -184,6 +184,43 @@ export function SettingsPanel({
         </BentoTile>
 
         <BentoTile
+          title="Limit pillars to jetty"
+          description="When on, anglers can only book pillars mapped to their boarding jetty (edit mapping under Sites → Pillars)."
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                ops.limit_pillars_to_jetty === "false"
+                  ? "destructive"
+                  : "default"
+              }
+              className={cn(
+                "rounded-full",
+                ops.limit_pillars_to_jetty !== "false" &&
+                  "bg-emerald-600 text-white hover:bg-emerald-700",
+              )}
+              onClick={() =>
+                setOp(
+                  "limit_pillars_to_jetty",
+                  ops.limit_pillars_to_jetty === "false" ? "true" : "false",
+                )
+              }
+            >
+              {ops.limit_pillars_to_jetty === "false"
+                ? "Any pillar (off)"
+                : "Limited to jetty"}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {ops.limit_pillars_to_jetty === "false"
+                ? "Any AVAILABLE pillar can be booked from any boarding jetty."
+                : "Pillar must belong to the selected boarding jetty."}
+            </span>
+          </div>
+        </BentoTile>
+
+        <BentoTile
           title="Support"
           description="Contact numbers shown to anglers."
         >

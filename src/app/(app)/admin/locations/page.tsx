@@ -24,7 +24,9 @@ export default async function AdminLocationsPage({
           {t("admin.sitesTitle")}
         </h1>
         <p className="text-sm leading-normal text-muted-foreground">
-          {t("admin.sitesSub")}
+          {t("admin.sitesSub")} Map each pillar to its home jetty here. When
+          Settings → Limit pillars to jetty is on, anglers can only book pillars
+          for their boarding jetty.
         </p>
       </div>
 

@@ -55,6 +55,7 @@ const OPS_KEYS = [
   "maintenance_banner_on",
   "maintenance_banner_text",
   "require_jetty_geofence",
+  "limit_pillars_to_jetty",
   "payment_gateway",
   "booking_window_copy",
   "platform_commission_pct",

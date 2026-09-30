@@ -204,12 +204,21 @@ describe("AC-004 / AC-005 pass rules", () => {
     expect(r.ok).toBe(false);
   });
 
-  it("requires pillar on boarding jetty", () => {
+  it("requires pillar on boarding jetty when limited", () => {
     const r = assertCanCreatePass({
       ...base,
       pillarJettyId: "other",
     });
     expect(r.ok).toBe(false);
+  });
+
+  it("allows cross-jetty pillar when limitPillarsToJetty is false", () => {
+    const r = assertCanCreatePass({
+      ...base,
+      pillarJettyId: "other",
+      limitPillarsToJetty: false,
+    });
+    expect(r.ok).toBe(true);
   });
 });
 

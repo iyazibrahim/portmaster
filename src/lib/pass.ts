@@ -72,6 +72,16 @@ export async function isJettyGeofenceRequired() {
   return row?.value !== "false";
 }
 
+/** When false, anglers may book any AVAILABLE pillar from any boarding jetty. Missing key = limited. */
+export async function isLimitPillarsToJetty() {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, "limit_pillars_to_jetty"))
+    .limit(1);
+  return row?.value !== "false";
+}
+
 /** Cancel expired payment holds. */
 export async function expireStaleReservations(now = new Date()) {
   const pending = await db
@@ -286,6 +296,7 @@ export async function createPassPendingPayment(input: {
     validOn,
     pillar.maxOccupancy,
   );
+  const limitPillarsToJetty = await isLimitPillarsToJetty();
   const rules = assertCanCreatePass({
     accountStatus: user.accountStatus,
     existingSameDayStatuses: existing.map((e) => e.status),
@@ -296,6 +307,7 @@ export async function createPassPendingPayment(input: {
     maxOccupancy: pillar.maxOccupancy,
     validOn,
     allowMultipleSameDay: canBuyMultiplePassesToday(user.email),
+    limitPillarsToJetty,
   });
   if (!rules.ok) throw new Error(rules.error);
 
@@ -1044,8 +1056,18 @@ export async function listOpenPillarsForJetty(jettyId: string) {
   await expireStaleReservations();
   await expireOvernightActivePasses();
   const pillars = await db
-    .select()
+    .select({
+      id: locations.id,
+      name: locations.name,
+      number: locations.number,
+      side: locations.side,
+      status: locations.status,
+      maxOccupancy: locations.maxOccupancy,
+      jettyId: locations.jettyId,
+      jettyName: jetties.name,
+    })
     .from(locations)
+    .innerJoin(jetties, eq(locations.jettyId, jetties.id))
     .where(
       and(
         eq(locations.jettyId, jettyId),
@@ -1069,7 +1091,70 @@ export async function listOpenPillarsForJetty(jettyId: string) {
       occ.heldCount - occ.expiredReservationCount,
     );
     return {
-      ...p,
+      id: p.id,
+      name: p.name,
+      number: p.number,
+      side: p.side,
+      status: p.status,
+      maxOccupancy: p.maxOccupancy,
+      jettyId: p.jettyId,
+      jettyName: p.jettyName,
+      remaining: remainingSlots(
+        {
+          heldCount: occ.heldCount,
+          expiredReservationCount: occ.expiredReservationCount,
+        },
+        p.maxOccupancy,
+      ),
+      held: effectiveHeld,
+    };
+  });
+}
+
+/** All AVAILABLE pillars (any jetty) with occupancy — used when limit is off. */
+export async function listAllOpenPillars() {
+  const validOn = todayMYT();
+  await expireStaleReservations();
+  await expireOvernightActivePasses();
+  const pillars = await db
+    .select({
+      id: locations.id,
+      name: locations.name,
+      number: locations.number,
+      side: locations.side,
+      status: locations.status,
+      maxOccupancy: locations.maxOccupancy,
+      jettyId: locations.jettyId,
+      jettyName: jetties.name,
+    })
+    .from(locations)
+    .innerJoin(jetties, eq(locations.jettyId, jetties.id))
+    .where(eq(locations.status, PILLAR_SELLABLE_STATUS))
+    .orderBy(asc(jetties.sortOrder), asc(locations.side), asc(locations.number));
+
+  const occMap = await getPillarOccupancyMap(
+    pillars.map((p) => p.id),
+    validOn,
+  );
+
+  return pillars.map((p) => {
+    const occ = occMap.get(p.id) ?? {
+      heldCount: 0,
+      expiredReservationCount: 0,
+    };
+    const effectiveHeld = Math.max(
+      0,
+      occ.heldCount - occ.expiredReservationCount,
+    );
+    return {
+      id: p.id,
+      name: p.name,
+      number: p.number,
+      side: p.side,
+      status: p.status,
+      maxOccupancy: p.maxOccupancy,
+      jettyId: p.jettyId,
+      jettyName: p.jettyName,
       remaining: remainingSlots(
         {
           heldCount: occ.heldCount,

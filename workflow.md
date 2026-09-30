@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Limit pillars to jetty setting (2026-09-30):** Admin Ops toggle `limit_pillars_to_jetty` (default on). On: anglers only see/book pillars mapped to the boarding jetty (Sites → Pillars). Off: any AVAILABLE pillar from any jetty. Server `assertCanCreatePass` respects the flag. Existing jetty↔pillar mapping unchanged.
+
 **Occupancy unify + jetty↔pillar (2026-09-30):** Operator Pillars was correct (2/4 = Siti + Ahmad still CHECKED_IN). Angler booking and Admin dashboard only counted today’s `validOn`, so overnight CHECKED_IN showed as 0/4 / empty. Shared rule: CHECKED_IN always holds a slot; PENDING_PAYMENT/ACTIVE only for today. Admin ops / LLM pillar bars and availableSlots use `getPillarOccupancyMap`. Booking copy states pillars are only for the selected boarding jetty (server already rejects cross-jetty).
 
 **Legal + action loading (2026-09-30):** Added Terms of Use (`/terms`) with refund (no refund for wrong pillar), liability / assumption of risk, and usage rules (EN/BM). Cookies Policy expanded (necessary, functional, no analytics, third-party checkout). Signup accepts Privacy + Terms. Payment and identity-photo flows use button/overlay spinners while route skeletons stay for page loads.

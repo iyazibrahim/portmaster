@@ -46,6 +46,7 @@ type PillarOption = {
   remaining: number;
   held: number;
   maxOccupancy: number;
+  jettyName?: string | null;
 };
 
 type Step = "jetty" | "pillar" | "pay";
@@ -111,6 +112,7 @@ export function PassWizard({
   hasIdentityPhoto = true,
   activeGateway = "mock",
   preferredGateway = "stripe",
+  limitPillarsToJetty = true,
 }: {
   jetties: JettyOption[];
   pillarsByJetty: Record<string, PillarOption[]>;
@@ -128,6 +130,8 @@ export function PassWizard({
   activeGateway?: GatewayId;
   /** Admin setting before key fallback (for “keys missing” note). */
   preferredGateway?: GatewayId;
+  /** When true, only pillars mapped to the boarding jetty are offered. */
+  limitPillarsToJetty?: boolean;
 }) {
   const { t } = useT();
   const router = useRouter();
@@ -563,11 +567,23 @@ export function PassWizard({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Only pillars at{" "}
-              <span className="font-medium text-foreground">
-                {selectedJetty?.name ?? "your boarding jetty"}
-              </span>
-              . One pillar per pass — you cannot book a pillar from another jetty.
+              {limitPillarsToJetty ? (
+                <>
+                  Only pillars at{" "}
+                  <span className="font-medium text-foreground">
+                    {selectedJetty?.name ?? "your boarding jetty"}
+                  </span>
+                  . One pillar per pass.
+                </>
+              ) : (
+                <>
+                  Any open pillar can be booked from{" "}
+                  <span className="font-medium text-foreground">
+                    {selectedJetty?.name ?? "your boarding jetty"}
+                  </span>
+                  . One pillar per pass.
+                </>
+              )}
             </p>
             <div className="space-y-2 lg:max-h-80 lg:overflow-y-auto lg:pr-1">
               {pillars.map((p) => {
@@ -590,6 +606,9 @@ export function PassWizard({
                       {p.name}
                       <span className="ml-2 text-xs text-muted-foreground">
                         {sideLabel(p.side)}
+                        {!limitPillarsToJetty && p.jettyName
+                          ? ` · ${p.jettyName}`
+                          : ""}
                       </span>
                     </span>
                     <Badge variant={full ? "destructive" : "secondary"}>

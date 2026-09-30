@@ -5,10 +5,26 @@ import { jetties, locations, passes, users } from "@/db/schema";
 import { canBuyMultiplePassesToday, canBypassPassGeofence, todayMYT } from "@/lib/utils-app";
 import { PASS_BLOCKING_STATUSES } from "@/domain/pass";
 import { getTranslator } from "@/i18n";
-import { listOpenPillarsForJetty, isJettyGeofenceRequired } from "@/lib/pass";
+import {
+  listAllOpenPillars,
+  listOpenPillarsForJetty,
+  isJettyGeofenceRequired,
+  isLimitPillarsToJetty,
+} from "@/lib/pass";
 import { getActiveGateway, getConfiguredGatewaySetting } from "@/lib/payments/provider";
 import { normalizeGatewaySetting } from "@/lib/payments/config";
 import { PassWizard } from "@/components/pass/pass-wizard";
+
+type PillarOption = {
+  id: string;
+  name: string;
+  number: number;
+  side: string;
+  remaining: number;
+  held: number;
+  maxOccupancy: number;
+  jettyName?: string | null;
+};
 
 export default async function PassPage() {
   const session = await requireRole(["USER", "ADMIN"]);
@@ -17,6 +33,7 @@ export default async function PassPage() {
   const bypassGeofence =
     canBypassPassGeofence(session.user.email) ||
     !(await isJettyGeofenceRequired());
+  const limitPillarsToJetty = await isLimitPillarsToJetty();
   const [activeGateway, gatewaySetting] = await Promise.all([
     getActiveGateway(),
     getConfiguredGatewaySetting(),
@@ -37,21 +54,24 @@ export default async function PassPage() {
     .where(eq(jetties.active, true))
     .orderBy(asc(jetties.sortOrder));
 
-  const pillarsByJetty: Record<
-    string,
-    {
-      id: string;
-      name: string;
-      number: number;
-      side: string;
-      remaining: number;
-      held: number;
-      maxOccupancy: number;
-    }[]
-  > = {};
-  for (const j of jettyRows) {
-    const pillars = await listOpenPillarsForJetty(j.id);
-    pillarsByJetty[j.id] = pillars.map((p) => ({
+  const pillarsByJetty: Record<string, PillarOption[]> = {};
+  if (limitPillarsToJetty) {
+    for (const j of jettyRows) {
+      const pillars = await listOpenPillarsForJetty(j.id);
+      pillarsByJetty[j.id] = pillars.map((p) => ({
+        id: p.id,
+        name: p.name,
+        number: p.number,
+        side: p.side,
+        remaining: p.remaining,
+        held: p.held,
+        maxOccupancy: p.maxOccupancy,
+        jettyName: p.jettyName,
+      }));
+    }
+  } else {
+    const all = await listAllOpenPillars();
+    const mapped = all.map((p) => ({
       id: p.id,
       name: p.name,
       number: p.number,
@@ -59,7 +79,11 @@ export default async function PassPage() {
       remaining: p.remaining,
       held: p.held,
       maxOccupancy: p.maxOccupancy,
+      jettyName: p.jettyName,
     }));
+    for (const j of jettyRows) {
+      pillarsByJetty[j.id] = mapped;
+    }
   }
 
   const validOn = todayMYT();
@@ -123,6 +147,7 @@ export default async function PassPage() {
           geofenceRadiusM: j.geofenceRadiusM,
         }))}
         pillarsByJetty={pillarsByJetty}
+        limitPillarsToJetty={limitPillarsToJetty}
         allowMultipleSameDay={allowMultipleSameDay}
         bypassGeofence={bypassGeofence}
         hasIdentityPhoto={hasIdentityPhoto}

@@ -135,6 +135,11 @@ export type CreatePassRulesInput = {
   validOn?: string;
   /** Testing / demo: skip one-pass-per-day rule. */
   allowMultipleSameDay?: boolean;
+  /**
+   * When true (default), pillar must belong to the boarding jetty.
+   * Admin setting `limit_pillars_to_jetty` — false allows any pillar at any jetty.
+   */
+  limitPillarsToJetty?: boolean;
 };
 
 export type CreatePassRulesResult =
@@ -166,7 +171,8 @@ export function assertCanCreatePass(
   if (input.pillarStatus !== PILLAR_SELLABLE_STATUS) {
     return { ok: false, error: "This pillar is not available for purchase." };
   }
-  if (input.pillarJettyId !== input.boardingJettyId) {
+  const limitPillars = input.limitPillarsToJetty !== false;
+  if (limitPillars && input.pillarJettyId !== input.boardingJettyId) {
     return {
       ok: false,
       error: "Pillar must belong to the selected boarding jetty.",
