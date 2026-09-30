@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**PWA camera keep-alive (2026-09-30):** Operator Scan no longer unmounts on tab hops. `PersistentHandlerScanner` stays mounted in the app shell (parked 1×1px off-screen, not display:none). Soft release mutes tracks instead of stopping them immediately. Returning to Scan re-enables the stream without a new getUserMedia permission prompt when the OS left tracks alive.
+
 **Camera allow-again tutorial (2026-09-30):** When the operator blocks camera permission, Scan shows How to allow camera again — platform steps for iPhone, Android, and desktop (EN/BM), then Open camera after they fix site settings. Paste-token check-in still works without the camera.
 
 **Security checklist (2026-09-30):** Operator scanner reuses a global camera hub (no `forceNew` on Open), checks Permissions API before `getUserMedia`, and keeps tracks warm for 60m so reopening Scan does not re-prompt when the site already has camera access. No `NEXT_PUBLIC_` secrets; Stripe/HitPay keys stay server-only. Checkout reuses an open Stripe session and blocks already-paid passes; activation is still single-winner. Profile: Sign out this device + Sign out all devices (DB sessions revoked).

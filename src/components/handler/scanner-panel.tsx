@@ -115,6 +115,10 @@ function createScanCameraHub(): ScanCameraHub {
         this.stream = null;
         return null;
       }
+      // Re-enable muted tracks when someone asks for the live stream again.
+      stream.getVideoTracks().forEach((t) => {
+        if (!t.enabled) t.enabled = true;
+      });
       return stream;
     },
 
@@ -132,6 +136,11 @@ function createScanCameraHub(): ScanCameraHub {
       this.consumers = Math.max(0, this.consumers - 1);
       if (this.consumers > 0) return;
       this.cancelRelease();
+      // Mute capture but do not end tracks yet — ending forces a new
+      // getUserMedia (and often a PWA permission prompt) on return.
+      this.stream?.getVideoTracks().forEach((t) => {
+        t.enabled = false;
+      });
       this.releaseTimer = window.setTimeout(() => {
         this.releaseTimer = null;
         if (this.consumers > 0) return;
@@ -398,9 +407,12 @@ function frameLooksLive(data: ImageData): boolean {
 export function ScannerPanel({
   isAdmin = false,
   requireJettyGps = true,
+  active = true,
 }: {
   isAdmin?: boolean;
   requireJettyGps?: boolean;
+  /** False when parked off-screen in the handler shell — keep stream, pause decode. */
+  active?: boolean;
 }) {
   const [token, setToken] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -455,9 +467,18 @@ export function ScannerPanel({
     stream.getVideoTracks().forEach((track) => {
       track.onended = () => {
         if (streamRef.current !== stream) return;
-        stopCamera();
-        setError("Camera stopped. Tap Open camera to scan again.");
+        // OS / PWA often ends tracks when backgrounded — park softly; resume on return.
+        detachVideo();
+        cameraHub.releaseSoft();
+        setError(null);
       };
+    });
+  }
+
+  function setHubTracksEnabled(enabled: boolean) {
+    const stream = cameraHub.liveStream() ?? streamRef.current;
+    stream?.getVideoTracks().forEach((track) => {
+      track.enabled = enabled;
     });
   }
 
@@ -488,11 +509,6 @@ export function ScannerPanel({
   function stopCameraHard() {
     detachVideo();
     cameraHub.releaseHard();
-  }
-
-  function stopCamera() {
-    detachVideo();
-    cameraHub.releaseSoft();
   }
 
   function pauseDecoding(ms = 0) {
@@ -1162,14 +1178,29 @@ export function ScannerPanel({
 
   useEffect(() => {
     function onVisibility() {
-      if (document.visibilityState !== "visible" || !cameraOn) return;
+      if (document.visibilityState !== "visible" || !cameraOn || !active) return;
+      setHubTracksEnabled(true);
       void ensureLiveCamera();
       if (navigator.onLine) void flushScanQueue({ silent: true });
     }
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLiveCamera stable enough
-  }, [cameraOn]);
+  }, [cameraOn, active]);
+
+  // Park / wake when operator leaves or returns to Scan without unmounting.
+  useEffect(() => {
+    if (!active) {
+      stopDecodeLoops();
+      setHubTracksEnabled(false);
+      return;
+    }
+    setHubTracksEnabled(true);
+    if (cameraHub.liveStream() || (streamRef.current && isStreamLive())) {
+      void ensureLiveCamera();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   const showOfflineBoard = !online || pendingCount > 0;
 

@@ -1,6 +1,8 @@
 import { requireSession } from "@/lib/session";
 import { AppNav, MobileTopBar, MobileBottomNav } from "@/components/layout/app-nav";
 import { OfflineBanner } from "@/components/ux/offline-banner";
+import { PersistentHandlerScanner } from "@/components/handler/persistent-handler-scanner";
+import { isJettyGeofenceRequired } from "@/lib/pass";
 import { getLocale } from "@/i18n";
 
 export default async function AppLayout({
@@ -10,6 +12,11 @@ export default async function AppLayout({
 }) {
   const session = await requireSession();
   const locale = await getLocale();
+  const showPersistentScan =
+    session.user.role === "HANDLER" || session.user.role === "ADMIN";
+  const requireJettyGps = showPersistentScan
+    ? await isJettyGeofenceRequired()
+    : true;
 
   return (
     <div className="flex h-dvh max-h-dvh overflow-hidden">
@@ -23,6 +30,12 @@ export default async function AppLayout({
         <OfflineBanner className="lg:hidden" />
         <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:py-8 lg:pb-8">
           {children}
+          {showPersistentScan ? (
+            <PersistentHandlerScanner
+              isAdmin={session.user.role === "ADMIN"}
+              requireJettyGps={requireJettyGps}
+            />
+          ) : null}
         </main>
         <MobileBottomNav role={session.user.role} locale={locale} />
       </div>
