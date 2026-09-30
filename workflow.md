@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Camera allow-again tutorial (2026-09-30):** When the operator blocks camera permission, Scan shows How to allow camera again — platform steps for iPhone, Android, and desktop (EN/BM), then Open camera after they fix site settings. Paste-token check-in still works without the camera.
+
 **Security checklist (2026-09-30):** Operator scanner reuses a global camera hub (no `forceNew` on Open), checks Permissions API before `getUserMedia`, and keeps tracks warm for 60m so reopening Scan does not re-prompt when the site already has camera access. No `NEXT_PUBLIC_` secrets; Stripe/HitPay keys stay server-only. Checkout reuses an open Stripe session and blocks already-paid passes; activation is still single-winner. Profile: Sign out this device + Sign out all devices (DB sessions revoked).
 
 **Docker seed `@/` crash + pin local Postgres (2026-09-29):** Entrypoint seed failed with `Cannot find package '@/lib'` because `utils-app.ts` used Next aliases and calendar/my-kad were not copied into the image. Switched to relative `./calendar.ts` / `./my-kad.ts`, copy those files in the Dockerfile, and hardwire compose `DATABASE_URL` back to `postgres:5432` so Dokploy Layerbase overrides cannot break boot.

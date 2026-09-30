@@ -28,6 +28,10 @@ import { photoUrl } from "@/lib/photos-client";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/locale-provider";
 import {
+  CameraPermissionGuide,
+  isCameraPermissionBlockedError,
+} from "@/components/handler/camera-permission-guide";
+import {
   SCAN_REQUEST_TIMEOUT_MS,
   countPendingScans,
   enqueueScan,
@@ -359,7 +363,13 @@ async function openRearCamera(forceNew = false): Promise<MediaStream> {
         }
       }
     }
-    throw last instanceof Error ? last : new Error("Could not open camera.");
+    throw last instanceof Error
+      ? last.name === "NotAllowedError"
+        ? new Error(
+            "Camera permission is blocked. Allow camera for this site in browser settings, then try again.",
+          )
+        : last
+      : new Error("Could not open camera.");
   })();
 
   try {
@@ -395,6 +405,7 @@ export function ScannerPanel({
   const [token, setToken] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cameraHelpOpen, setCameraHelpOpen] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -1035,11 +1046,16 @@ export function ScannerPanel({
       if (!mountedRef.current || gen !== cameraGenRef.current) return;
       stopDecodeLoops();
       setCameraOn(false);
-      setError(
+      const raw =
         err instanceof Error
           ? err.message
-          : "Could not open camera. Check permissions or paste the token.",
+          : "Could not open camera. Check permissions or paste the token.";
+      setError(
+        isCameraPermissionBlockedError(raw) ? t("scan.camHelp.blocked") : raw,
       );
+      if (isCameraPermissionBlockedError(raw)) {
+        setCameraHelpOpen(true);
+      }
     } finally {
       if (gen === cameraGenRef.current) startingRef.current = false;
     }
@@ -1068,11 +1084,16 @@ export function ScannerPanel({
       await startCamera({ forceNew: false });
     } catch (err) {
       if (!mountedRef.current || gen !== cameraGenRef.current) return;
-      setError(
+      const raw =
         err instanceof Error
           ? err.message
-          : "Could not reopen camera. Tap Open camera.",
+          : "Could not reopen camera. Tap Open camera.";
+      setError(
+        isCameraPermissionBlockedError(raw) ? t("scan.camHelp.blocked") : raw,
       );
+      if (isCameraPermissionBlockedError(raw)) {
+        setCameraHelpOpen(true);
+      }
     } finally {
       if (gen === cameraGenRef.current) startingRef.current = false;
     }
@@ -1230,6 +1251,16 @@ export function ScannerPanel({
                 >
                   {t("scan.openCamera")}
                 </Button>
+                {isCameraPermissionBlockedError(error) ? (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto min-h-0 px-0 text-sm"
+                    onClick={() => setCameraHelpOpen(true)}
+                  >
+                    {t("scan.camHelp.open")}
+                  </Button>
+                ) : null}
               </div>
             ) : (
               <>
@@ -1281,9 +1312,27 @@ export function ScannerPanel({
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>{t("scan.errorTitle")}</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="flex flex-col gap-2">
+            <span>{error}</span>
+            {isCameraPermissionBlockedError(error) ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-fit border-destructive/40 bg-background"
+                onClick={() => setCameraHelpOpen(true)}
+              >
+                {t("scan.camHelp.open")}
+              </Button>
+            ) : null}
+          </AlertDescription>
         </Alert>
       ) : null}
+
+      <CameraPermissionGuide
+        open={cameraHelpOpen}
+        onOpenChange={setCameraHelpOpen}
+      />
 
       {preview ? (
         <div ref={verifyRef} className="scroll-mt-4">
