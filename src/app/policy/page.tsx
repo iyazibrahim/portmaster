@@ -20,6 +20,7 @@ export default async function PolicyPage() {
       navPrivacy={t("legal.privacy")}
       navCookies={t("legal.cookies")}
       navConsent={t("legal.consent")}
+      navTerms={t("legal.terms")}
     >
       <section className="space-y-4 text-sm leading-relaxed text-foreground/90">
         <p>{t("legal.policyIntro")}</p>
@@ -90,8 +91,24 @@ export default async function PolicyPage() {
           {t("legal.safety")}
         </h2>
         <p>{t("legal.safetyBody")}</p>
+        <p>
+          {t("legal.safetyTermsLink")}{" "}
+          <Link
+            href="/terms"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            {t("legal.linkTerms")}
+          </Link>
+          .
+        </p>
       </section>
       <div className="flex flex-wrap gap-3">
+        <Link
+          href="/terms"
+          className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
+        >
+          {t("legal.linkTerms")}
+        </Link>
         <Link
           href="/consent"
           className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}

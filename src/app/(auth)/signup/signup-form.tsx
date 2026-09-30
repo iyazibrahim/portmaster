@@ -11,6 +11,7 @@ import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { KeyboardSafeForm } from "@/components/ux/keyboard-safe-form";
+import { BusyLabel } from "@/components/ux/action-spinner";
 import { useT } from "@/i18n/locale-provider";
 import {
   EkycCameraCapture,
@@ -402,7 +403,13 @@ export function SignUpForm() {
                       className="min-h-11 w-full"
                       disabled={pending || ageCheck.status === "blocked"}
                     >
-                      {pending ? t("auth.creating") : t("auth.submitSignup")}
+                      {pending ? (
+                        <BusyLabel busy busyText={t("auth.creatingAccount")}>
+                          {t("auth.submitSignup")}
+                        </BusyLabel>
+                      ) : (
+                        t("auth.submitSignup")
+                      )}
                     </Button>
                   </>
                 ) : (
@@ -454,7 +461,13 @@ export function SignUpForm() {
                           className="min-h-11 flex-1"
                           disabled={pending}
                         >
-                          {pending ? t("auth.creating") : t("auth.submitSignup")}
+                          {pending ? (
+                        <BusyLabel busy busyText={t("auth.creatingAccount")}>
+                          {t("auth.submitSignup")}
+                        </BusyLabel>
+                      ) : (
+                        t("auth.submitSignup")
+                      )}
                         </Button>
                       )}
                     </div>

@@ -14,6 +14,7 @@ export default async function ConsentPage() {
       navPrivacy={t("legal.privacy")}
       navCookies={t("legal.cookies")}
       navConsent={t("legal.consent")}
+      navTerms={t("legal.terms")}
     >
       <section className="space-y-4 text-sm leading-relaxed text-foreground/90">
         <p>
@@ -54,6 +55,12 @@ export default async function ConsentPage() {
           className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
         >
           {t("legal.linkPolicy")}
+        </Link>
+        <Link
+          href="/terms"
+          className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
+        >
+          {t("legal.linkTerms")}
         </Link>
         <Link
           href="/cookies"

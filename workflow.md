@@ -1,5 +1,7 @@
 # TiangPass workflow
 
+**Legal + action loading (2026-09-30):** Added Terms of Use (`/terms`) with refund (no refund for wrong pillar), liability / assumption of risk, and usage rules (EN/BM). Cookies Policy expanded (necessary, functional, no analytics, third-party checkout). Signup accepts Privacy + Terms. Payment and identity-photo flows use button/overlay spinners while route skeletons stay for page loads.
+
 **PWA camera keep-alive (2026-09-30):** Operator Scan no longer unmounts on tab hops. `PersistentHandlerScanner` stays mounted in the app shell (parked 1×1px off-screen, not display:none). Soft release mutes tracks instead of stopping them immediately. Returning to Scan re-enables the stream without a new getUserMedia permission prompt when the OS left tracks alive.
 
 **Camera allow-again tutorial (2026-09-30):** When the operator blocks camera permission, Scan shows How to allow camera again — platform steps for iPhone, Android, and desktop (EN/BM), then Open camera after they fix site settings. Paste-token check-in still works without the camera.

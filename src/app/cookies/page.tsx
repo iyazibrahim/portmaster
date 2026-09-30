@@ -14,6 +14,7 @@ export default async function CookiesPage() {
       navPrivacy={t("legal.privacy")}
       navCookies={t("legal.cookies")}
       navConsent={t("legal.consent")}
+      navTerms={t("legal.terms")}
     >
       <section className="space-y-4 text-sm leading-relaxed text-foreground/90">
         <p>
@@ -26,6 +27,11 @@ export default async function CookiesPage() {
           </Link>
           .
         </p>
+
+        <h2 className="text-base font-semibold tracking-tight">
+          {t("legal.cookiesWhat")}
+        </h2>
+        <p>{t("legal.cookiesWhatBody")}</p>
 
         <h2 className="text-base font-semibold tracking-tight">
           {t("legal.cookiesTableCat")}
@@ -46,7 +52,7 @@ export default async function CookiesPage() {
               </tr>
             </thead>
             <tbody>
-              <tr>
+              <tr className="border-b">
                 <td className="px-3 py-2 align-top font-medium">
                   {t("legal.cookiesNecessary")}
                 </td>
@@ -54,6 +60,24 @@ export default async function CookiesPage() {
                   {t("legal.cookiesNecessaryBody")}
                 </td>
                 <td className="px-3 py-2 align-top">{t("legal.cookiesYes")}</td>
+              </tr>
+              <tr className="border-b">
+                <td className="px-3 py-2 align-top font-medium">
+                  {t("legal.cookiesFunctional")}
+                </td>
+                <td className="px-3 py-2 align-top">
+                  {t("legal.cookiesFunctionalBody")}
+                </td>
+                <td className="px-3 py-2 align-top">{t("legal.cookiesYes")}</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 align-top font-medium">
+                  {t("legal.cookiesAnalytics")}
+                </td>
+                <td className="px-3 py-2 align-top">
+                  {t("legal.cookiesAnalyticsBody")}
+                </td>
+                <td className="px-3 py-2 align-top">{t("legal.cookiesNo")}</td>
               </tr>
             </tbody>
           </table>
@@ -68,6 +92,11 @@ export default async function CookiesPage() {
           {t("legal.cookiesLocal")}
         </h2>
         <p>{t("legal.cookiesLocalBody")}</p>
+
+        <h2 className="text-base font-semibold tracking-tight">
+          {t("legal.cookiesThird")}
+        </h2>
+        <p>{t("legal.cookiesThirdBody")}</p>
       </section>
       <div className="flex flex-wrap gap-3">
         <Link
@@ -75,6 +104,12 @@ export default async function CookiesPage() {
           className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
         >
           {t("legal.linkPolicy")}
+        </Link>
+        <Link
+          href="/terms"
+          className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
+        >
+          {t("legal.linkTerms")}
         </Link>
         <Link
           href="/consent"

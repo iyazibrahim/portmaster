@@ -25,6 +25,7 @@ import {
 import { haversineMeters, parseCoord } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import { CancelPassActions } from "@/components/pass/cancel-pass-actions";
+import { BusyLabel, ActionSpinner } from "@/components/ux/action-spinner";
 import { useT } from "@/i18n/locale-provider";
 import { canCancelPass } from "@/domain/pass";
 import type { PassStatus } from "@/db/schema";
@@ -659,7 +660,22 @@ export function PassWizard({
       ) : null}
 
       {step === "pay" && passId ? (
-        <Card>
+        <Card className="relative">
+          {pending ? (
+            <div
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-background/80 px-6 text-center backdrop-blur-[1px]"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="inline-flex items-center gap-2 text-sm font-medium">
+                <ActionSpinner className="size-5" />
+                {t("pass.pay.waitingTitle")}
+              </span>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                {t("pass.pay.waitingBody")}
+              </p>
+            </div>
+          ) : null}
           <CardHeader>
             <CardTitle>{t("pass.pay.title")}</CardTitle>
           </CardHeader>
@@ -686,11 +702,14 @@ export function PassWizard({
                   onClick={payWithGateway}
                   disabled={pending}
                 >
-                  {pending
-                    ? t("pass.pay.redirecting")
-                    : activeGateway === "stripe"
+                  <BusyLabel
+                    busy={pending}
+                    busyText={t("pass.pay.redirecting")}
+                  >
+                    {activeGateway === "stripe"
                       ? t("pass.pay.stripeCta")
                       : t("pass.pay.hitpayCta")}
+                  </BusyLabel>
                 </Button>
               </div>
             ) : preferredGateway === "mock" ? (
@@ -717,9 +736,12 @@ export function PassWizard({
                   disabled={pending}
                   variant={activeGateway === "mock" ? "default" : "outline"}
                 >
-                  {pending
-                    ? t("pass.pay.processing")
-                    : t("pass.pay.mockSuccess")}
+                  <BusyLabel
+                    busy={pending}
+                    busyText={t("pass.pay.processing")}
+                  >
+                    {t("pass.pay.mockSuccess")}
+                  </BusyLabel>
                 </Button>
                 <Button
                   variant="outline"

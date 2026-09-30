@@ -40,6 +40,12 @@ export default async function HomePage() {
             {t("home.policy")}
           </Link>
           <Link
+            href="/terms"
+            className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground"
+          >
+            {t("legal.terms")}
+          </Link>
+          <Link
             href="/login"
             className="inline-flex min-h-11 items-center font-medium text-foreground hover:text-primary"
           >

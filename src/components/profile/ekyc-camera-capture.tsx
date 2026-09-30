@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { BusyLabel, ActionSpinner } from "@/components/ux/action-spinner";
+import { useT } from "@/i18n/locale-provider";
 
 export type EkycCaptureResult = {
   base64: string;
@@ -19,7 +21,7 @@ export type EkycCaptureResult = {
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCapture: (result: EkycCaptureResult) => void;
+  onCapture: (result: EkycCaptureResult) => void | Promise<void>;
   title?: string;
 };
 
@@ -33,10 +35,12 @@ export function EkycCameraCapture({
   onCapture,
   title = "Identity photo",
 }: Props) {
+  const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   const stopTracks = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -54,6 +58,7 @@ export function EkycCameraCapture({
       if (cancelled) return;
       setError(null);
       setReady(false);
+      setProcessing(false);
     }, 0);
 
     void (async () => {
@@ -95,7 +100,7 @@ export function EkycCameraCapture({
 
   async function snap() {
     const video = videoRef.current;
-    if (!video || !ready) return;
+    if (!video || !ready || processing) return;
     const size = Math.min(video.videoWidth, video.videoHeight) || 480;
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -105,10 +110,12 @@ export function EkycCameraCapture({
     const sx = Math.max(0, (video.videoWidth - size) / 2);
     const sy = Math.max(0, (video.videoHeight - size) / 2);
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    setProcessing(true);
+    setError(null);
     try {
       const { compressEkycCanvas } = await import("@/lib/ekyc-compress");
       const compressed = await compressEkycCanvas(canvas);
-      onCapture({
+      await onCapture({
         base64: compressed.base64,
         mimeType: compressed.mimeType,
         previewUrl: compressed.previewUrl,
@@ -116,6 +123,8 @@ export function EkycCameraCapture({
       onOpenChange(false);
     } catch {
       setError("Could not compress photo. Try again.");
+    } finally {
+      setProcessing(false);
     }
   }
 
@@ -145,6 +154,18 @@ export function EkycCameraCapture({
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="h-[72%] w-[58%] rounded-[50%] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]" />
             </div>
+            {processing ? (
+              <div
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/55 px-4 text-center text-sm font-medium text-white"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <ActionSpinner className="size-5 text-white" />
+                  {t("auth.processingPhoto")}
+                </span>
+              </div>
+            ) : null}
           </div>
           {error ? (
             <p className="text-sm text-destructive">{error}</p>
@@ -159,6 +180,7 @@ export function EkycCameraCapture({
             type="button"
             variant="outline"
             className="min-h-11"
+            disabled={processing}
             onClick={() => onOpenChange(false)}
           >
             Cancel
@@ -169,6 +191,7 @@ export function EkycCameraCapture({
                 type="button"
                 variant="secondary"
                 className="min-h-11"
+                disabled={processing}
                 onClick={retry}
               >
                 Retry camera
@@ -177,10 +200,12 @@ export function EkycCameraCapture({
             <Button
               type="button"
               className="min-h-11"
-              disabled={!ready}
-              onClick={snap}
+              disabled={!ready || processing}
+              onClick={() => void snap()}
             >
-              Take photo
+              <BusyLabel busy={processing} busyText={t("auth.processingPhoto")}>
+                Take photo
+              </BusyLabel>
             </Button>
           </div>
         </DialogFooter>

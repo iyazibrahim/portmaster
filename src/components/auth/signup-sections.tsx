@@ -264,6 +264,7 @@ export function PhotoFields({
 }) {
   const { t } = useT();
   const policyParts = t("auth.acceptPolicy").split("{policy}");
+  const afterPolicy = (policyParts[1] ?? "").split("{terms}");
   const pdpaParts = t("auth.acceptPdpa").split("{notice}");
 
   return (
@@ -312,7 +313,15 @@ export function PhotoFields({
           >
             {t("auth.privacyPolicy")}
           </Link>
-          {policyParts[1] ?? ""}
+          {afterPolicy[0] ?? ""}
+          <Link
+            href="/terms"
+            className="text-primary underline-offset-4 hover:underline"
+            target="_blank"
+          >
+            {t("auth.termsOfUse")}
+          </Link>
+          {afterPolicy[1] ?? ""}
         </Consent>
         <Consent checked={acceptPdpa} onChange={onAcceptPdpa}>
           {pdpaParts[0]}

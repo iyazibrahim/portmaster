@@ -7,6 +7,7 @@ export function LegalShell({
   navPrivacy,
   navCookies,
   navConsent,
+  navTerms,
   children,
 }: {
   title: string;
@@ -14,17 +15,21 @@ export function LegalShell({
   navPrivacy: string;
   navCookies: string;
   navConsent: string;
+  navTerms: string;
   children: ReactNode;
 }) {
   return (
     <main className="min-h-dvh">
-      <header className="flex h-14 items-center justify-between border-b border-border px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
+      <header className="flex h-14 items-center justify-between gap-3 border-b border-border px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">
           TiangPass
         </Link>
-        <nav className="flex gap-3 text-xs text-muted-foreground">
+        <nav className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <Link href="/policy" className="hover:text-foreground">
             {navPrivacy}
+          </Link>
+          <Link href="/terms" className="hover:text-foreground">
+            {navTerms}
           </Link>
           <Link href="/cookies" className="hover:text-foreground">
             {navCookies}

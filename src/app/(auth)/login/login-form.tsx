@@ -13,6 +13,7 @@ import { FishingScene } from "@/components/layout/fishing-scene";
 import { BrandLogo } from "@/components/brand-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { KeyboardSafeForm } from "@/components/ux/keyboard-safe-form";
+import { BusyLabel } from "@/components/ux/action-spinner";
 import { classifyError, uxErrorKeys } from "@/lib/ux/map-error";
 import { useT } from "@/i18n/locale-provider";
 
@@ -158,7 +159,9 @@ export function LoginForm() {
               ) : null}
 
               <Button type="submit" className="w-full" disabled={pending}>
-                {pending ? t("common.loading") : t("auth.submitLogin")}
+                <BusyLabel busy={pending} busyText={t("common.loading")}>
+                  {t("auth.submitLogin")}
+                </BusyLabel>
               </Button>
             </KeyboardSafeForm>
 

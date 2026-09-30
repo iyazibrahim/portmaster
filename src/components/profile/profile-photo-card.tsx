@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   EkycCameraCapture,
@@ -9,7 +9,9 @@ import {
 import { updateProfilePhotoAction } from "@/lib/actions/auth";
 import { photoUrl } from "@/lib/photos-client";
 import { Button } from "@/components/ui/button";
+import { BusyLabel, ActionSpinner } from "@/components/ux/action-spinner";
 import { toast } from "sonner";
+import { useT } from "@/i18n/locale-provider";
 
 export function ProfilePhotoCard({
   photoKey,
@@ -19,23 +21,27 @@ export function ProfilePhotoCard({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const src = photoUrl(photoKey);
 
-  function onCapture(result: EkycCaptureResult) {
-    startTransition(async () => {
+  async function onCapture(result: EkycCaptureResult) {
+    setPending(true);
+    try {
       const res = await updateProfilePhotoAction({
         photoBase64: result.base64,
         photoMimeType: result.mimeType,
       });
       if (!res.ok) {
         toast.error(res.error);
-        return;
+        throw new Error(res.error);
       }
       toast.success("Photo updated");
       router.refresh();
-    });
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -59,6 +65,11 @@ export function ProfilePhotoCard({
             No photo
           </div>
         )}
+        {pending ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+            <ActionSpinner className="size-5" label={t("pass.pay.savingPhoto")} />
+          </div>
+        ) : null}
       </div>
       <div className="min-w-0 space-y-1.5">
         <p className="text-sm font-medium">Identity photo</p>
@@ -73,14 +84,15 @@ export function ProfilePhotoCard({
           disabled={pending}
           onClick={() => setOpen(true)}
         >
-          {pending ? "Saving…" : src ? "Retake photo" : "Take photo"}
+          <BusyLabel busy={pending} busyText={t("pass.pay.savingPhoto")}>
+            {src ? "Retake photo" : "Take photo"}
+          </BusyLabel>
         </Button>
       </div>
       <EkycCameraCapture
         open={open}
         onOpenChange={setOpen}
         onCapture={onCapture}
-        title={src ? "Retake identity photo" : "Take identity photo"}
       />
     </div>
   );

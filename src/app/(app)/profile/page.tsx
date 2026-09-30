@@ -293,6 +293,13 @@ export default async function ProfilePage() {
           </Link>
           ,{" "}
           <Link
+            href="/terms"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            Terms of Use
+          </Link>
+          ,{" "}
+          <Link
             href="/cookies"
             className="text-primary underline-offset-4 hover:underline"
           >
