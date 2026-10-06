@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   handlers,
@@ -80,6 +80,38 @@ export async function isLimitPillarsToJetty() {
     .where(eq(settings.key, "limit_pillars_to_jetty"))
     .limit(1);
   return row?.value !== "false";
+}
+
+/**
+ * Live pass for nav deep-link: CHECKED_IN (incl. overnight), else today's ACTIVE,
+ * else today's PENDING_PAYMENT. Null → My Passes goes to the list.
+ */
+export async function getLivePassIdForUser(userId: string): Promise<string | null> {
+  const today = todayMYT();
+  const [row] = await db
+    .select({ id: passes.id, status: passes.status })
+    .from(passes)
+    .where(
+      and(
+        eq(passes.userId, userId),
+        or(
+          eq(passes.status, "CHECKED_IN"),
+          and(
+            eq(passes.validOn, today),
+            inArray(passes.status, ["ACTIVE", "PENDING_PAYMENT"]),
+          ),
+        ),
+      ),
+    )
+    .orderBy(
+      sql`case ${passes.status}
+        when 'CHECKED_IN' then 0
+        when 'ACTIVE' then 1
+        else 2 end`,
+      desc(passes.createdAt),
+    )
+    .limit(1);
+  return row?.id ?? null;
 }
 
 /** Cancel expired payment holds. */

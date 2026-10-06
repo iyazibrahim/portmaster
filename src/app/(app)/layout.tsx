@@ -2,7 +2,7 @@ import { requireSession } from "@/lib/session";
 import { AppNav, MobileTopBar, MobileBottomNav } from "@/components/layout/app-nav";
 import { OfflineBanner } from "@/components/ux/offline-banner";
 import { PersistentHandlerScanner } from "@/components/handler/persistent-handler-scanner";
-import { isJettyGeofenceRequired } from "@/lib/pass";
+import { getLivePassIdForUser, isJettyGeofenceRequired } from "@/lib/pass";
 import { getLocale } from "@/i18n";
 
 export default async function AppLayout({
@@ -18,12 +18,19 @@ export default async function AppLayout({
     ? await isJettyGeofenceRequired()
     : true;
 
+  const livePassId =
+    session.user.role === "USER" || session.user.role === "ADMIN"
+      ? await getLivePassIdForUser(session.user.id)
+      : null;
+  const myPassesHref = livePassId ? `/pass/${livePassId}` : "/trips";
+
   return (
     <div className="flex h-dvh max-h-dvh overflow-hidden">
       <AppNav
         role={session.user.role}
         name={session.user.name}
         locale={locale}
+        myPassesHref={myPassesHref}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
         <MobileTopBar locale={locale} />
@@ -37,7 +44,11 @@ export default async function AppLayout({
             />
           ) : null}
         </main>
-        <MobileBottomNav role={session.user.role} locale={locale} />
+        <MobileBottomNav
+          role={session.user.role}
+          locale={locale}
+          myPassesHref={myPassesHref}
+        />
       </div>
     </div>
   );

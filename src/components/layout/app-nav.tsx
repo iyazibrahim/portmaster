@@ -45,7 +45,10 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-function navForRole(role: UserRole): NavItem[] {
+function navForRole(
+  role: UserRole,
+  opts?: { myPassesHref?: string },
+): NavItem[] {
   if (role === "ADMIN") {
     return [
       { href: "/admin/ops", labelKey: "nav.dashboard", icon: LayoutDashboard },
@@ -86,7 +89,11 @@ function navForRole(role: UserRole): NavItem[] {
   }
   return [
     { href: "/pass", labelKey: "nav.buyPass", icon: Ticket },
-    { href: "/trips", labelKey: "nav.myPasses", icon: ClipboardList },
+    {
+      href: opts?.myPassesHref ?? "/trips",
+      labelKey: "nav.myPasses",
+      icon: ClipboardList,
+    },
     { href: "/profile", labelKey: "nav.profile", icon: Users },
   ];
 }
@@ -106,8 +113,12 @@ function roleLabelKey(role: UserRole) {
 
 function navItemActive(pathname: string, href: string) {
   if (pathname === href || pathname === `${href}/`) return true;
-  // Exact /handler is Today — do not treat /handler/scan or /handler/boat as Today.
-  if (href === "/handler") return false;
+  // Exact /handler and /pass (buy) — do not treat child routes as the same tab.
+  if (href === "/handler" || href === "/pass") return false;
+  // Live pass deep-link: keep My Passes highlighted on that pass detail.
+  if (href.startsWith("/pass/")) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
   return pathname.startsWith(`${href}/`);
 }
 
@@ -174,14 +185,17 @@ export function AppNav({
   role,
   name,
   locale = "en",
+  myPassesHref = "/trips",
 }: {
   role: UserRole;
   name?: string | null;
   locale?: "en" | "ms";
+  /** Deep-link to a live pass when one exists; otherwise `/trips`. */
+  myPassesHref?: string;
 }) {
   const pathname = usePathname();
   const { t } = useT();
-  const items = navForRole(role);
+  const items = navForRole(role, { myPassesHref });
   const isLlm = role === "LLM_VIEWER";
 
   if (isPassReceiptPath(pathname)) return null;
@@ -232,13 +246,16 @@ export function AppNav({
 export function MobileBottomNav({
   role,
   locale = "en",
+  myPassesHref = "/trips",
 }: {
   role: UserRole;
   locale?: "en" | "ms";
+  /** Deep-link to a live pass when one exists; otherwise `/trips`. */
+  myPassesHref?: string;
 }) {
   const pathname = usePathname();
   const { t } = useT();
-  const items = navForRole(role);
+  const items = navForRole(role, { myPassesHref });
   const [open, setOpen] = useState(false);
   const isAdmin = role === "ADMIN" || role === "LLM_VIEWER";
   const isLlm = role === "LLM_VIEWER";
@@ -448,7 +465,7 @@ export function MobileBottomNav({
       </div>
 
       <Link
-        href="/trips"
+        href={myPassesHref}
         className="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 -translate-y-[28%] flex-col items-center"
         aria-label={t("nav.myPasses")}
       >
@@ -458,7 +475,8 @@ export function MobileBottomNav({
         <span
           className={cn(
             "mt-1 text-xs font-medium",
-            navItemActive(pathname, "/trips")
+            navItemActive(pathname, myPassesHref) ||
+              navItemActive(pathname, "/trips")
               ? "text-primary"
               : "text-muted-foreground",
           )}
@@ -486,7 +504,7 @@ export function MobileTopBar({
   if (isPassReceiptPath(pathname)) return null;
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-border bg-background/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-6 lg:hidden">
+    <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-border/40 bg-background/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-6 lg:hidden">
       <span className="flex min-w-0 items-center gap-2 py-2 text-sm font-semibold tracking-tight">
         <BrandLogo size={28} className="h-7 w-7 shrink-0" />
         <span className="truncate">{title ?? t("nav.brand.default")}</span>
