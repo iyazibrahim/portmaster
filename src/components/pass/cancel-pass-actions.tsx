@@ -26,8 +26,8 @@ const actionBtn =
   "h-auto min-h-11 w-full shrink justify-center whitespace-normal px-3 text-center leading-snug";
 
 /**
- * Pass detail actions: overnight + receipt + change + cancel.
- * Stacked on mobile; equal 2×2 grid from `sm` (no cramped single-row overlap).
+ * Pass detail actions order: receipt → change pillar → overnight → cancel.
+ * Stacked on mobile; equal 2×2 grid from `sm`.
  */
 export function PassDetailActions({
   passId,
@@ -75,7 +75,6 @@ export function PassDetailActions({
   return (
     <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {leading}
         {showReceipt ? (
           <Link
             href={`/pass/${passId}/receipt?print=1`}
@@ -87,28 +86,28 @@ export function PassDetailActions({
           </Link>
         ) : null}
         {canCancel ? (
-          <>
-            <Button
-              type="button"
-              className={actionBtn}
-              disabled={pending}
-              onClick={() => openDialog("change")}
-            >
-              {t("pass.changePillar")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(
-                actionBtn,
-                "border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive",
-              )}
-              disabled={pending}
-              onClick={() => openDialog("cancel")}
-            >
-              {t("pass.cancelPass")}
-            </Button>
-          </>
+          <Button
+            type="button"
+            className={actionBtn}
+            disabled={pending}
+            onClick={() => openDialog("change")}
+          >
+            {t("pass.changePillar")}
+          </Button>
+        ) : null}
+        {leading}
+        {canCancel ? (
+          <Button
+            type="button"
+            className={cn(
+              actionBtn,
+              "border-transparent bg-red-600 text-white hover:bg-red-700 hover:text-white",
+            )}
+            disabled={pending}
+            onClick={() => openDialog("cancel")}
+          >
+            {t("pass.cancelPass")}
+          </Button>
         ) : null}
       </div>
 
@@ -148,7 +147,7 @@ export function PassDetailActions({
               className={cn(
                 "min-h-11",
                 mode === "cancel" &&
-                  "bg-destructive text-white hover:bg-destructive/90",
+                  "bg-red-600 text-white hover:bg-red-700 hover:text-white",
               )}
               disabled={pending}
               onClick={confirm}
@@ -230,8 +229,7 @@ export function CancelPassActions({
       </Button>
       <Button
         type="button"
-        variant="outline"
-        className="min-h-11 w-full border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
+        className="min-h-11 w-full border-transparent bg-red-600 text-white hover:bg-red-700 hover:text-white sm:w-auto"
         disabled={pending}
         onClick={() => openDialog("cancel")}
       >
@@ -274,7 +272,7 @@ export function CancelPassActions({
               className={cn(
                 "min-h-11",
                 mode === "cancel" &&
-                  "bg-destructive text-white hover:bg-destructive/90",
+                  "bg-red-600 text-white hover:bg-red-700 hover:text-white",
               )}
               disabled={pending}
               onClick={confirm}

@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import {
   endOfMonth,
@@ -30,6 +30,11 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/session";
 import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
+import {
+  IT_UNLOCK_MINUTES,
+  signItUnlock,
+  verifyItUnlock,
+} from "@/lib/it-settings-cookie";
 import { writeAudit } from "@/lib/audit";
 import { id, DEFAULT_OVERDUE_HOURS, formatDateMY } from "@/lib/utils-app";
 import { hashPassword } from "@/lib/password";
@@ -40,10 +45,13 @@ import type {
   UserRole,
 } from "@/db/schema";
 import { isBoatOperational } from "@/lib/geo";
-import { isOverdue } from "@/domain/pass";
+import {
+  isOverdue,
+  isSoldPassStatus,
+  SOLD_PASS_STATUSES,
+} from "@/domain/pass";
 
 const IT_COOKIE = "it_settings_ok";
-const IT_SESSION_MINUTES = 20;
 
 const OPS_KEYS = [
   "association_fee_cents",
@@ -56,6 +64,7 @@ const OPS_KEYS = [
   "maintenance_banner_text",
   "require_jetty_geofence",
   "limit_pillars_to_jetty",
+  "allow_multi_pass_per_day",
   "payment_gateway",
   "booking_window_copy",
   "platform_commission_pct",
@@ -160,10 +169,7 @@ export async function actionClearReceiptLogo() {
 
 export async function isItSettingsUnlocked(): Promise<boolean> {
   const cookieStore = await cookies();
-  const raw = cookieStore.get(IT_COOKIE)?.value;
-  if (!raw) return false;
-  const expires = Number(raw);
-  return Number.isFinite(expires) && expires > Date.now();
+  return verifyItUnlock(cookieStore.get(IT_COOKIE)?.value);
 }
 
 export async function actionUnlockItSettings(password: string) {
@@ -177,16 +183,24 @@ export async function actionUnlockItSettings(password: string) {
   if (!valid) {
     return { ok: false as const, error: "Incorrect IT settings password." };
   }
-  const expires = Date.now() + IT_SESSION_MINUTES * 60 * 1000;
+  let signed: ReturnType<typeof signItUnlock>;
+  try {
+    signed = signItUnlock();
+  } catch (err) {
+    return {
+      ok: false as const,
+      error: err instanceof Error ? err.message : "Could not unlock IT settings.",
+    };
+  }
   const cookieStore = await cookies();
-  cookieStore.set(IT_COOKIE, String(expires), {
+  cookieStore.set(IT_COOKIE, signed.value, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: IT_SESSION_MINUTES * 60,
+    maxAge: signed.maxAgeSec,
     secure: shouldUseSecureAuthCookies(),
   });
-  return { ok: true as const, minutes: IT_SESSION_MINUTES };
+  return { ok: true as const, minutes: IT_UNLOCK_MINUTES };
 }
 
 export async function actionLockItSettings() {
@@ -300,6 +314,7 @@ async function buildReportSummary(
     .where(
       and(
         eq(payments.status, "PAID"),
+        inArray(passes.status, [...SOLD_PASS_STATUSES]),
         gte(passes.validOn, periodStart),
         lte(passes.validOn, periodEnd),
         jettyId ? eq(passes.jettyId, jettyId) : sql`true`,
@@ -319,9 +334,10 @@ async function buildReportSummary(
       ),
     );
 
+  const soldRows = passRows.filter((p) => isSoldPassStatus(p.status));
   const locCounts = new Map<string, { name: string; count: number }>();
   const anglerIds = new Set<string>();
-  for (const p of passRows) {
+  for (const p of soldRows) {
     anglerIds.add(p.userId);
     const key = p.pillarId;
     const prev = locCounts.get(key) ?? {
@@ -337,8 +353,8 @@ async function buildReportSummary(
     .slice(0, 5);
 
   const summary: ReportSummary = {
-    bookingsCount: passRows.length,
-    passesCount: passRows.length,
+    bookingsCount: soldRows.length,
+    passesCount: soldRows.length,
     revenueCents: Number(paid[0]?.cents ?? 0),
     activeAnglers: anglerIds.size,
     checkIns: Number(checkInRow?.count ?? 0),

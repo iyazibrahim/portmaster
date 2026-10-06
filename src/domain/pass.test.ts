@@ -16,6 +16,7 @@ import {
   nextStatusAfterCheckOut,
   nextStatusAfterSelfCheckOut,
   canCancelPass,
+  isSoldPassStatus,
   isOverdue,
   reservationExpiresAt,
   isReservationExpired,
@@ -326,6 +327,15 @@ describe("cancel / overdue", () => {
     expect(canCancelPass("CHECKED_IN")).toBe(false);
     expect(canCancelPass("CHECKED_OUT")).toBe(false);
     expect(canCancelPass("CANCELLED")).toBe(false);
+  });
+
+  it("sold passes exclude cancelled and unpaid holds", () => {
+    expect(isSoldPassStatus("ACTIVE")).toBe(true);
+    expect(isSoldPassStatus("CHECKED_IN")).toBe(true);
+    expect(isSoldPassStatus("CHECKED_OUT")).toBe(true);
+    expect(isSoldPassStatus("CANCELLED")).toBe(false);
+    expect(isSoldPassStatus("PENDING_PAYMENT")).toBe(false);
+    expect(isSoldPassStatus("EXPIRED")).toBe(false);
   });
 
   it("CANCELLED does not block a new same-day pass", () => {

@@ -279,7 +279,9 @@ export function PassWizard({
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              {t("pass.changeBeforeBoard")}
+              {todayPass.status === "CHECKED_OUT"
+                ? t("pass.checkedOutSameDay")
+                : t("pass.checkedInNoCancel")}
             </p>
           )}
           <Button

@@ -221,6 +221,43 @@ export function SettingsPanel({
         </BentoTile>
 
         <BentoTile
+          title="Multipass in one day"
+          description="Demo and testing. When on, an angler can buy another pass the same day."
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                ops.allow_multi_pass_per_day === "true"
+                  ? "destructive"
+                  : "default"
+              }
+              className={cn(
+                "rounded-full",
+                ops.allow_multi_pass_per_day !== "true" &&
+                  "bg-emerald-600 text-white hover:bg-emerald-700",
+              )}
+              onClick={() =>
+                setOp(
+                  "allow_multi_pass_per_day",
+                  ops.allow_multi_pass_per_day === "true" ? "false" : "true",
+                )
+              }
+            >
+              {ops.allow_multi_pass_per_day === "true"
+                ? "Multipass on (testing)"
+                : "One pass per day"}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {ops.allow_multi_pass_per_day === "true"
+                ? "Anglers can hold more than one pass today. Save to apply."
+                : "Each angler can hold one pass per day. Save to apply."}
+            </span>
+          </div>
+        </BentoTile>
+
+        <BentoTile
           title="Support"
           description="Contact numbers shown to anglers."
         >
@@ -412,8 +449,8 @@ export function SettingsPanel({
               <Alert>
                 <AlertTitle>Password required</AlertTitle>
                 <AlertDescription>
-                  Enter the IT settings password to unlock for about 20 minutes.
-                  Demo password: <code>it-settings-demo</code>
+                  Enter the IT settings password to unlock SMTP and webhooks
+                  for about 20 minutes.
                 </AlertDescription>
               </Alert>
               <div className="flex flex-col gap-1.5">

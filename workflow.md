@@ -1,5 +1,9 @@
 # TiangPass workflow
 
+**Multipass setting (2026-10-06):** Admin Settings → Multipass in one day. Off (default): one pass per angler per day. On: any angler can buy another same-day pass for demo and testing. Saved with ops settings (`allow_multi_pass_per_day`). Seed demo emails still bypass the limit when the switch is off.
+
+**Security and ops fixes (2026-10-06):** `GET /api/auth/session` returns only id, name, email, image, and role (no password hash, MyKad hash, or session token). Session cookie lifetime is 24 hours. Responses send a Content-Security-Policy header. IT settings no longer print the unlock password, and the unlock cookie is signed. Boarding scan accepts the same QR token as preview when coordinates are null or numeric, and the scanner keeps a check-in/check-out success message on screen. Kuala Juru has operator `handler-juru@tiangpass.local`. Checked-out passes explain the one-pass-per-day rule instead of offering cancel-and-rebuy. Pending passes have Try payment again. Identity photo accepts a JPEG/PNG/WebP upload as well as the camera. Sold counts, weekly report, and payment totals ignore cancelled passes. Stale `@tiangpass.local` check-ins from before today are checked out when ops loads, and Raj Kumar's scanned-but-stuck pass is checked out once.
+
 **My Passes deep-link (2026-10-06):** Center My Passes nav opens the live pass (`CHECKED_IN`, today’s `ACTIVE`, or today’s `PENDING_PAYMENT`) at `/pass/[id]` when one exists; otherwise `/trips`. Sidebar uses the same href.
 
 **Limit pillars to jetty setting (2026-09-30):** Admin Ops toggle `limit_pillars_to_jetty` (default on). On: anglers only see/book pillars mapped to the boarding jetty (Sites → Pillars). Off: any AVAILABLE pillar from any jetty. Server `assertCanCreatePass` respects the flag. Existing jetty↔pillar mapping unchanged.
@@ -194,7 +198,8 @@ npx tsx --env-file=.env scripts/smoke-prd-pass.ts
 Password: `password123`
 
 - fisher@tiangpass.local (Angler)
-- handler@tiangpass.local / handler2@tiangpass.local (Operators)
+- handler@tiangpass.local / handler2@tiangpass.local / handler3@tiangpass.local (Operators)
+- handler-juru@tiangpass.local (Kuala Juru operator)
 - admin@tiangpass.local (Association Admin)
 - llm@tiangpass.local (LLM Viewer)
 - owner1@tiangpass.local … owner4 (boat owner logins)

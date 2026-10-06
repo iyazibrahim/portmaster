@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { runBoardingScan } from "@/lib/boarding-scan";
 import { clientIpFromHeaders, rateLimit } from "@/lib/rate-limit";
 import { clientSafeMessage } from "@/lib/http-security";
-import { boardingScanSchema } from "@/lib/validation/auth";
+import { parseBoardingScanBody } from "@/lib/validation/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const parsed = boardingScanSchema.safeParse(raw);
+    const parsed = parseBoardingScanBody(raw);
     if (!parsed.success) {
       return boardingJson(
         { ok: false, error: "Pass QR token required." },

@@ -9,11 +9,33 @@ const SECURITY_HEADERS: [string, string][] = [
   ["Strict-Transport-Security", "max-age=15552000; includeSubDomains"],
 ];
 
+function contentSecurityPolicy() {
+  const directives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self' https://checkout.stripe.com https://billing.stripe.com https://*.hit-pay.com",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "connect-src 'self' https://api.stripe.com https://checkout.stripe.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "media-src 'self' blob:",
+    "frame-src 'self' https://checkout.stripe.com https://js.stripe.com https://hooks.stripe.com",
+  ];
+  if (httpsPublicUrl()) directives.push("upgrade-insecure-requests");
+  return directives.join("; ");
+}
+
 function withSecurityHeaders(response: NextResponse) {
   for (const [key, value] of SECURITY_HEADERS) {
     if (key === "Strict-Transport-Security" && !httpsPublicUrl()) continue;
     response.headers.set(key, value);
   }
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy());
   return response;
 }
 

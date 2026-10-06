@@ -25,6 +25,7 @@ export default async function AdminSettingsPage() {
     maintenance_banner_text: map.maintenance_banner_text ?? "",
     require_jetty_geofence: map.require_jetty_geofence ?? "true",
     limit_pillars_to_jetty: map.limit_pillars_to_jetty ?? "true",
+    allow_multi_pass_per_day: map.allow_multi_pass_per_day ?? "false",
     payment_gateway: map.payment_gateway ?? "stripe",
     booking_window_copy: map.booking_window_copy ?? "",
     platform_commission_pct: map.platform_commission_pct ?? "20",

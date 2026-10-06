@@ -417,6 +417,10 @@ export function ScannerPanel({
   const [token, setToken] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resultNotice, setResultNotice] = useState<{
+    title: string;
+    detail: string;
+  } | null>(null);
   const [cameraHelpOpen, setCameraHelpOpen] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -810,9 +814,13 @@ export function ScannerPanel({
           }
         : p,
     );
-    toast.success(
-      result.action === "CHECK_IN" ? t("scan.queuedIn") : t("scan.queuedOut"),
-    );
+    const queuedTitle =
+      result.action === "CHECK_IN" ? t("scan.queuedIn") : t("scan.queuedOut");
+    setResultNotice({
+      title: queuedTitle,
+      detail: result.preview.reference,
+    });
+    toast.success(queuedTitle);
     setScanFlash(true);
     await new Promise((r) => window.setTimeout(r, 450));
     await readyForNextScan();
@@ -860,20 +868,21 @@ export function ScannerPanel({
             passId: res.passId,
             status: res.status,
           });
-          toast.success(
-            res.alreadyApplied
-              ? t("scan.alreadyRecorded")
-              : res.action === "CHECK_IN"
-                ? t("scan.checkedIn")
-                : t("scan.checkedOut"),
-          );
+          const title = res.alreadyApplied
+            ? t("scan.alreadyRecorded")
+            : res.action === "CHECK_IN"
+              ? t("scan.checkedIn")
+              : t("scan.checkedOut");
+          setResultNotice({ title, detail: res.reference });
+          toast.success(title);
           setScanFlash(true);
           await new Promise((r) => window.setTimeout(r, 450));
         } else {
           notifyBoardingUpdated();
-          toast.success(
-            res.action === "CHECK_IN" ? "Checked in (legacy)" : "Checked out",
-          );
+          const title =
+            res.action === "CHECK_IN" ? t("scan.checkedIn") : t("scan.checkedOut");
+          setResultNotice({ title, detail: res.bookingId });
+          toast.success(title);
           setScanFlash(true);
         }
         await readyForNextScan();
@@ -897,6 +906,7 @@ export function ScannerPanel({
     if (Date.now() < holdUntilRef.current) return;
     if (decoded === lastTokenRef.current) return;
     lastTokenRef.current = decoded;
+    setResultNotice(null);
     pauseDecoding();
     setToken(decoded);
     void loadPreview(decoded);
@@ -1339,6 +1349,13 @@ export function ScannerPanel({
           )}
         </CardContent>
       </Card>
+
+      {resultNotice ? (
+        <Alert>
+          <AlertTitle>{resultNotice.title}</AlertTitle>
+          <AlertDescription>{resultNotice.detail}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {error ? (
         <Alert variant="destructive">

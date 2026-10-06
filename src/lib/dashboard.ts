@@ -13,8 +13,11 @@ import {
 } from "@/db/schema";
 import {
   isOverdue,
+  isSoldPassStatus,
   remainingSlots,
+  SOLD_PASS_STATUSES,
 } from "@/domain/pass";
+import { repairDemoOpsData } from "@/lib/demo-data-repair";
 import {
   DEFAULT_OVERDUE_HOURS,
   todayMYT,
@@ -32,6 +35,7 @@ async function overdueHoursFromSettings() {
 }
 
 export async function getDashboardMetrics() {
+  await repairDemoOpsData();
   const validOn = todayMYT();
   const overdueHours = await overdueHoursFromSettings();
 
@@ -40,9 +44,7 @@ export async function getDashboardMetrics() {
     .from(passes)
     .where(eq(passes.validOn, validOn));
 
-  const sold = todayPasses.filter((p) =>
-    ["ACTIVE", "CHECKED_IN", "CHECKED_OUT"].includes(p.status),
-  );
+  const sold = todayPasses.filter((p) => isSoldPassStatus(p.status));
   const checkedIn = todayPasses.filter((p) => p.status === "CHECKED_IN");
   const returned = todayPasses.filter((p) => p.status === "CHECKED_OUT");
 
@@ -81,7 +83,11 @@ export async function getDashboardMetrics() {
     .from(payments)
     .innerJoin(passes, eq(payments.passId, passes.id))
     .where(
-      and(eq(passes.validOn, validOn), eq(payments.status, "PAID")),
+      and(
+        eq(passes.validOn, validOn),
+        eq(payments.status, "PAID"),
+        inArray(passes.status, [...SOLD_PASS_STATUSES]),
+      ),
     );
   const collectionCents = Number(paid[0]?.amount ?? 0);
 

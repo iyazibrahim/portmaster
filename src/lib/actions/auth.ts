@@ -10,6 +10,7 @@ import { signOut as authSignOut } from "@/lib/auth";
 import {
   authSessionCookieName,
   safeInternalPath,
+  SESSION_MAX_AGE_SEC,
   shouldUseSecureAuthCookies,
 } from "@/lib/auth-cookies";
 import { validateAnglerIdentity } from "@/domain/pass";
@@ -58,7 +59,6 @@ async function recordAuthAudit(input: Parameters<typeof writeAudit>[0]) {
   }
 }
 
-const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
 const RATE_WINDOW_MS = 60_000;
 
 export type LoginResult =

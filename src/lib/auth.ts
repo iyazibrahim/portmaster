@@ -2,7 +2,11 @@ import NextAuth from "next-auth";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { shouldUseSecureAuthCookies } from "@/lib/auth-cookies";
+import {
+  SESSION_MAX_AGE_SEC,
+  shouldUseSecureAuthCookies,
+} from "@/lib/auth-cookies";
+import { toPublicSession } from "@/lib/public-session";
 import {
   users,
   accounts,
@@ -50,7 +54,8 @@ export const { handlers, auth, signOut } = NextAuth({
   adapter: drizzleAdapter,
   session: {
     strategy: "database",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: SESSION_MAX_AGE_SEC,
+    updateAge: 60 * 60,
   },
   pages: {
     signIn: "/login",
@@ -60,21 +65,27 @@ export const { handlers, auth, signOut } = NextAuth({
   useSecureCookies: shouldUseSecureAuthCookies(),
   callbacks: {
     async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-        const role = (user as { role?: UserRole }).role;
-        if (role) {
-          session.user.role = role;
-        } else {
-          const [row] = await db
-            .select({ role: users.role })
-            .from(users)
-            .where(eq(users.id, user.id))
-            .limit(1);
-          session.user.role = row?.role ?? "USER";
-        }
+      let role = (user as { role?: UserRole }).role;
+      if (!role) {
+        const [row] = await db
+          .select({ role: users.role })
+          .from(users)
+          .where(eq(users.id, user.id))
+          .limit(1);
+        role = row?.role ?? "USER";
       }
-      return session;
+      // Database strategy spreads the session row and the full users row
+      // into this callback. Return only the fields the client may see.
+      return toPublicSession({
+        expires: session.expires,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role,
+        },
+      });
     },
   },
 });

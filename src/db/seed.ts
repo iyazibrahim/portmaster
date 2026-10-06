@@ -199,6 +199,7 @@ async function seed() {
   const handlerUserId = id("usr");
   const handlerUser2Id = id("usr");
   const handlerUser3Id = id("usr");
+  const handlerUser4Id = id("usr");
   const llmId = id("usr");
 
   const fisherIc = "900101145678";
@@ -294,6 +295,15 @@ async function seed() {
       passwordHash,
       role: "HANDLER",
       phone: "+601100000006",
+      citizenship: "MY",
+    },
+    {
+      id: handlerUser4Id,
+      name: "Juru Operator",
+      email: "handler-juru@tiangpass.local",
+      passwordHash,
+      role: "HANDLER",
+      phone: "+601100000019",
       citizenship: "MY",
     },
     {
@@ -500,6 +510,7 @@ async function seed() {
   const handler1Id = id("hdl");
   const handler2Id = id("hdl");
   const handler3Id = id("hdl");
+  const handler4Id = id("hdl");
 
   await db.insert(handlers).values([
     {
@@ -529,6 +540,15 @@ async function seed() {
       licenseNo: "PNG-H-1003",
       mockEarningsCents: 0,
     },
+    {
+      id: handler4Id,
+      userId: handlerUser4Id,
+      jettyId: juruId,
+      boatOwnerId: owner4Id,
+      displayName: "Juru Operator",
+      licenseNo: "PNG-H-1004",
+      mockEarningsCents: 0,
+    },
   ]);
 
   const permit = new Date();
@@ -542,8 +562,8 @@ async function seed() {
     { handlerId: handler2Id, ownerId: owner2Id, jettyId: jelutongId, name: "Jeti Biru", registration: "PNG-JL-202", capacity: 10 },
     { handlerId: handler3Id, ownerId: owner3Id, jettyId: peraiId, name: "Selatan 1", registration: "PNG-PR-301", capacity: 10 },
     { handlerId: handler3Id, ownerId: owner3Id, jettyId: peraiId, name: "Selatan 2", registration: "PNG-PR-302", capacity: 8 },
-    { handlerId: handler3Id, ownerId: owner4Id, jettyId: juruId, name: "Juru Express", registration: "PNG-JR-401", capacity: 6 },
-    { handlerId: handler3Id, ownerId: owner4Id, jettyId: juruId, name: "Kerang Star", registration: "PNG-JR-402", capacity: 8 },
+    { handlerId: handler4Id, ownerId: owner4Id, jettyId: juruId, name: "Juru Express", registration: "PNG-JR-401", capacity: 6 },
+    { handlerId: handler4Id, ownerId: owner4Id, jettyId: juruId, name: "Kerang Star", registration: "PNG-JR-402", capacity: 8 },
     { handlerId: handler2Id, ownerId: owner2Id, jettyId: jelutongId, name: "Gelugor Star", registration: "PNG-JL-203", capacity: 8, active: false },
   ] as const;
 
@@ -803,6 +823,7 @@ async function seed() {
     { key: "default_geofence_radius_m", value: "100" },
     { key: "require_jetty_geofence", value: "true" },
     { key: "limit_pillars_to_jetty", value: "true" },
+    { key: "allow_multi_pass_per_day", value: "false" },
     { key: "payment_gateway", value: "stripe" },
     { key: "it_settings_password_hash", value: itPasswordHash },
     { key: "qr_token_ttl_hours", value: "24" },
@@ -834,7 +855,7 @@ async function seed() {
   console.log("  admin@tiangpass.local");
   console.log("  fisher@tiangpass.local");
   console.log("  siti@tiangpass.local (Checked-In at Batu Uban)");
-  console.log("  handler@tiangpass.local / handler2@ / handler3@");
+  console.log("  handler@tiangpass.local / handler2@ / handler3@ / handler-juru@");
   console.log("  llm@tiangpass.local");
   console.log(`  Jetties: ${jettyRows.length} (${activeCount} active near Jambatan Pulau Pinang)`);
   console.log(`  Locations/pillars: ${locationRows.length}`);

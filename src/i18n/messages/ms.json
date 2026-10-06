@@ -287,6 +287,10 @@
   "pass.alreadyHavePillar": "Tiang semasa: {pillar}.",
   "pass.viewQr": "Lihat QR / resit",
   "pass.changeBeforeBoard": "Untuk memancing di bawah tiang lain, batalkan pas ini dan beli semula (yuran tidak dikembalikan). Tidak tersedia selepas daftar masuk.",
+  "pass.checkedInNoCancel": "Pas ini sudah didaftar masuk. Batal dan beli semula hanya tersedia sebelum daftar masuk.",
+  "pass.checkedOutSameDay": "Pas ini sudah didaftar keluar. Setiap pemancing boleh memegang satu pas sehari, jadi anda boleh beli lagi esok.",
+  "pass.retryPay": "Cuba bayaran semula",
+  "pass.retryExpired": "Tempahan ini telah tamat. Beli pas baharu.",
   "pass.status": "Status",
 
   "trips.title": "Pas saya",

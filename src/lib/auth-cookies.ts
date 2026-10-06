@@ -1,4 +1,10 @@
 /**
+ * Idle session lifetime. A stolen cookie stops working after one day
+ * instead of the previous 30-day cookie.
+ */
+export const SESSION_MAX_AGE_SEC = 24 * 60 * 60;
+
+/**
  * Auth.js only prefixes cookies with `__Secure-` when the public URL is HTTPS.
  * Docker local is NODE_ENV=production on http://127.0.0.1, so tying this to
  * NODE_ENV makes the browser drop the session cookie and bounce back to /login.

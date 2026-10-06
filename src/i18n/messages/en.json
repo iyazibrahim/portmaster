@@ -287,6 +287,10 @@
   "pass.alreadyHavePillar": "Current pillar: {pillar}.",
   "pass.viewQr": "View QR / receipt",
   "pass.changeBeforeBoard": "To fish under a different pillar, cancel this pass and buy again (fee non-refundable). Not available after check-in.",
+  "pass.checkedInNoCancel": "This pass is already checked in. Cancel and buy again is only available before check-in.",
+  "pass.checkedOutSameDay": "This pass is already checked out. Each angler can hold one pass per day, so you can buy again tomorrow.",
+  "pass.retryPay": "Try payment again",
+  "pass.retryExpired": "This reservation expired. Buy a new pass.",
   "pass.status": "Status",
 
   "trips.title": "My passes",

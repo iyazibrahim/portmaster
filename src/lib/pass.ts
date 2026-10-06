@@ -82,6 +82,16 @@ export async function isLimitPillarsToJetty() {
   return row?.value !== "false";
 }
 
+/** When true, any angler can buy more than one pass on the same day. Missing key = one pass. */
+export async function isMultiPassPerDayEnabled() {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, "allow_multi_pass_per_day"))
+    .limit(1);
+  return row?.value === "true";
+}
+
 /**
  * Live pass for nav deep-link: CHECKED_IN (incl. overnight), else today's ACTIVE,
  * else today's PENDING_PAYMENT. Null → My Passes goes to the list.
@@ -328,7 +338,10 @@ export async function createPassPendingPayment(input: {
     validOn,
     pillar.maxOccupancy,
   );
-  const limitPillarsToJetty = await isLimitPillarsToJetty();
+  const [limitPillarsToJetty, multiPassPerDay] = await Promise.all([
+    isLimitPillarsToJetty(),
+    isMultiPassPerDayEnabled(),
+  ]);
   const rules = assertCanCreatePass({
     accountStatus: user.accountStatus,
     existingSameDayStatuses: existing.map((e) => e.status),
@@ -338,7 +351,8 @@ export async function createPassPendingPayment(input: {
     occupancy,
     maxOccupancy: pillar.maxOccupancy,
     validOn,
-    allowMultipleSameDay: canBuyMultiplePassesToday(user.email),
+    allowMultipleSameDay:
+      multiPassPerDay || canBuyMultiplePassesToday(user.email),
     limitPillarsToJetty,
   });
   if (!rules.ok) throw new Error(rules.error);

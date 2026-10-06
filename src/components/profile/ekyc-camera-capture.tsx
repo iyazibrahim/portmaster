@@ -26,8 +26,8 @@ type Props = {
 };
 
 /**
- * Live camera capture only — no file upload.
- * User aligns face in the oval guide, then snaps.
+ * Identity photo from the camera, or a JPEG/PNG/WebP file when the camera
+ * is unavailable. The server still re-encodes the image.
  */
 export function EkycCameraCapture({
   open,
@@ -37,6 +37,7 @@ export function EkycCameraCapture({
 }: Props) {
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -133,6 +134,46 @@ export function EkycCameraCapture({
     window.setTimeout(() => onOpenChange(true), 50);
   }
 
+  async function onFile(file: File) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("Choose a JPEG, PNG, or WebP photo.");
+      return;
+    }
+    setProcessing(true);
+    setError(null);
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("Could not read that photo."));
+        el.src = url;
+      });
+      const size = Math.min(img.naturalWidth, img.naturalHeight) || 480;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not read that photo.");
+      const sx = Math.max(0, (img.naturalWidth - size) / 2);
+      const sy = Math.max(0, (img.naturalHeight - size) / 2);
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
+      const { compressEkycCanvas } = await import("@/lib/ekyc-compress");
+      const compressed = await compressEkycCanvas(canvas);
+      await onCapture({
+        base64: compressed.base64,
+        mimeType: compressed.mimeType,
+        previewUrl: compressed.previewUrl,
+      });
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not use that photo.");
+    } finally {
+      URL.revokeObjectURL(url);
+      setProcessing(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md gap-4 sm:max-w-lg">
@@ -141,8 +182,8 @@ export function EkycCameraCapture({
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Align your face inside the oval. Photos must be taken live — file
-            upload is not allowed.
+            Align your face inside the oval, or upload a JPEG, PNG, or WebP
+            photo if the camera is unavailable.
           </p>
           <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-xl bg-zinc-900">
             <video
@@ -185,6 +226,17 @@ export function EkycCameraCapture({
           >
             Cancel
           </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void onFile(file);
+            }}
+          />
           <div className="flex gap-2">
             {error ? (
               <Button
@@ -197,6 +249,15 @@ export function EkycCameraCapture({
                 Retry camera
               </Button>
             ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              disabled={processing}
+              onClick={() => fileRef.current?.click()}
+            >
+              Upload photo
+            </Button>
             <Button
               type="button"
               className="min-h-11"

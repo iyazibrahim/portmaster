@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { requireRole } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, locations, passes, payments, users } from "@/db/schema";
 import { PaymentsTable } from "@/components/admin/payments-table";
+import { SOLD_PASS_STATUSES } from "@/domain/pass";
 import { formatMYR, todayMYT } from "@/lib/utils-app";
 import { getTranslator } from "@/i18n";
 
@@ -44,6 +45,7 @@ export default async function AdminPaymentsPage({
       paidAt: payments.paidAt,
       createdAt: payments.createdAt,
       reference: passes.reference,
+      passStatus: passes.status,
       angler: users.name,
       jettyName: jetties.name,
       pillarName: locations.name,
@@ -68,6 +70,7 @@ export default async function AdminPaymentsPage({
     .where(
       and(
         eq(payments.status, "PAID"),
+        inArray(passes.status, [...SOLD_PASS_STATUSES]),
         gte(payments.paidAt, new Date(`${monthStart}T00:00:00+08:00`)),
         jettyClause,
       ),
@@ -83,6 +86,7 @@ export default async function AdminPaymentsPage({
     .where(
       and(
         eq(payments.status, "PAID"),
+        inArray(passes.status, [...SOLD_PASS_STATUSES]),
         gte(payments.paidAt, new Date(`${today}T00:00:00+08:00`)),
         lte(payments.paidAt, new Date(`${today}T23:59:59.999+08:00`)),
         jettyClause,
@@ -91,7 +95,7 @@ export default async function AdminPaymentsPage({
 
   const [statusCounts] = await db
     .select({
-      paid: sql<number>`coalesce(sum(case when ${payments.status} = 'PAID' then 1 else 0 end), 0)`,
+      paid: sql<number>`coalesce(sum(case when ${payments.status} = 'PAID' and ${passes.status} in ('ACTIVE', 'CHECKED_IN', 'CHECKED_OUT') then 1 else 0 end), 0)`,
       pending: sql<number>`coalesce(sum(case when ${payments.status} = 'PENDING' then 1 else 0 end), 0)`,
       failed: sql<number>`coalesce(sum(case when ${payments.status} = 'FAILED' then 1 else 0 end), 0)`,
     })
@@ -162,7 +166,7 @@ export default async function AdminPaymentsPage({
           passRef: r.reference,
           amountCents: r.amountCents,
           method: methodLabel(r.provider),
-          status: r.status,
+          status: r.passStatus === "CANCELLED" ? "CANCELLED" : r.status,
         }))}
       />
     </div>

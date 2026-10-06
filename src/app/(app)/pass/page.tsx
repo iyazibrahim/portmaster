@@ -10,6 +10,7 @@ import {
   listOpenPillarsForJetty,
   isJettyGeofenceRequired,
   isLimitPillarsToJetty,
+  isMultiPassPerDayEnabled,
 } from "@/lib/pass";
 import { getActiveGateway, getConfiguredGatewaySetting } from "@/lib/payments/provider";
 import { normalizeGatewaySetting } from "@/lib/payments/config";
@@ -29,7 +30,9 @@ type PillarOption = {
 export default async function PassPage() {
   const session = await requireRole(["USER", "ADMIN"]);
   const { t } = await getTranslator();
-  const allowMultipleSameDay = canBuyMultiplePassesToday(session.user.email);
+  const allowMultipleSameDay =
+    canBuyMultiplePassesToday(session.user.email) ||
+    (await isMultiPassPerDayEnabled());
   const bypassGeofence =
     canBypassPassGeofence(session.user.email) ||
     !(await isJettyGeofenceRequired());

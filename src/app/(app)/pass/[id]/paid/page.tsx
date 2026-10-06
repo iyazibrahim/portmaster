@@ -12,6 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { isReservationExpired } from "@/domain/pass";
 import { confirmStripeCheckoutReturn } from "@/lib/pass";
 import { hasStripeKeys } from "@/lib/payments/config";
+import { getActiveGateway } from "@/lib/payments/provider";
+import { PassRetryPayment } from "@/components/pass/pass-retry-payment";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +80,8 @@ export default async function PassPaidPage({
     redirect(`/pass/${pass.id}`);
   }
 
+  const gateway =
+    pass.status === "PENDING_PAYMENT" ? await getActiveGateway() : null;
   const returnStatus = (qs.status ?? "").toLowerCase();
   const expired = isReservationExpired(pass.reservedUntil);
   const cancelled =
@@ -116,6 +120,14 @@ export default async function PassPaidPage({
           <AlertDescription>{t("pass.paid.confirmingBody")}</AlertDescription>
         </Alert>
       )}
+
+      {gateway && !expired ? (
+        <PassRetryPayment
+          passId={pass.id}
+          expired={false}
+          gateway={gateway}
+        />
+      ) : null}
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <Link

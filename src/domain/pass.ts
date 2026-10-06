@@ -227,6 +227,17 @@ export function canCancelPass(current: PassStatus): boolean {
   return current === "ACTIVE" || current === "PENDING_PAYMENT";
 }
 
+/** Paid passes that count as a sale. Cancelled and unpaid holds do not. */
+export const SOLD_PASS_STATUSES = [
+  "ACTIVE",
+  "CHECKED_IN",
+  "CHECKED_OUT",
+] as const satisfies readonly PassStatus[];
+
+export function isSoldPassStatus(status: string): boolean {
+  return (SOLD_PASS_STATUSES as readonly string[]).includes(status);
+}
+
 export function isOverdue(
   checkedInAt: Date | null | undefined,
   overdueHours: number,

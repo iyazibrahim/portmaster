@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/session";
 import { db } from "@/db";
 import { jetties, locations, payments, passes, settings } from "@/db/schema";
 import { getActiveQrToken } from "@/lib/pass";
-import { shouldRemindSelfCheckOut } from "@/domain/pass";
+import { isReservationExpired, shouldRemindSelfCheckOut } from "@/domain/pass";
 import { StatusBadge } from "@/components/status-badge";
 import {
   DEFAULT_OVERDUE_HOURS,
@@ -25,6 +25,8 @@ import { SoftLiveRefresh } from "@/components/soft-live-refresh";
 import { getTranslator } from "@/i18n";
 import { confirmStripeCheckoutReturn } from "@/lib/pass";
 import { hasStripeKeys } from "@/lib/payments/config";
+import { getActiveGateway } from "@/lib/payments/provider";
+import { PassRetryPayment } from "@/components/pass/pass-retry-payment";
 
 export const dynamic = "force-dynamic";
 
@@ -134,6 +136,8 @@ export default async function PassDetailPage({
   });
 
   const qr = await getActiveQrToken(pass.id);
+  const gateway =
+    pass.status === "PENDING_PAYMENT" ? await getActiveGateway() : null;
   // Never dump raw Stripe/HitPay ids into the angler UI (breaks layout).
   const paymentLabel = payment
     ? [
@@ -212,6 +216,14 @@ export default async function PassDetailPage({
               />
             ) : null}
           </dl>
+
+          {gateway ? (
+            <PassRetryPayment
+              passId={pass.id}
+              expired={isReservationExpired(pass.reservedUntil)}
+              gateway={gateway}
+            />
+          ) : null}
 
           <PassDetailActions
             passId={pass.id}
